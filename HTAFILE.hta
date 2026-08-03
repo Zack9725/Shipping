@@ -2,6 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
 <title>QuickSlip</title>
 
 <!--
@@ -48,40 +49,13 @@
    inside the Trident/MSHTML engine mshta.exe uses.
    ============================================================ */
 
-:root {
-  --bg: #1e1e1e;
-  --panel: #252526;
-  --panel-alt: #2d2d30;
-  --border: #3c3c3c;
-  --border-soft: #333333;
-  --text: #d4d4d4;
-  --text-dim: #9d9d9d;
-  --text-faint: #6a6a6a;
-
-  --accent: #007acc;
-  --accent-hover: #1a8ad4;
-  --accent-soft: rgba(0, 122, 204, 0.12);
-
-  --success: #4ec9b0;
-  --warn: #d7ba7d;
-  --danger: #f14c4c;
-  --danger-soft: rgba(241, 76, 76, 0.1);
-
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-
-  --font-ui: "Segoe UI", Tahoma, Arial, sans-serif;
-  --font-mono: "Consolas", "Courier New", monospace;
-}
-
 * { box-sizing: border-box; }
 
 html, body {
   margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-ui);
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
   line-height: 1.5;
 }
 
@@ -92,14 +66,14 @@ html, body {
   align-items: center;
   justify-content: space-between;
   padding: 16px 24px;
-  border-bottom: 1px solid var(--border);
-  background: var(--panel);
+  border-bottom: 1px solid #3c3c3c;
+  background: #252526;
 }
 
 .brand { display: flex; align-items: center; gap: 12px; }
-.brand-mark { color: var(--accent); font-size: 20px; }
+.brand-mark { color: #007acc; font-size: 20px; }
 .brand-text h1 { margin: 0; font-size: 16px; font-weight: 600; }
-.brand-text p { margin: 2px 0 0; font-size: 11.5px; color: var(--text-dim); }
+.brand-text p { margin: 2px 0 0; font-size: 11.5px; color: #9d9d9d; }
 
 /* ============ Layout (flex, not grid — HTA-safe) ============ */
 
@@ -118,7 +92,7 @@ html, body {
   font-size: 11.5px;
   text-transform: uppercase;
   letter-spacing: 1.1px;
-  color: var(--text-faint);
+  color: #6a6a6a;
   margin: 2px 0 12px;
   font-weight: 600;
 }
@@ -126,9 +100,9 @@ html, body {
 /* ============ Card ============ */
 
 .card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  background: #252526;
+  border: 1px solid #3c3c3c;
+  border-radius: 14px;
   padding: 16px 16px 12px;
   margin-bottom: 16px;
 }
@@ -137,38 +111,39 @@ html, body {
   margin: 0 0 10px;
   font-size: 13px;
   font-weight: 600;
-  color: var(--text);
+  color: #d4d4d4;
 }
 
-.card-hint { margin: -4px 0 10px; font-size: 11.5px; color: var(--text-faint); }
+.card-hint { margin: -4px 0 10px; font-size: 11.5px; color: #6a6a6a; }
 
 /* ============ Fields ============ */
 
 .field { margin-bottom: 12px; }
 .field:last-child { margin-bottom: 4px; }
-.field label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 5px; }
+.field label { display: block; font-size: 12px; color: #9d9d9d; margin-bottom: 5px; }
 .field-row { display: flex; gap: 12px; }
 .field-qty { flex: 0 0 90px; }
 .field-unit { flex: 1; }
 
 input[type="text"], input[type="number"] {
   width: 100%;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-family: var(--font-mono);
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  color: #d4d4d4;
+  font-family: "Consolas", "Courier New", monospace;
   font-size: 13px;
   padding: 8px 10px;
-  border-radius: var(--radius-sm);
+  border-radius: 6px;
   outline: none;
 }
 
 input[type="text"]:focus, input[type="number"]:focus {
-  border-color: var(--accent);
+  border-color: #007acc;
 }
 
-input::-webkit-input-placeholder { color: var(--text-faint); }
-input::placeholder { color: var(--text-faint); }
+input::-webkit-input-placeholder { color: #6a6a6a; }
+input:-ms-input-placeholder { color: #6a6a6a; }
+input::placeholder { color: #6a6a6a; }
 
 /* ============ Unit radio pills ============ */
 
@@ -179,14 +154,14 @@ input::placeholder { color: var(--text-faint); }
   display: inline-block;
   padding: 7px 13px;
   border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--bg);
+  border: 1px solid #3c3c3c;
+  background: #1e1e1e;
   font-size: 12px;
-  color: var(--text-dim);
+  color: #9d9d9d;
 }
 .radio-pill input[type="radio"]:checked + span {
-  background: var(--accent-soft);
-  border-color: var(--accent);
+  background: rgba(0, 122, 204, 0.12);
+  border-color: #007acc;
   color: #ffffff;
 }
 
@@ -198,42 +173,42 @@ input::placeholder { color: var(--text-faint); }
   display: flex;
   align-items: center;
   gap: 4px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  border-radius: 6px;
   padding: 3px 3px 3px 6px;
 }
 
-.pickslip-row.drag-over { border-color: var(--accent); }
+.pickslip-row.drag-over { border-color: #007acc; }
 
-.drag-handle { color: var(--text-faint); cursor: move; font-size: 13px; padding: 0 2px; }
+.drag-handle { color: #6a6a6a; cursor: move; font-size: 13px; padding: 0 2px; }
 
 .pickslip-row input[type="text"] { border: none; background: transparent; padding: 7px 4px; flex: 1; min-width: 0; }
 
 .row-btn {
   background: transparent;
   border: none;
-  color: var(--text-dim);
+  color: #9d9d9d;
   cursor: pointer;
   font-size: 13px;
   padding: 5px 6px;
-  border-radius: var(--radius-sm);
+  border-radius: 6px;
 }
 
-.row-btn.delete-btn:hover { background: var(--danger-soft); color: var(--danger); }
+.row-btn.delete-btn:hover { background: rgba(241, 76, 76, 0.1); color: #f14c4c; }
 
 /* ============ Copy buttons ============ */
 
 .copy-btn {
   background: transparent;
   border: 1px solid transparent;
-  color: var(--text-dim);
+  color: #9d9d9d;
   cursor: pointer;
   font-size: 13px;
   padding: 6px 8px;
-  border-radius: var(--radius-sm);
+  border-radius: 6px;
 }
-.copy-btn:hover { background: var(--accent-soft); border-color: var(--accent); color: #ffffff; }
+.copy-btn:hover { background: rgba(0, 122, 204, 0.12); border-color: #007acc; color: #ffffff; }
 
 .input-with-copy { display: flex; gap: 6px; }
 .input-with-copy input { flex: 1; }
@@ -245,48 +220,48 @@ input::placeholder { color: var(--text-faint); }
   align-items: center;
   gap: 8px;
   padding: 9px 0;
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid #333333;
 }
 .output-row:last-child { border-bottom: none; }
 
-.output-label { flex: 0 0 128px; font-size: 11.5px; color: var(--text-dim); }
+.output-label { flex: 0 0 128px; font-size: 11.5px; color: #9d9d9d; }
 
 .output-value {
   flex: 1;
-  font-family: var(--font-mono);
+  font-family: "Consolas", "Courier New", monospace;
   font-size: 12.5px;
-  color: var(--success);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  color: #4ec9b0;
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  border-radius: 6px;
   padding: 7px 9px;
   overflow-x: auto;
   white-space: nowrap;
 }
-.output-value.is-empty { color: var(--text-faint); }
+.output-value.is-empty { color: #6a6a6a; }
 .output-value-folder { font-size: 13px; font-weight: 500; }
 
 /* ============ Buttons (general) ============ */
 
 .btn {
   display: inline-block;
-  font-family: var(--font-ui);
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
   font-size: 12px;
   font-weight: 600;
-  border-radius: var(--radius-sm);
+  border-radius: 6px;
   padding: 8px 14px;
   cursor: pointer;
-  border: 1px solid var(--border);
+  border: 1px solid #3c3c3c;
   background: transparent;
-  color: var(--text-dim);
+  color: #9d9d9d;
 }
-.btn-danger-ghost:hover { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
-.btn-primary { background: var(--accent); border-color: var(--accent); color: #ffffff; }
-.btn-primary:hover { background: var(--accent-hover); }
+.btn-danger-ghost:hover { background: rgba(241, 76, 76, 0.1); border-color: #f14c4c; color: #f14c4c; }
+.btn-primary { background: #007acc; border-color: #007acc; color: #ffffff; }
+.btn-primary:hover { background: #1a8ad4; }
 .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
-.btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
-.btn-secondary:hover { border-color: var(--accent); color: #ffffff; background: var(--accent-soft); }
-.btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
+.btn-secondary { background: transparent; border: 1px solid #3c3c3c; color: #d4d4d4; }
+.btn-secondary:hover { border-color: #007acc; color: #ffffff; background: rgba(0, 122, 204, 0.12); }
+.btn-ghost { background: transparent; border: 1px solid #3c3c3c; color: #9d9d9d; }
 
 /* ============ File Sorter section ============ */
 
@@ -294,20 +269,20 @@ input::placeholder { color: var(--text-faint); }
 
 .badge-hta {
   font-size: 10px;
-  background: var(--accent-soft);
+  background: rgba(0, 122, 204, 0.12);
   color: #ffffff;
   padding: 2px 8px;
   border-radius: 999px;
   margin-left: 8px;
-  border: 1px solid var(--accent);
+  border: 1px solid #007acc;
 }
 
 .hta-disabled-note {
   font-size: 11.5px;
-  color: var(--danger);
-  background: var(--danger-soft);
-  border: 1px solid var(--danger);
-  border-radius: var(--radius-sm);
+  color: #f14c4c;
+  background: rgba(241, 76, 76, 0.1);
+  border: 1px solid #f14c4c;
+  border-radius: 6px;
   padding: 8px 10px;
   margin-bottom: 14px;
   display: none;
@@ -318,36 +293,36 @@ input::placeholder { color: var(--text-faint); }
 .workdir-path {
   flex: 1;
   min-width: 220px;
-  font-family: var(--font-mono);
+  font-family: "Consolas", "Courier New", monospace;
   font-size: 12px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  border-radius: 6px;
   padding: 8px 10px;
-  color: var(--text-faint);
+  color: #6a6a6a;
   overflow-x: auto;
   white-space: nowrap;
 }
-.workdir-path.is-set { color: var(--text); }
+.workdir-path.is-set { color: #d4d4d4; }
 
 .dropzone-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
 
 .dropzone {
   flex: 1 1 220px;
-  border: 1.5px dashed var(--border);
-  border-radius: var(--radius-md);
+  border: 1.5px dashed #3c3c3c;
+  border-radius: 10px;
   padding: 12px;
   text-align: center;
-  background: var(--bg);
+  background: #1e1e1e;
   cursor: pointer;
   position: relative;
 }
-.dropzone.drag-active { border-color: var(--accent); background: var(--accent-soft); }
-.dropzone.has-file { border-style: solid; border-color: var(--success); }
+.dropzone.drag-active { border-color: #007acc; background: rgba(0, 122, 204, 0.12); }
+.dropzone.has-file { border-style: solid; border-color: #4ec9b0; }
 
-.dropzone-label { font-size: 11px; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
-.dropzone-file { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-faint); word-break: break-all; }
-.dropzone-file.filled { color: var(--success); }
+.dropzone-label { font-size: 11px; color: #9d9d9d; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.dropzone-file { font-family: "Consolas", "Courier New", monospace; font-size: 11.5px; color: #6a6a6a; word-break: break-all; }
+.dropzone-file.filled { color: #4ec9b0; }
 
 .dropzone-clear {
   position: absolute;
@@ -355,7 +330,7 @@ input::placeholder { color: var(--text-faint); }
   right: 6px;
   background: transparent;
   border: none;
-  color: var(--text-faint);
+  color: #6a6a6a;
   font-size: 11px;
   cursor: pointer;
   display: none;
@@ -365,22 +340,22 @@ input::placeholder { color: var(--text-faint); }
 .filesorter-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
 
 .sorter-log {
-  font-family: var(--font-mono);
+  font-family: "Consolas", "Courier New", monospace;
   font-size: 11.5px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  border-radius: 6px;
   padding: 10px 12px;
   max-height: 160px;
   overflow-y: auto;
-  color: var(--text-dim);
+  color: #9d9d9d;
   display: none;
 }
 .sorter-log.show { display: block; }
 .log-line { padding: 2px 0; }
-.log-line.ok { color: var(--success); }
-.log-line.err { color: var(--danger); }
-.log-line.warn { color: var(--warn); }
+.log-line.ok { color: #4ec9b0; }
+.log-line.err { color: #f14c4c; }
+.log-line.warn { color: #d7ba7d; }
 
 /* ============ Toast ============ */
 
@@ -396,7 +371,7 @@ input::placeholder { color: var(--text-faint); }
   font-size: 12.5px;
   font-weight: 600;
   padding: 9px 12px;
-  border-radius: var(--radius-md);
+  border-radius: 10px;
   opacity: 0;
   display: none;
   z-index: 100;
@@ -489,7 +464,7 @@ input::placeholder { color: var(--text-faint); }
         </div>
 
         <div class="field">
-          <label for="ediBol">EDI / BOL <span style="color:var(--text-faint);">(optional)</span></label>
+          <label for="ediBol">EDI / BOL <span style="color:#6a6a6a;">(optional)</span></label>
           <div class="input-with-copy">
             <input type="text" id="ediBol" placeholder="EDI / BOL number" autocomplete="off">
             <button class="copy-btn" data-copy-target="ediBol" title="Copy EDI / BOL">&#128203;</button>
@@ -853,7 +828,7 @@ function buildPickSlipRow(value, index, isLastRow) {
   copyBtn.className = "row-btn copy-btn";
   copyBtn.innerHTML = "&#128203;";
   copyBtn.title = "Copy this pick slip";
-  copyBtn.type = "button";
+  copyBtn.setAttribute("type", "button");
   row.appendChild(copyBtn);
 
   if (!isLastRow) {
@@ -861,7 +836,7 @@ function buildPickSlipRow(value, index, isLastRow) {
     delBtn.className = "row-btn delete-btn";
     delBtn.innerHTML = "&#10005;";
     delBtn.title = "Remove this row";
-    delBtn.type = "button";
+    delBtn.setAttribute("type", "button");
     row.appendChild(delBtn);
   }
 

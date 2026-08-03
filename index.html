@@ -6,11 +6,10 @@
 <title>Made By Zack</title>
 <style>
 /* ============================================================
-   QuickSlip — VS Code inspired dark theme
+   QuickSlip to be named
    ============================================================ */
 
 :root {
-  /* Core palette — lifted from a VS Code dark editor */
   --bg: #1e1e1e;
   --panel: #252526;
   --panel-alt: #2d2d30;
@@ -204,7 +203,7 @@ input[type="number"]::-webkit-outer-spin-button {
   opacity: 0.5;
 }
 
-/* ============ Unit radio pills ============ */
+/* ============ Type [radio] ============ */
 
 .radio-group {
   display: flex;
@@ -455,7 +454,7 @@ input[type="number"]::-webkit-outer-spin-button {
   transform: translateX(-50%) translateY(0);
 }
 
-/* ============ Scrollbar (webkit) ============ */
+/* ============ Scrollbar ============ */
 
 ::-webkit-scrollbar {
   width: 10px;
@@ -622,9 +621,7 @@ input[type="number"]::-webkit-outer-spin-button {
 (() => {
   "use strict";
 
-  /* ----------------------------------------------------------
-     Constants
-  ---------------------------------------------------------- */
+  /* ---- Constants ---- */
 
   const STORAGE_KEY = "quickslip_state_v1";
 
@@ -634,9 +631,20 @@ input[type="number"]::-webkit-outer-spin-button {
     Pallet: "Pallets",
   };
 
-  /* ----------------------------------------------------------
-     DOM references
-  ---------------------------------------------------------- */
+  const uppercaseFields = [
+    "destination",
+    "pn"
+];
+
+uppercaseFields.forEach(id => {
+    const field = document.getElementById(id);
+
+    field.addEventListener("input", function() {
+        this.value = this.value.toUpperCase();
+    });
+});
+
+  /* ---- DOM references ---- */
 
   const dom = {
     destination: document.getElementById("destination"),
@@ -668,22 +676,7 @@ input[type="number"]::-webkit-outer-spin-button {
 
   let dragFromIndex = null;
 
-  /* ----------------------------------------------------------
-     Persistence (localStorage)
-  ---------------------------------------------------------- */
-
-  const uppercaseFields = [
-    "destination",
-    "pn"
-];
-
-uppercaseFields.forEach(id => {
-    const field = document.getElementById(id);
-
-    field.addEventListener("input", function() {
-        this.value = this.value.toUpperCase();
-    });
-});
+  /* ---- localStorage ---- */
   
   function saveState() {
     try {
@@ -711,14 +704,8 @@ uppercaseFields.forEach(id => {
     }
   }
 
-  /* ----------------------------------------------------------
-     Helpers — parsing & formatting
-  ---------------------------------------------------------- */
+  /* ---- Helpers — parsing & formatting ---- */
 
-  /**
-   * Split pasted text into individual pick slip tokens.
-   * Accepts newline, comma, or whitespace separated input.
-   */
   function splitPastedTokens(text) {
     return text
       .split(/[\n\r,]+|\s+/)
@@ -726,20 +713,10 @@ uppercaseFields.forEach(id => {
       .filter(Boolean);
   }
 
-  /**
-   * Returns the non-empty, trimmed pick slip values in current row order.
-   */
   function getActivePickSlips() {
     return state.pickSlips.map((v) => v.trim()).filter(Boolean);
   }
 
-  /**
-   * Core rule engine for the hidden ComputedPickSlip value.
-   *  - 0 values  -> ""
-   *  - 1 value   -> that value
-   *  - 2+ values, purely numeric & perfectly consecutive -> "min-max"
-   *  - otherwise -> comma separated list ("no partial ranges" rule)
-   */
   function computePickSlip(values) {
     if (values.length === 0) return "";
     if (values.length === 1) return values[0];
@@ -766,16 +743,11 @@ uppercaseFields.forEach(id => {
       return values.join(",");
     }
 
-    // Preserve the original string formatting (e.g. leading zeros) of the
-    // min/max entries rather than re-stringifying the parsed integers.
     const minIndex = asNumbers.indexOf(sorted[0]);
     const maxIndex = asNumbers.indexOf(sorted[sorted.length - 1]);
     return `${values[minIndex]}-${values[maxIndex]}`;
   }
 
-  /**
-   * Pluralize the selected unit based on qty.
-   */
   function pluralizedUnit(qty, unit) {
     const base = UNIT_PLURALS[unit] ? unit : "Carton";
     const n = parseInt(qty, 10);
@@ -783,9 +755,7 @@ uppercaseFields.forEach(id => {
     return UNIT_PLURALS[base];
   }
 
-  /* ----------------------------------------------------------
-     Rendering — Pick Slip rows
-  ---------------------------------------------------------- */
+  /* ---- Rendering — Pick Slip rows ---- */
 
   function renderPickSlipRows() {
     dom.pickSlipList.innerHTML = "";
@@ -819,15 +789,17 @@ uppercaseFields.forEach(id => {
     input.autocomplete = "off";
     row.appendChild(input);
 
-    // Copy button
+    // Copy button — hidden on empty row
+    if (!isLastRow) {
     const copyBtn = document.createElement("button");
     copyBtn.className = "row-btn copy-btn";
     copyBtn.textContent = "📋";
     copyBtn.title = "Copy this pick slip";
     copyBtn.type = "button";
     row.appendChild(copyBtn);
+    }
 
-    // Delete button — hidden on the trailing empty row
+    // Delete button — hidden on empty row
     if (!isLastRow) {
       const delBtn = document.createElement("button");
       delBtn.className = "row-btn delete-btn";
@@ -918,9 +890,7 @@ uppercaseFields.forEach(id => {
     recalculate();
   }
 
-  /* ----------------------------------------------------------
-     Pick Slip input handling
-  ---------------------------------------------------------- */
+  /* ---- Pick Slip input handling ---- */
 
   function handlePickSlipInput(e) {
     const idx = Number(e.target.dataset.index);
@@ -929,11 +899,11 @@ uppercaseFields.forEach(id => {
     const isLastRow = idx === state.pickSlips.length - 1;
     const hasValue = e.target.value.trim().length > 0;
 
-    // Grow the list when the trailing empty row receives its first input
+    //tambah list row kalau dapat 1st input dkat last row
     if (isLastRow && hasValue) {
       state.pickSlips.push("");
       renderPickSlipRows();
-      // restore focus to the row the user was actually typing in
+      // auto focus dkat box yng tngh type
       focusRowInput(idx);
     }
 
@@ -952,11 +922,12 @@ uppercaseFields.forEach(id => {
     e.preventDefault();
     const idx = Number(e.target.dataset.index);
 
-    // First token fills the current row, the rest are inserted after it
+    //idk but shit's broken when not here HAHAHA #KEEP IT THAT WAY!
     state.pickSlips.splice(idx, 1, ...tokens);
     ensureTrailingEmptyRow();
     renderPickSlipRows();
     recalculate();
+    //unknown shit end here #KEEP! DONT CLEAR
   }
 
   function ensureTrailingEmptyRow() {
@@ -982,9 +953,7 @@ uppercaseFields.forEach(id => {
     }
   }
 
-  /* ----------------------------------------------------------
-     Clipboard + toast
-  ---------------------------------------------------------- */
+  /* ---- Clipboard + toast ---- */
 
   let toastTimer = null;
 
@@ -1003,7 +972,7 @@ uppercaseFields.forEach(id => {
       await navigator.clipboard.writeText(text);
       showToast("Copied!");
     } catch (err) {
-      // Fallback for environments without Clipboard API permission
+      // Fallback for environments without Clipboard API permission (Defensive coding 101)
       fallbackCopy(text);
     }
   }
@@ -1025,9 +994,7 @@ uppercaseFields.forEach(id => {
     }
   }
 
-  /* ----------------------------------------------------------
-     Recalculate — the single source of truth for every output
-  ---------------------------------------------------------- */
+  /* ---- Recalculate — the single source of truth for every output ---- */
 
   function recalculate() {
     const computedPickSlip = computePickSlip(getActivePickSlips());
@@ -1153,9 +1120,7 @@ uppercaseFields.forEach(id => {
     });
   }
 
-  /* ----------------------------------------------------------
-     Hydrate simple inputs from state (used on load & clear all)
-  ---------------------------------------------------------- */
+  /* ---- used on load & clear all ---- */
 
   function hydrateFieldsFromState() {
     dom.destination.value = state.destination;
@@ -1170,9 +1135,7 @@ uppercaseFields.forEach(id => {
     });
   }
 
-  /* ----------------------------------------------------------
-     Init
-  ---------------------------------------------------------- */
+  /* ---- Init ----*/
 
   function init() {
     loadState();

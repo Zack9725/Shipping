@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Made By Zack</title>
+<style>
+/* ============================================================
+   QuickSlip to be named
+   ============================================================ */
+
+:root {
+  --bg: #1e1e1e;
+  --panel: #252526;
+  --panel-alt: #2d2d30;
+  --border: #3c3c3c;
+  --border-soft: #333333;
+  --text: #d4d4d4;
+  --text-dim: #9d9d9d;
+  --text-faint: #6a6a6a;
+
+  --accent: #007acc;
+  --accent-hover: #1a8ad4;
+  --accent-soft: rgba(0, 122, 204, 0.12);
+
+  --success: #4ec9b0;
+  --danger: #f14c4c;
+  --danger-soft: rgba(241, 76, 76, 0.1);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Ubuntu, sans-serif;
+  --font-mono: "Cascadia Code", "Consolas", "SFMono-Regular", Menlo, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ============ Header ============ */
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 28px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-mark {
+  color: var(--accent);
+  font-size: 22px;
+  transform: translateY(-1px);
+}
+
+.brand-text h1 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.brand-text p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* ============ Layout ============ */
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  padding: 24px 28px 60px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+@media (max-width: 860px) {
+  .layout {
+    grid-template-columns: 1fr;
+    padding: 18px 16px 48px;
+  }
+  .app-header {
+    padding: 14px 16px;
+  }
+}
+
+.column-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--text-faint);
+  margin: 4px 0 14px;
+  font-weight: 600;
+}
+
+/* ============ Card ============ */
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 18px 14px;
+  margin-bottom: 18px;
+}
+
+.card-title {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.card-hint {
+  margin: -6px 0 12px;
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
+/* ============ Fields ============ */
+
+.field {
+  margin-bottom: 14px;
+}
+
+.field:last-child {
+  margin-bottom: 4px;
+}
+
+.field label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+.field-row {
+  display: flex;
+  gap: 14px;
+}
+
+.field-qty {
+  flex: 0 0 90px;
+}
+
+.field-unit {
+  flex: 1;
+}
+
+input[type="text"],
+input[type="number"] {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  padding: 9px 11px;
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+input::placeholder {
+  color: var(--text-faint);
+}
+
+/* Number input — remove spin buttons for a cleaner look, keep keyboard entry */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  opacity: 0.5;
+}
+
+/* ============ Type [radio] ============ */
+
+.radio-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.radio-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.radio-pill input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+}
+
+.radio-pill span {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  font-size: 12.5px;
+  color: var(--text-dim);
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.radio-pill input[type="radio"]:checked + span {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+.radio-pill input[type="radio"]:focus-visible + span {
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* ============ Pick Slip list ============ */
+
+.pickslip-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pickslip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 4px 4px 8px;
+  transition: border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.pickslip-row.dragging {
+  opacity: 0.4;
+}
+
+.pickslip-row.drag-over {
+  border-color: var(--accent);
+}
+
+.drag-handle {
+  color: var(--text-faint);
+  cursor: grab;
+  font-size: 13px;
+  padding: 0 2px;
+  user-select: none;
+  touch-action: none;
+}
+
+.pickslip-row input[type="text"] {
+  border: none;
+  background: transparent;
+  padding: 8px 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.pickslip-row input[type="text"]:focus {
+  box-shadow: none;
+}
+
+.row-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 6px 7px;
+  border-radius: var(--radius-sm);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.row-btn:hover {
+  background: var(--panel-alt);
+  color: var(--text);
+}
+
+.row-btn.delete-btn:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* ============ Copy buttons (general) ============ */
+
+.copy-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 7px 9px;
+  border-radius: var(--radius-sm);
+  line-height: 1;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.copy-btn:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+.copy-btn:active {
+  transform: scale(0.94);
+}
+
+.input-with-copy {
+  display: flex;
+  gap: 6px;
+}
+
+.input-with-copy input {
+  flex: 1;
+}
+
+/* ============ Output section ============ */
+
+.output-card {
+  border-color: var(--border);
+}
+
+.output-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.output-row:last-child {
+  border-bottom: none;
+}
+
+.output-label {
+  flex: 0 0 130px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.output-value {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--success);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.output-value.is-empty {
+  color: var(--text-faint);
+}
+
+.output-row-folder {
+  padding-top: 4px;
+}
+
+.output-value-folder {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+/* ============ Buttons ============ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.btn-danger-ghost {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-dim);
+}
+
+.btn-danger-ghost:hover {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* ============ Toast ============ */
+
+.toast {
+  position: fixed;
+  bottom: 26px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: #0e639c;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 10px 18px;
+  border-radius: var(--radius-md);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 100;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ============ Scrollbar ============ */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4a4a4a;
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #5a5a5a;
+}
+
+</style>
+</head>
+<body>
+
+  <!-- ============ HEADER ============ -->
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-mark">▹</span>
+      <div class="brand-text">
+        <h1>Shipping Smart Text</h1>
+        <p>Inventory Handler 1 BTW</p>
+      </div>
+    </div>
+    <button id="clearAllBtn" class="btn btn-danger-ghost" title="Reset every field">
+      <span class="icon">🗑</span> Clear All
+    </button>
+  </header>
+
+  <main class="layout">
+
+    <!-- ============ INPUT COLUMN ============ -->
+    <section class="column">
+      <h2 class="column-title">Inputs</h2>
+
+      <!-- Shipment details -->
+      <div class="card">
+        <h3 class="card-title">Shipment</h3>
+
+        <div class="field">
+          <label for="destination">Destination</label>
+          <input type="text" id="destination" placeholder="LMM" autocomplete="off">
+        </div>
+
+        <div class="field">
+          <label for="pn">PN</label>
+          <input type="text" id="pn" placeholder="SSR002 / 203" autocomplete="off">
+        </div>
+
+        <div class="field-row">
+          <div class="field field-qty">
+            <label for="qty">Qty</label>
+            <input type="number" id="qty" min="0" placeholder="0" autocomplete="off">
+          </div>
+
+          <div class="field field-unit">
+            <label>Unit</label>
+            <div class="radio-group" id="unitGroup">
+              <label class="radio-pill">
+                <input type="radio" name="unit" value="Carton" checked>
+                <span>Carton</span>
+              </label>
+              <label class="radio-pill">
+                <input type="radio" name="unit" value="Crate">
+                <span>Crate</span>
+              </label>
+              <label class="radio-pill">
+                <input type="radio" name="unit" value="Pallet">
+                <span>Pallet</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pick Slip list -->
+      <div class="card">
+        <h3 class="card-title">Pick Slip</h3>
+        <p class="card-hint">Paste pick slip number.</p>
+        <div id="pickSlipList" class="pickslip-list"><!-- rows injected by JS --></div>
+      </div>
+
+      <!-- HAWB / EDI -->
+      <div class="card">
+        <h3 class="card-title">References</h3>
+
+        <div class="field field-with-copy">
+          <label for="hawb">HAWB / Tracking</label>
+          <div class="input-with-copy">
+            <input type="text" id="hawb" placeholder="HAWB / Tracking number" autocomplete="off">
+            <button class="copy-btn" data-copy-target="hawb" title="Copy HAWB">📋</button>
+          </div>
+        </div>
+
+        <div class="field field-with-copy">
+          <label for="ediBol">EDI / BOL</label>
+          <div class="input-with-copy">
+            <input type="text" id="ediBol" placeholder="EDI / BOL number" autocomplete="off">
+            <button class="copy-btn" data-copy-target="ediBol" title="Copy EDI / BOL">📋</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ OUTPUT COLUMN ============ -->
+    <section class="column">
+      <h2 class="column-title">Outputs</h2>
+
+      <div class="card output-card">
+        <h3 class="card-title">Generated Names</h3>
+
+        <div class="output-row" id="row-commercialInvoice">
+          <div class="output-label">Commercial Invoice</div>
+          <div class="output-value" id="out-commercialInvoice">—</div>
+          <button class="copy-btn" data-copy-target-out="out-commercialInvoice" title="Copy">📋</button>
+        </div>
+
+        <div class="output-row" id="row-serialProduct">
+          <div class="output-label">Serial Product</div>
+          <div class="output-value" id="out-serialProduct">—</div>
+          <button class="copy-btn" data-copy-target-out="out-serialProduct" title="Copy">📋</button>
+        </div>
+
+        <div class="output-row" id="row-pickSlipFinal">
+          <div class="output-label">Pick Slip Final</div>
+          <div class="output-value" id="out-pickSlipFinal">—</div>
+          <button class="copy-btn" data-copy-target-out="out-pickSlipFinal" title="Copy">📋</button>
+        </div>
+
+        <div class="output-row" id="row-releaseForm">
+          <div class="output-label">Release Form</div>
+          <div class="output-value" id="out-releaseForm">—</div>
+          <button class="copy-btn" data-copy-target-out="out-releaseForm" title="Copy">📋</button>
+        </div>
+      </div>
+
+      <div class="card output-card">
+        <h3 class="card-title">Folder Name</h3>
+        <div class="output-row output-row-folder">
+          <div class="output-value output-value-folder" id="out-folderName">—</div>
+          <button class="copy-btn" data-copy-target-out="out-folderName" title="Copy folder name">📋</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Toast -->
+  <div id="toast" class="toast">Copied!</div>
+
+  <script>
+/* ============================================================
+   QuickSlip — script.js
+   ============================================================ */
+
+(() => {
+  "use strict";
+
+  /* ---- Constants ---- */
+
+  const STORAGE_KEY = "quickslip_state_v1";
+
+  const UNIT_PLURALS = {
+    Carton: "Cartons",
+    Crate: "Crates",
+    Pallet: "Pallets",
+  };
+
+  const uppercaseFields = [
+    "destination",
+    "pn"
+];
+
+uppercaseFields.forEach(id => {
+    const field = document.getElementById(id);
+
+    field.addEventListener("input", function() {
+        this.value = this.value.toUpperCase();
+    });
+});
+
+  /* ---- DOM references ---- */
+
+  const dom = {
+    destination: document.getElementById("destination"),
+    pn: document.getElementById("pn"),
+    qty: document.getElementById("qty"),
+    unitGroup: document.getElementById("unitGroup"),
+    pickSlipList: document.getElementById("pickSlipList"),
+    hawb: document.getElementById("hawb"),
+    ediBol: document.getElementById("ediBol"),
+    clearAllBtn: document.getElementById("clearAllBtn"),
+    toast: document.getElementById("toast"),
+
+    outCommercialInvoice: document.getElementById("out-commercialInvoice"),
+    outSerialProduct: document.getElementById("out-serialProduct"),
+    outPickSlipFinal: document.getElementById("out-pickSlipFinal"),
+    outReleaseForm: document.getElementById("out-releaseForm"),
+    outFolderName: document.getElementById("out-folderName"),
+  };
+
+  let state = {
+    destination: "",
+    pn: "",
+    qty: "",
+    unit: "Carton",
+    pickSlips: [""],
+    hawb: "",
+    ediBol: "",
+  };
+
+  let dragFromIndex = null;
+
+  /* ---- localStorage ---- */
+  
+  function saveState() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (err) {
+      // localStorage may be unavailable (private mode, quota) — fail silently,
+      // the app still works, it just won't persist across refresh.
+      console.warn("QuickSlip: could not save state", err);
+    }
+  }
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      state = { ...state, ...saved };
+
+      // Guard against corrupted/empty pickSlips array
+      if (!Array.isArray(state.pickSlips) || state.pickSlips.length === 0) {
+        state.pickSlips = [""];
+      }
+    } catch (err) {
+      console.warn("QuickSlip: could not load saved state", err);
+    }
+  }
+
+  /* ---- Helpers — parsing & formatting ---- */
+
+  function splitPastedTokens(text) {
+    return text
+      .split(/[\n\r,]+|\s+/)
+      .map((t) => t.trim())
+      .filter(Boolean);
+  }
+
+  function getActivePickSlips() {
+    return state.pickSlips.map((v) => v.trim()).filter(Boolean);
+  }
+
+  function computePickSlip(values) {
+    if (values.length === 0) return "";
+    if (values.length === 1) return values[0];
+
+    const asNumbers = values.map((v) => parseInt(v, 10));
+    const allNumeric = values.every(
+      (v, i) => /^-?\d+$/.test(v) && !Number.isNaN(asNumbers[i])
+    );
+
+    if (!allNumeric) {
+      return values.join(",");
+    }
+
+    const sorted = [...asNumbers].sort((a, b) => a - b);
+    let isConsecutive = true;
+    for (let i = 1; i < sorted.length; i++) {
+      if (sorted[i] !== sorted[i - 1] + 1) {
+        isConsecutive = false;
+        break;
+      }
+    }
+
+    if (!isConsecutive) {
+      return values.join(",");
+    }
+
+    const minIndex = asNumbers.indexOf(sorted[0]);
+    const maxIndex = asNumbers.indexOf(sorted[sorted.length - 1]);
+    return `${values[minIndex]}-${values[maxIndex]}`;
+  }
+
+  function pluralizedUnit(qty, unit) {
+    const base = UNIT_PLURALS[unit] ? unit : "Carton";
+    const n = parseInt(qty, 10);
+    if (Number.isNaN(n) || n === 1) return base;
+    return UNIT_PLURALS[base];
+  }
+
+  /* ---- Rendering — Pick Slip rows ---- */
+
+  function renderPickSlipRows() {
+    dom.pickSlipList.innerHTML = "";
+
+    state.pickSlips.forEach((value, index) => {
+      const isLastRow = index === state.pickSlips.length - 1;
+      const row = buildPickSlipRow(value, index, isLastRow);
+      dom.pickSlipList.appendChild(row);
+    });
+  }
+
+  function buildPickSlipRow(value, index, isLastRow) {
+    const row = document.createElement("div");
+    row.className = "pickslip-row";
+    row.draggable = true;
+    row.dataset.index = String(index);
+
+    // Drag handle
+    const handle = document.createElement("span");
+    handle.className = "drag-handle";
+    handle.textContent = "⠿";
+    handle.title = "Drag to reorder";
+    row.appendChild(handle);
+
+    // Text input
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = value;
+    input.placeholder = isLastRow ? "Add pick slip…" : "";
+    input.dataset.index = String(index);
+    input.autocomplete = "off";
+    row.appendChild(input);
+
+    // Copy button
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "row-btn copy-btn";
+    copyBtn.textContent = "📋";
+    copyBtn.title = "Copy this pick slip";
+    copyBtn.type = "button";
+    row.appendChild(copyBtn);
+
+    // Delete button — hidden on empty row
+    if (!isLastRow) {
+      const delBtn = document.createElement("button");
+      delBtn.className = "row-btn delete-btn";
+      delBtn.textContent = "✕";
+      delBtn.title = "Remove this row";
+      delBtn.type = "button";
+      row.appendChild(delBtn);
+    }
+
+    attachRowEvents(row, input, copyBtn);
+    return row;
+  }
+
+  function attachRowEvents(row, input, copyBtn) {
+    // Typing in a row
+    input.addEventListener("input", handlePickSlipInput);
+
+    // Paste splitting
+    input.addEventListener("paste", handlePickSlipPaste);
+
+    // Copy single row value
+    copyBtn.addEventListener("click", () => {
+      const val = input.value.trim();
+      if (!val) return;
+      copyToClipboard(val);
+    });
+
+    // Delete row
+    const delBtn = row.querySelector(".delete-btn");
+    if (delBtn) {
+      delBtn.addEventListener("click", () => {
+        const idx = Number(row.dataset.index);
+        state.pickSlips.splice(idx, 1);
+        ensureTrailingEmptyRow();
+        renderPickSlipRows();
+        recalculate();
+      });
+    }
+
+    // Drag & drop reordering
+    row.addEventListener("dragstart", () => {
+      dragFromIndex = Number(row.dataset.index);
+      row.classList.add("dragging");
+    });
+
+    row.addEventListener("dragend", () => {
+      row.classList.remove("dragging");
+      clearDragOverStyles();
+    });
+
+    row.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      row.classList.add("drag-over");
+    });
+
+    row.addEventListener("dragleave", () => {
+      row.classList.remove("drag-over");
+    });
+
+    row.addEventListener("drop", (e) => {
+      e.preventDefault();
+      const toIndex = Number(row.dataset.index);
+      reorderPickSlips(dragFromIndex, toIndex);
+      clearDragOverStyles();
+    });
+  }
+
+  function clearDragOverStyles() {
+    dom.pickSlipList
+      .querySelectorAll(".drag-over")
+      .forEach((el) => el.classList.remove("drag-over"));
+  }
+
+  function reorderPickSlips(fromIndex, toIndex) {
+    if (
+      fromIndex === null ||
+      toIndex === null ||
+      fromIndex === toIndex ||
+      Number.isNaN(fromIndex) ||
+      Number.isNaN(toIndex)
+    ) {
+      return;
+    }
+    const [moved] = state.pickSlips.splice(fromIndex, 1);
+    state.pickSlips.splice(toIndex, 0, moved);
+    ensureTrailingEmptyRow();
+    renderPickSlipRows();
+    recalculate();
+  }
+
+  /* ---- Pick Slip input handling ---- */
+
+  function handlePickSlipInput(e) {
+    const idx = Number(e.target.dataset.index);
+    state.pickSlips[idx] = e.target.value;
+
+    const isLastRow = idx === state.pickSlips.length - 1;
+    const hasValue = e.target.value.trim().length > 0;
+
+    //tambah list row kalau dapat 1st input dkat last row
+    if (isLastRow && hasValue) {
+      state.pickSlips.push("");
+      renderPickSlipRows();
+      // auto focus dkat box yng tngh type
+      focusRowInput(idx);
+    }
+
+    recalculate();
+  }
+
+  function handlePickSlipPaste(e) {
+    const clipboardText = (e.clipboardData || window.clipboardData).getData(
+      "text"
+    );
+    const tokens = splitPastedTokens(clipboardText);
+
+    // Fall back to native paste for a single token / empty clipboard
+    if (tokens.length <= 1) return;
+
+    e.preventDefault();
+    const idx = Number(e.target.dataset.index);
+
+    //idk but shit's broken when not here HAHAHA #KEEP IT THAT WAY!
+    state.pickSlips.splice(idx, 1, ...tokens);
+    ensureTrailingEmptyRow();
+    renderPickSlipRows();
+    recalculate();
+    //unknown shit end here #KEEP! DONT CLEAR
+  }
+
+  function ensureTrailingEmptyRow() {
+    if (state.pickSlips.length === 0) {
+      state.pickSlips.push("");
+      return;
+    }
+    const last = state.pickSlips[state.pickSlips.length - 1];
+    if (last.trim() !== "") {
+      state.pickSlips.push("");
+    }
+  }
+
+  function focusRowInput(index) {
+    const input = dom.pickSlipList.querySelector(
+      `input[data-index="${index}"]`
+    );
+    if (input) {
+      input.focus();
+      // place cursor at the end
+      const len = input.value.length;
+      input.setSelectionRange(len, len);
+    }
+  }
+
+  /* ---- Clipboard + toast ---- */
+
+  let toastTimer = null;
+
+  function showToast(message = "Copied!") {
+    dom.toast.textContent = message;
+    dom.toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      dom.toast.classList.remove("show");
+    }, 1400);
+  }
+
+  async function copyToClipboard(text) {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast("Copied!");
+    } catch (err) {
+      // Fallback for environments without Clipboard API permission (Defensive coding 101)
+      fallbackCopy(text);
+    }
+  }
+
+  function fallbackCopy(text) {
+    const temp = document.createElement("textarea");
+    temp.value = text;
+    temp.style.position = "fixed";
+    temp.style.opacity = "0";
+    document.body.appendChild(temp);
+    temp.select();
+    try {
+      document.execCommand("copy");
+      showToast("Copied!");
+    } catch (err) {
+      console.warn("QuickSlip: copy failed", err);
+    } finally {
+      document.body.removeChild(temp);
+    }
+  }
+
+  /* ---- Recalculate — the single source of truth for every output ---- */
+
+  function recalculate() {
+    const computedPickSlip = computePickSlip(getActivePickSlips());
+
+    setOutput(dom.outCommercialInvoice, suffixed("Commercial Invoice", computedPickSlip));
+    setOutput(dom.outSerialProduct, suffixed("Serial Product", computedPickSlip));
+    setOutput(dom.outPickSlipFinal, suffixed("Pick Slip Final", computedPickSlip));
+    setOutput(dom.outReleaseForm, suffixed("Rls", computedPickSlip));
+    setOutput(dom.outFolderName, buildFolderName(computedPickSlip));
+
+    saveState();
+  }
+
+  function suffixed(label, computedPickSlip) {
+    if (!computedPickSlip) return "";
+    return `${label} - ${computedPickSlip}`;
+  }
+
+  function buildFolderName(computedPickSlip) {
+    const destination = state.destination.trim();
+    const pn = state.pn.trim();
+    const qty = state.qty.toString().trim();
+    const unit = pluralizedUnit(qty, state.unit);
+
+    const parts = [destination, pn, qty, unit].filter(Boolean);
+    if (parts.length === 0 || !computedPickSlip) return "";
+
+    return `${parts.join(" ")} - ${computedPickSlip}`;
+  }
+
+  function setOutput(el, value) {
+    if (value) {
+      el.textContent = value;
+      el.classList.remove("is-empty");
+    } else {
+      el.textContent = "—";
+      el.classList.add("is-empty");
+    }
+  }
+
+  /* ----------------------------------------------------------
+     Wiring — simple fields
+  ---------------------------------------------------------- */
+
+  function bindSimpleFields() {
+    dom.destination.addEventListener("input", (e) => {
+      state.destination = e.target.value;
+      recalculate();
+    });
+
+    dom.pn.addEventListener("input", (e) => {
+      state.pn = e.target.value;
+      recalculate();
+    });
+
+    dom.qty.addEventListener("input", (e) => {
+      state.qty = e.target.value;
+      recalculate();
+    });
+
+    dom.unitGroup.addEventListener("change", (e) => {
+      if (e.target.name === "unit") {
+        state.unit = e.target.value;
+        recalculate();
+      }
+    });
+
+    dom.hawb.addEventListener("input", (e) => {
+      state.hawb = e.target.value;
+      recalculate();
+    });
+
+    dom.ediBol.addEventListener("input", (e) => {
+      state.ediBol = e.target.value;
+      recalculate();
+    });
+  }
+
+  function bindStandaloneCopyButtons() {
+    // HAWB / EDI copy buttons (read from the input field itself)
+    document.querySelectorAll(".copy-btn[data-copy-target]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const targetId = btn.dataset.copyTarget;
+        const input = document.getElementById(targetId);
+        if (input) copyToClipboard(input.value.trim());
+      });
+    });
+
+    // Output card copy buttons (read from the rendered output text)
+    document
+      .querySelectorAll(".copy-btn[data-copy-target-out]")
+      .forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const targetId = btn.dataset.copyTargetOut;
+          const el = document.getElementById(targetId);
+          if (el && !el.classList.contains("is-empty")) {
+            copyToClipboard(el.textContent);
+          }
+        });
+      });
+  }
+
+  function bindClearAll() {
+    dom.clearAllBtn.addEventListener("click", () => {
+      const confirmed = window.confirm(
+        "Clear all fields? This cannot be undone."
+      );
+      if (!confirmed) return;
+
+      state = {
+        destination: "",
+        pn: "",
+        qty: "",
+        unit: "Carton",
+        pickSlips: [""],
+        hawb: "",
+        ediBol: "",
+      };
+
+      hydrateFieldsFromState();
+      renderPickSlipRows();
+      recalculate();
+    });
+  }
+
+  /* ---- used on load & clear all ---- */
+
+  function hydrateFieldsFromState() {
+    dom.destination.value = state.destination;
+    dom.pn.value = state.pn;
+    dom.qty.value = state.qty;
+    dom.hawb.value = state.hawb;
+    dom.ediBol.value = state.ediBol;
+
+    const radios = dom.unitGroup.querySelectorAll('input[name="unit"]');
+    radios.forEach((r) => {
+      r.checked = r.value === state.unit;
+    });
+  }
+
+  /* ---- Init ----*/
+
+  function init() {
+    loadState();
+    hydrateFieldsFromState();
+    renderPickSlipRows();
+    bindSimpleFields();
+    bindStandaloneCopyButtons();
+    bindClearAll();
+    recalculate();
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+})();
+
+</script>
+</body>
+</html>

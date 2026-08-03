@@ -789,15 +789,13 @@ uppercaseFields.forEach(id => {
     input.autocomplete = "off";
     row.appendChild(input);
 
-    // Copy button — hidden on empty row
-    if (!isLastRow) {
+    // Copy button
     const copyBtn = document.createElement("button");
     copyBtn.className = "row-btn copy-btn";
     copyBtn.textContent = "📋";
     copyBtn.title = "Copy this pick slip";
     copyBtn.type = "button";
     row.appendChild(copyBtn);
-    }
 
     // Delete button — hidden on empty row
     if (!isLastRow) {

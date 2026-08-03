@@ -3,29 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-<title>QuickSlip</title>
-
-<!--
-  QuickSlip.hta
-  =================================================================
-  This must be saved with the .hta extension and double-clicked on
-  Windows (it runs via mshta.exe). Opening it in a normal browser
-  (Chrome/Edge-as-browser/Firefox) still works for the typing/copy
-  features, but folder creation and file sorting are disabled there
-  — those need the trusted HTA host to talk to the file system.
-
-  NOTE for Zack: some corporate IT / antivirus policies flag .hta
-  files because mshta.exe is a known technique abused by malware
-  ("living off the land"). If your work laptop blocks it, you may
-  need IT to whitelist this specific file, or run it from an
-  unrestricted machine. Nothing in this file talks to the internet
-  — it only reads/writes files in the folder you choose.
-  =================================================================
--->
+<title>QuickSlip - Made By Zack</title>
 
 <HTA:APPLICATION
   ID="quickSlipHTA"
-  APPLICATIONNAME="QuickSlip"
+  APPLICATIONNAME="QuickSlip - Made By Zack"
   BORDER="thin"
   BORDERSTYLE="normal"
   CAPTION="yes"
@@ -43,11 +25,6 @@
 />
 
 <style>
-/* ============================================================
-   QuickSlip — VS Code inspired dark theme
-   Flexbox layout only (no CSS Grid) so it renders correctly
-   inside the Trident/MSHTML engine mshta.exe uses.
-   ============================================================ */
 
 * { box-sizing: border-box; }
 
@@ -393,7 +370,7 @@ input::placeholder { color: #6a6a6a; }
       <span class="brand-mark">&#9657;</span>
       <div class="brand-text">
         <h1>QuickSlip</h1>
-        <p>Shipping documentation companion &mdash; offline, no automation</p>
+        <p>Inventory Handler 1 BTW</p>
       </div>
     </div>
     <button id="clearAllBtn" class="btn btn-danger-ghost" title="Reset every field">
@@ -448,7 +425,7 @@ input::placeholder { color: #6a6a6a; }
 
       <div class="card">
         <h3 class="card-title">Pick Slip</h3>
-        <p class="card-hint">Paste multiple numbers at once &mdash; line breaks, commas or spaces all work.</p>
+        <p class="card-hint">Paste all pick slip numbers</p>
         <div id="pickSlipList" class="pickslip-list"></div>
       </div>
 

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge" />
@@ -56,14 +56,14 @@ html, body {
 
 .layout {
   display: flex;
-  flex-wrap: wrap;
-  gap: 18px;
+  gap: 20px;
   padding: 20px 24px 8px;
-  max-width: 1200px;
-  margin: 0 auto;
+  allign-items: flex-start;
+  justify-content: flex-start;
 }
 
-.column { flex: 1 1 440px; min-width: 320px; }
+.column:first-child {width: 390px; flex: 0 0 390px; margin-right: 24px;}
+.column:last-child {width: 500px; flex: 0 0 500px; margin-right: 24px;}
 
 .column-title {
   font-size: 11.5px;
@@ -84,6 +84,10 @@ html, body {
   margin-bottom: 16px;
 }
 
+.sorter-card {
+  border: 1px solid #1d7878;
+}
+
 .card-title {
   margin: 0 0 10px;
   font-size: 13px;
@@ -98,9 +102,9 @@ html, body {
 .field { margin-bottom: 12px; }
 .field:last-child { margin-bottom: 4px; }
 .field label { display: block; font-size: 12px; color: #9d9d9d; margin-bottom: 5px; }
-.field-row { display: flex; gap: 12px; }
+.field-row { display: flex; gap: 12px;}
 .field-qty { flex: 0 0 90px; }
-.field-unit { flex: 1; }
+.field-unit { margin-left: 16px; }
 
 input[type="text"], input[type="number"] {
   width: 100%;
@@ -112,7 +116,6 @@ input[type="text"], input[type="number"] {
   padding: 8px 10px;
   border-radius: 6px;
   outline: none;
-  ime-mode: disabled; /* stops Windows TSF/IME from attaching to empty fields — this is what causes the two-field focus fight on fresh launch */
 }
 
 input[type="text"]:focus, input[type="number"]:focus {
@@ -165,7 +168,6 @@ input::placeholder { color: #6a6a6a; }
   padding: 8px 10px;
   border-radius: 6px;
   outline: none;
-  ime-mode: disabled;
   flex: 1 1 auto;
   width: 100%;
   min-width: 0;
@@ -251,10 +253,6 @@ input::placeholder { color: #6a6a6a; }
 .btn-secondary:hover { border-color: #007acc; color: #ffffff; background: rgba(0, 122, 204, 0.12); }
 .btn-ghost { background: transparent; border: 1px solid #3c3c3c; color: #9d9d9d; }
 
-/* ============ File Sorter section ============ */
-
-.filesorter-wrap { max-width: 1200px; margin: 0 auto; padding: 0 24px 40px; }
-
 .badge-hta {
   font-size: 10px;
   background: rgba(0, 122, 204, 0.12);
@@ -333,11 +331,6 @@ input::placeholder { color: #6a6a6a; }
   z-index: 100;
 }
 .toast.show { opacity: 1; display: block; }
-
-@media (max-width: 860px) {
-  .layout { flex-direction: column; padding: 16px 14px 4px; }
-  .filesorter-wrap { padding: 0 14px 32px; }
-  .app-header { padding: 12px 14px; }
 }
 </style>
 </head>
@@ -383,23 +376,23 @@ input::placeholder { color: #6a6a6a; }
           </div>
 
           <div class="field field-unit">
-            <label>Unit</label>
-            <div class="radio-group" id="unitGroup">
-              <label class="radio-pill">
-                <input type="radio" name="unit" value="Carton" checked>
-                <span>Carton</span>
-              </label>
-              <label class="radio-pill">
-                <input type="radio" name="unit" value="Crate">
-                <span>Crate</span>
-              </label>
-              <label class="radio-pill">
-                <input type="radio" name="unit" value="Pallet">
-                <span>Pallet</span>
-              </label>
-            </div>
-          </div>
-        </div>
+             <label> Unit</label>
+             <div class="radio-group" id="unitGroup">
+               <label class="radio-pill">
+                 <input type="radio" name="unit" value="Carton" checked>
+                 <span>Carton</span>
+               </label>
+               <label class="radio-pill">
+                 <input type="radio" name="unit" value="Crate">
+                 <span>Crate</span>
+               </label>
+               <label class="radio-pill">
+                 <input type="radio" name="unit" value="Pallet">
+                 <span>Pallet</span>
+               </label>
+             </div>
+           </div>
+         </div>
       </div>
 
       <div class="card">
@@ -412,7 +405,7 @@ input::placeholder { color: #6a6a6a; }
         <h3 class="card-title">References</h3>
 
         <div class="field">
-          <label for="hawb">HAWB</label>
+          <label for="hawb">HAWB <span style="color:#6a6a6a;">(optional)</span></label>
           <div class="input-with-copy">
             <input type="text" id="hawb" placeholder="HAWB number" autocomplete="off">
             <button class="copy-btn" data-copy-target="hawb" title="Copy HAWB">&#128203;</button>
@@ -420,7 +413,7 @@ input::placeholder { color: #6a6a6a; }
         </div>
 
         <div class="field">
-          <label for="ediBol">EDI / BOL <span style="color:#6a6a6a;">(optional)</span></label>
+          <label for="ediBol">EDI / BOL <span style="color:#6a6a6a;">(If available)</span></label>
           <div class="input-with-copy">
             <input type="text" id="ediBol" placeholder="EDI / BOL number" autocomplete="off">
             <button class="copy-btn" data-copy-target="ediBol" title="Copy EDI / BOL">&#128203;</button>
@@ -468,28 +461,18 @@ input::placeholder { color: #6a6a6a; }
           <button class="copy-btn" data-copy-target-out="out-folderName" title="Copy folder name">&#128203;</button>
         </div>
       </div>
-    </section>
 
-  </main>
-
-  <!-- ============ FILE SORTER (HTA-only) ============ -->
-  <section class="filesorter-wrap">
-    <div class="card">
+      <div class="card sorter-card">
       <h3 class="card-title">&#128193; File Sorter <span class="badge-hta">.hta only</span></h3>
-      <p class="card-hint">Click Sort — QuickSlip scans the working folder for files matching each document's naming convention and moves/renames them into a new folder named from the Folder Name above.</p>
-
       <div class="hta-disabled-note" id="htaDisabledNote">
         This is running in a regular browser, so folder/file actions are switched off.
         Save this file as <b>QuickSlip.hta</b> and double-click it on Windows to enable the sorter.
       </div>
-
+      <p class="card-hint">Select folder directory to work with</p>
       <div class="workdir-row">
         <div class="workdir-path" id="workDirPath">No working folder selected</div>
         <button class="btn btn-secondary" id="chooseFolderBtn" type="button">Choose Folder&hellip;</button>
       </div>
-
-      <p class="card-hint" id="ediScanHint">If EDI / BOL has a value when you click Sort, QuickSlip also gathers every file in the working folder whose name contains that value (e.g. multiple images) into the same folder.</p>
-
       <div class="filesorter-actions">
         <button class="btn btn-primary" id="sortBtn" type="button">&#128193; Sort into Folder</button>
         <button class="btn btn-ghost" id="openFolderBtn" type="button" style="display:none;">Open Folder</button>
@@ -497,23 +480,14 @@ input::placeholder { color: #6a6a6a; }
 
       <div class="sorter-log" id="sorterLog"></div>
     </div>
-  </section>
+
+    </section>
+
+  </main>
 
   <div id="toast" class="toast">Copied!</div>
 
 <script language="JScript">
-/* ============================================================
-   QuickSlip — script (JScript / ES5 only)
-   -----------------------------------------------------------
-   Written for the legacy JScript engine mshta.exe uses (NOT the
-   modern Chakra/V8 engine). That means: no let/const, no arrow
-   functions, no template literals, no destructuring/spread, no
-   default parameters, no Promise/async. Everything below uses
-   plain var / function / string concatenation on purpose so it
-   runs the same whether opened as .hta or (minus file features)
-   in a normal browser.
-   ============================================================ */
-
 /* ---- Constants ---- */
 
 var STORAGE_KEY = "quickslip_state_v1";
@@ -1355,62 +1329,6 @@ function handleOpenFolder() {
 }
 
 /* ============================================================
-   Focus-fight workaround (HTA/MSHTML)
-   ------------------------------------------------------------
-   On some Windows builds, clicking or Tab-ing between two EMPTY
-   text inputs inside an HTA can make the native focus assignment
-   ping-pong between them endlessly (only reproduces when the
-   fields are empty; typing first avoids it). There is no JS in
-   this file that calls .focus() on these fields, so this is the
-   engine's own click/Tab-to-focus handling misbehaving, not our
-   code.
-
-   Workaround: we take over focus assignment ourselves. On
-   mousedown we cancel the browser's native focus handling and
-   focus the field manually one tick later (setTimeout 0) — this
-   breaks whatever synchronous native loop is happening. We do the
-   same for Tab / Shift+Tab across text-type fields.
-   ============================================================ */
-
-function isTextField(el) {
-  return !!el && el.tagName === "INPUT" &&
-    (el.type === "text" || el.type === "number");
-}
-
-function getTextFieldOrder() {
-  var list = [];
-  var all = document.getElementsByTagName("input");
-  for (var i = 0; i < all.length; i++) {
-    if (isTextField(all[i]) && all[i].offsetParent !== null) list.push(all[i]);
-  }
-  return list;
-}
-
-function installFocusFightWorkaround() {
-  document.addEventListener("mousedown", function (e) {
-    var t = e.target;
-    if (isTextField(t) && document.activeElement !== t) {
-      e.preventDefault();
-      setTimeout(function () { t.focus(); }, 0);
-    }
-  }, true);
-
-  document.addEventListener("keydown", function (e) {
-    if (e.keyCode !== 9) return; // Tab
-    var active = document.activeElement;
-    if (!isTextField(active)) return;
-    var order = getTextFieldOrder();
-    var idx = order.indexOf(active);
-    if (idx === -1) return;
-    var nextIdx = e.shiftKey ? idx - 1 : idx + 1;
-    if (nextIdx < 0 || nextIdx >= order.length) return; // let browser leave the list normally
-    e.preventDefault();
-    var target = order[nextIdx];
-    setTimeout(function () { target.focus(); }, 0);
-  }, true);
-}
-
-/* ============================================================
    Init
    ============================================================ */
 
@@ -1426,7 +1344,6 @@ function safeStep(fn, label) {
 }
 
 function init() {
-  safeStep(installFocusFightWorkaround, "installFocusFightWorkaround");
   safeStep(loadState, "loadState");
   safeStep(renderPickSlipRows, "renderPickSlipRows");
   safeStep(hydrateFieldsFromState, "hydrateFieldsFromState");

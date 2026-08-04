@@ -1355,6 +1355,62 @@ function handleOpenFolder() {
 }
 
 /* ============================================================
+   Focus-fight workaround (HTA/MSHTML)
+   ------------------------------------------------------------
+   On some Windows builds, clicking or Tab-ing between two EMPTY
+   text inputs inside an HTA can make the native focus assignment
+   ping-pong between them endlessly (only reproduces when the
+   fields are empty; typing first avoids it). There is no JS in
+   this file that calls .focus() on these fields, so this is the
+   engine's own click/Tab-to-focus handling misbehaving, not our
+   code.
+
+   Workaround: we take over focus assignment ourselves. On
+   mousedown we cancel the browser's native focus handling and
+   focus the field manually one tick later (setTimeout 0) — this
+   breaks whatever synchronous native loop is happening. We do the
+   same for Tab / Shift+Tab across text-type fields.
+   ============================================================ */
+
+function isTextField(el) {
+  return !!el && el.tagName === "INPUT" &&
+    (el.type === "text" || el.type === "number");
+}
+
+function getTextFieldOrder() {
+  var list = [];
+  var all = document.getElementsByTagName("input");
+  for (var i = 0; i < all.length; i++) {
+    if (isTextField(all[i]) && all[i].offsetParent !== null) list.push(all[i]);
+  }
+  return list;
+}
+
+function installFocusFightWorkaround() {
+  document.addEventListener("mousedown", function (e) {
+    var t = e.target;
+    if (isTextField(t) && document.activeElement !== t) {
+      e.preventDefault();
+      setTimeout(function () { t.focus(); }, 0);
+    }
+  }, true);
+
+  document.addEventListener("keydown", function (e) {
+    if (e.keyCode !== 9) return; // Tab
+    var active = document.activeElement;
+    if (!isTextField(active)) return;
+    var order = getTextFieldOrder();
+    var idx = order.indexOf(active);
+    if (idx === -1) return;
+    var nextIdx = e.shiftKey ? idx - 1 : idx + 1;
+    if (nextIdx < 0 || nextIdx >= order.length) return; // let browser leave the list normally
+    e.preventDefault();
+    var target = order[nextIdx];
+    setTimeout(function () { target.focus(); }, 0);
+  }, true);
+}
+
+/* ============================================================
    Init
    ============================================================ */
 
@@ -1370,6 +1426,7 @@ function safeStep(fn, label) {
 }
 
 function init() {
+  safeStep(installFocusFightWorkaround, "installFocusFightWorkaround");
   safeStep(loadState, "loadState");
   safeStep(renderPickSlipRows, "renderPickSlipRows");
   safeStep(hydrateFieldsFromState, "hydrateFieldsFromState");

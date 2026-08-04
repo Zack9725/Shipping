@@ -150,17 +150,29 @@ input::placeholder { color: #6a6a6a; }
   display: flex;
   align-items: center;
   gap: 4px;
-  background: #1e1e1e;
-  border: 1px solid #3c3c3c;
-  border-radius: 6px;
-  padding: 3px 3px 3px 6px;
+  background: transparent;
+  border: none;
+  padding: 0;
 }
-
-.pickslip-row.drag-over { border-color: #007acc; }
 
 .drag-handle { color: #6a6a6a; cursor: move; font-size: 13px; padding: 0 2px; }
 
-.pickslip-row input[type="text"] { border: none; background: transparent; padding: 7px 4px; flex: 1; min-width: 0; }
+.pickslip-row input[type="text"] {
+  border: 1px solid #3c3c3c;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 13px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  outline: none;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+}
+
+.pickslip-row input[type="text"]:focus { border-color: #007acc; }
+.pickslip-row.drag-over input[type="text"] { border-color: #007acc; }
 
 .row-btn {
   background: transparent;
@@ -465,7 +477,7 @@ input::placeholder { color: #6a6a6a; }
   <section class="filesorter-wrap">
     <div class="card">
       <h3 class="card-title">&#128193; File Sorter <span class="badge-hta">.hta only</span></h3>
-      <p class="card-hint">Choose the working folder, then click Sort. QuickSlip scans it for files matching each document's code below and moves them into a new folder named from the Folder Name above.</p>
+      <p class="card-hint">Click Sort — QuickSlip scans the working folder for files matching each document's naming convention and moves/renames them into a new folder named from the Folder Name above.</p>
 
       <div class="hta-disabled-note" id="htaDisabledNote">
         This is running in a regular browser, so folder/file actions are switched off.
@@ -475,26 +487,6 @@ input::placeholder { color: #6a6a6a; }
       <div class="workdir-row">
         <div class="workdir-path" id="workDirPath">No working folder selected</div>
         <button class="btn btn-secondary" id="chooseFolderBtn" type="button">Choose Folder&hellip;</button>
-      </div>
-
-      <div class="card output-card" style="margin-bottom:14px;">
-        <h3 class="card-title">Match Codes</h3>
-        <div class="output-row">
-          <div class="output-label">Commercial Invoice</div>
-          <div class="output-value">R5542651</div>
-        </div>
-        <div class="output-row">
-          <div class="output-label">Serial Product</div>
-          <div class="output-value">R5542064</div>
-        </div>
-        <div class="output-row">
-          <div class="output-label">Pick Slip Final</div>
-          <div class="output-value">R5542050A</div>
-        </div>
-        <div class="output-row">
-          <div class="output-label">Release Form (Rls)</div>
-          <div class="output-value">R5542047</div>
-        </div>
       </div>
 
       <p class="card-hint" id="ediScanHint">If EDI / BOL has a value when you click Sort, QuickSlip also gathers every file in the working folder whose name contains that value (e.g. multiple images) into the same folder.</p>
@@ -538,13 +530,20 @@ var OUTPUT_LABELS = {
 
 var SLOT_IDS = ["commercialInvoice", "serialProduct", "pickSlipFinal", "releaseForm"];
 
-var MATCH_CODES = {
-  commercialInvoice: "R5542651",
-  serialProduct: "R5542064",
-  pickSlipFinal: "R5542050A",
-  releaseForm: "R5542047"
+/* ---- File Sorter: naming-convention codes used to auto-match each
+   expected file inside the working folder. Add more strings to a
+   slot's array if that document ever ships under more than one code
+   (e.g. Pick Slip Final "A" vs "B" revisions). ---- */
+var FILE_MATCH_PATTERNS = {
+  commercialInvoice: ["R5542651"],
+  serialProduct: ["R5542064"],
+  pickSlipFinal: ["R5542050","R5542050A"],
+  releaseForm: ["R5542047"]
 };
 
+/* ---- File Sorter: default working folder, still changeable via
+   "Choose Folder..." — this only seeds it on first run / when no
+   folder has been chosen yet. ---- */
 var DEFAULT_WORKING_DIR = "C:\\Users\\zulkarnain.chesu\\Downloads";
 
 /* ---- DOM references ---- */
@@ -584,7 +583,7 @@ var state = {
   pickSlips: [""],
   hawb: "",
   ediBol: "",
-  workingDir: ""
+  workingDir: DEFAULT_WORKING_DIR
 };
 
 var dragFromIndex = null;
@@ -624,6 +623,12 @@ function loadState() {
     }
     if (!isRealArray(state.pickSlips) || state.pickSlips.length === 0) {
       state.pickSlips = [""];
+    }
+    // No folder chosen yet (fresh install, or an older save with an
+    // empty workingDir) — seed the default, still overridable by the
+    // user via "Choose Folder...".
+    if (!state.workingDir) {
+      state.workingDir = DEFAULT_WORKING_DIR;
     }
   } catch (err) {
     // Corrupted save — ignore and start fresh.
@@ -674,4 +679,723 @@ function computePickSlip(values) {
   for (i = 0; i < values.length; i++) {
     var n = parseInt(values[i], 10);
     asNumbers.push(n);
-    if (!/^-?\d+$/.test(values[i]) || isNaN(n)) allNum
+    if (!/^-?\d+$/.test(values[i]) || isNaN(n)) allNumeric = false;
+  }
+
+  if (!allNumeric) return values.join(",");
+
+  var sorted = asNumbers.slice().sort(function (a, b) { return a - b; });
+  var isConsecutive = true;
+  for (i = 1; i < sorted.length; i++) {
+    if (sorted[i] !== sorted[i - 1] + 1) { isConsecutive = false; break; }
+  }
+
+  if (!isConsecutive) return values.join(",");
+
+  var minIndex = indexOfNum(asNumbers, sorted[0]);
+  var maxIndex = indexOfNum(asNumbers, sorted[sorted.length - 1]);
+  return values[minIndex] + "-" + values[maxIndex];
+}
+
+function indexOfNum(arr, val) {
+  for (var i = 0; i < arr.length; i++) { if (arr[i] === val) return i; }
+  return -1;
+}
+
+function pluralizedUnit(qty, unit) {
+  var base = UNIT_PLURALS[unit] ? unit : "Carton";
+  var n = parseInt(qty, 10);
+  if (isNaN(n) || n === 1) return base;
+  return UNIT_PLURALS[base];
+}
+
+/**
+ * Keep only digits, then strip leading zeros so "0" -> "" and
+ * "01" -> "1" and "1a" -> "1". Qty must be a positive integer,
+ * never zero — this makes zero collapse to empty automatically.
+ */
+function sanitizeQty(raw) {
+  var digits = raw.replace(/[^0-9]/g, "");
+  digits = digits.replace(/^0+/, "");
+  return digits;
+}
+
+/**
+ * Uppercase a value while preserving the caret position, since
+ * setting .value mid-typing would otherwise jump the cursor.
+ */
+function uppercaseInPlace(input) {
+  var start = input.selectionStart;
+  var end = input.selectionEnd;
+  input.value = input.value.toUpperCase();
+  if (typeof start === "number") {
+    try { input.setSelectionRange(start, end); } catch (e) { /* IE quirk, ignore */ }
+  }
+  return input.value;
+}
+
+/* ============================================================
+   Rendering — Pick Slip rows
+   ============================================================ */
+
+function renderPickSlipRows() {
+  dom.pickSlipList.innerHTML = "";
+  for (var index = 0; index < state.pickSlips.length; index++) {
+    var isLastRow = index === state.pickSlips.length - 1;
+    var row = buildPickSlipRow(state.pickSlips[index], index, isLastRow);
+    dom.pickSlipList.appendChild(row);
+  }
+}
+
+function buildPickSlipRow(value, index, isLastRow) {
+  var row = document.createElement("div");
+  row.className = "pickslip-row";
+  row.setAttribute("draggable", "true");
+  row.setAttribute("data-index", String(index));
+
+  var handle = document.createElement("span");
+  handle.className = "drag-handle";
+  handle.innerHTML = "&#8942;&#8942;";
+  handle.title = "Drag to reorder";
+  row.appendChild(handle);
+
+  var input = document.createElement("input");
+  input.type = "text";
+  input.value = value;
+  input.placeholder = isLastRow ? "Add pick slip\u2026" : "";
+  input.setAttribute("data-index", String(index));
+  input.autocomplete = "off";
+  row.appendChild(input);
+
+  var copyBtn = document.createElement("button");
+  copyBtn.className = "row-btn copy-btn";
+  copyBtn.innerHTML = "&#128203;";
+  copyBtn.title = "Copy this pick slip";
+  copyBtn.setAttribute("type", "button");
+  row.appendChild(copyBtn);
+
+  if (!isLastRow) {
+    var delBtn = document.createElement("button");
+    delBtn.className = "row-btn delete-btn";
+    delBtn.innerHTML = "&#10005;";
+    delBtn.title = "Remove this row";
+    delBtn.setAttribute("type", "button");
+    row.appendChild(delBtn);
+  }
+
+  attachRowEvents(row, input, copyBtn);
+  return row;
+}
+
+function attachRowEvents(row, input, copyBtn) {
+  input.addEventListener("input", handlePickSlipInput);
+  input.addEventListener("paste", handlePickSlipPaste);
+
+  copyBtn.addEventListener("click", function () {
+    var val = input.value.replace(/^\s+|\s+$/g, "");
+    if (val) copyToClipboard(val);
+  });
+
+  var delBtn = row.querySelector(".delete-btn");
+  if (delBtn) {
+    delBtn.addEventListener("click", function () {
+      var idx = Number(row.getAttribute("data-index"));
+      state.pickSlips.splice(idx, 1);
+      ensureTrailingEmptyRow();
+      renderPickSlipRows();
+      recalculate();
+    });
+  }
+
+  row.addEventListener("dragstart", function () {
+    dragFromIndex = Number(row.getAttribute("data-index"));
+  });
+
+  row.addEventListener("dragover", function (e) {
+    if (e.preventDefault) e.preventDefault();
+    e.returnValue = false;
+    row.className = "pickslip-row drag-over";
+    return false;
+  });
+
+  row.addEventListener("dragleave", function () {
+    row.className = "pickslip-row";
+  });
+
+  row.addEventListener("drop", function (e) {
+    if (e.preventDefault) e.preventDefault();
+    var toIndex = Number(row.getAttribute("data-index"));
+    reorderPickSlips(dragFromIndex, toIndex);
+    return false;
+  });
+}
+
+function reorderPickSlips(fromIndex, toIndex) {
+  if (fromIndex === null || toIndex === null || fromIndex === toIndex ||
+      isNaN(fromIndex) || isNaN(toIndex)) {
+    return;
+  }
+  var removed = state.pickSlips.splice(fromIndex, 1);
+  var moved = removed[0];
+  state.pickSlips.splice(toIndex, 0, moved);
+  ensureTrailingEmptyRow();
+  renderPickSlipRows();
+  recalculate();
+}
+
+/* ============================================================
+   Pick Slip input handling
+   ============================================================ */
+
+function handlePickSlipInput(e) {
+  var idx = Number(e.target.getAttribute("data-index"));
+  state.pickSlips[idx] = e.target.value;
+
+  var isLastRow = idx === state.pickSlips.length - 1;
+  var hasValue = e.target.value.replace(/^\s+|\s+$/g, "").length > 0;
+
+  if (isLastRow && hasValue) {
+    state.pickSlips.push("");
+    renderPickSlipRows();
+    focusRowInput(idx);
+  }
+
+  recalculate();
+}
+
+function handlePickSlipPaste(e) {
+  var cd = e.clipboardData || window.clipboardData;
+  var clipboardText = cd ? cd.getData("Text") : "";
+  var tokens = splitPastedTokens(clipboardText);
+
+  if (tokens.length <= 1) return; // let native paste happen for a single token
+
+  if (e.preventDefault) e.preventDefault();
+  var idx = Number(e.target.getAttribute("data-index"));
+
+  var args = [idx, 1].concat(tokens);
+  state.pickSlips.splice.apply(state.pickSlips, args);
+  ensureTrailingEmptyRow();
+  renderPickSlipRows();
+  recalculate();
+}
+
+function ensureTrailingEmptyRow() {
+  if (state.pickSlips.length === 0) { state.pickSlips.push(""); return; }
+  var last = state.pickSlips[state.pickSlips.length - 1];
+  if (last.replace(/^\s+|\s+$/g, "") !== "") state.pickSlips.push("");
+}
+
+function focusRowInput(index) {
+  var input = dom.pickSlipList.querySelector('input[data-index="' + index + '"]');
+  if (input) {
+    input.focus();
+    var len = input.value.length;
+    try { input.setSelectionRange(len, len); } catch (e) { /* ignore */ }
+  }
+}
+
+/* ============================================================
+   Clipboard + toast
+   ============================================================ */
+
+var toastTimer = null;
+
+function showToast(message) {
+  if (typeof message === "undefined" || !message) message = "Copied!";
+  dom.toast.textContent = message;
+  dom.toast.className = "toast show";
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { dom.toast.className = "toast"; }, 1400);
+}
+
+function copyToClipboard(text) {
+  if (!text) return;
+  // HTA/IE uses window.clipboardData directly — no async Clipboard API here.
+  try {
+    if (window.clipboardData && window.clipboardData.setData) {
+      window.clipboardData.setData("Text", text);
+      showToast("Copied!");
+      return;
+    }
+  } catch (e) { /* fall through to execCommand */ }
+  fallbackCopy(text);
+}
+
+function fallbackCopy(text) {
+  var temp = document.createElement("textarea");
+  temp.value = text;
+  temp.style.position = "fixed";
+  temp.style.opacity = "0";
+  document.body.appendChild(temp);
+  temp.select();
+  try {
+    document.execCommand("copy");
+    showToast("Copied!");
+  } catch (err) {
+    // Clipboard unreachable in this context — nothing more we can do.
+  } finally {
+    document.body.removeChild(temp);
+  }
+}
+
+/* ============================================================
+   Recalculate — single source of truth for every output
+   ============================================================ */
+
+function recalculate() {
+  var computedPickSlip = computePickSlip(getActivePickSlips());
+
+  setOutput(dom.outCommercialInvoice, suffixed("Commercial Invoice", computedPickSlip));
+  setOutput(dom.outSerialProduct, suffixed("Serial Product", computedPickSlip));
+  setOutput(dom.outPickSlipFinal, suffixed("Pick Slip Final", computedPickSlip));
+  setOutput(dom.outReleaseForm, suffixed("Rls", computedPickSlip));
+  setOutput(dom.outFolderName, buildFolderName(computedPickSlip));
+
+  saveState();
+}
+
+function suffixed(label, computedPickSlip) {
+  if (!computedPickSlip) return "";
+  return label + " - " + computedPickSlip;
+}
+
+function buildFolderName(computedPickSlip) {
+  var destination = state.destination.replace(/^\s+|\s+$/g, "");
+  var pn = state.pn.replace(/^\s+|\s+$/g, "");
+  var qty = String(state.qty).replace(/^\s+|\s+$/g, "");
+  var unit = pluralizedUnit(qty, state.unit);
+
+  var parts = [];
+  if (destination) parts.push(destination);
+  if (pn) parts.push(pn);
+  if (qty) parts.push(qty);
+  if (qty) parts.push(unit);
+
+  if (parts.length === 0 || !computedPickSlip) return "";
+  return parts.join(" ") + " - " + computedPickSlip;
+}
+
+function setOutput(el, value) {
+  if (value) {
+    el.textContent = value;
+    el.className = el.className.replace(/\s*is-empty/, "");
+  } else {
+    el.textContent = "\u2014";
+    if (el.className.indexOf("is-empty") === -1) el.className += " is-empty";
+  }
+}
+
+/* ============================================================
+   Wiring — simple fields
+   ============================================================ */
+
+function bindSimpleFields() {
+  dom.destination.addEventListener("input", function (e) {
+    state.destination = uppercaseInPlace(e.target);
+    recalculate();
+  });
+
+  dom.pn.addEventListener("input", function (e) {
+    state.pn = uppercaseInPlace(e.target);
+    recalculate();
+  });
+
+  dom.qty.addEventListener("input", function (e) {
+    var clean = sanitizeQty(e.target.value);
+    e.target.value = clean;
+    state.qty = clean;
+    recalculate();
+  });
+
+  var radios = dom.unitGroup.getElementsByTagName("input");
+  for (var i = 0; i < radios.length; i++) {
+    radios[i].addEventListener("change", function (e) {
+      if (e.target.name === "unit") {
+        state.unit = e.target.value;
+        recalculate();
+      }
+    });
+  }
+
+  dom.hawb.addEventListener("input", function (e) {
+    state.hawb = e.target.value;
+    recalculate();
+  });
+
+  dom.ediBol.addEventListener("input", function (e) {
+    state.ediBol = e.target.value;
+    recalculate();
+  });
+}
+
+function bindStandaloneCopyButtons() {
+  var i, btn;
+
+  var copyInputs = document.querySelectorAll(".copy-btn[data-copy-target]");
+  for (i = 0; i < copyInputs.length; i++) {
+    btn = copyInputs[i];
+    (function (b) {
+      b.addEventListener("click", function () {
+        var targetId = b.getAttribute("data-copy-target");
+        var input = document.getElementById(targetId);
+        if (input) copyToClipboard(input.value.replace(/^\s+|\s+$/g, ""));
+      });
+    })(btn);
+  }
+
+  var copyOutputs = document.querySelectorAll(".copy-btn[data-copy-target-out]");
+  for (i = 0; i < copyOutputs.length; i++) {
+    btn = copyOutputs[i];
+    (function (b) {
+      b.addEventListener("click", function () {
+        var targetId = b.getAttribute("data-copy-target-out");
+        var el = document.getElementById(targetId);
+        if (el && el.className.indexOf("is-empty") === -1) {
+          copyToClipboard(el.textContent);
+        }
+      });
+    })(btn);
+  }
+}
+
+function bindClearAll() {
+  dom.clearAllBtn.addEventListener("click", function () {
+    var confirmed = window.confirm("Clear all fields? This cannot be undone.");
+    if (!confirmed) return;
+
+    state = {
+      destination: "", pn: "", qty: "", unit: "Carton",
+      pickSlips: [""], hawb: "", ediBol: "", workingDir: state.workingDir
+    };
+
+    hydrateFieldsFromState();
+    renderPickSlipRows();
+    recalculate();
+
+    clearLog();
+  });
+}
+
+function hydrateFieldsFromState() {
+  dom.destination.value = state.destination;
+  dom.pn.value = state.pn;
+  dom.qty.value = state.qty;
+  dom.hawb.value = state.hawb;
+  dom.ediBol.value = state.ediBol;
+
+  var radios = dom.unitGroup.getElementsByTagName("input");
+  for (var i = 0; i < radios.length; i++) {
+    radios[i].checked = (radios[i].value === state.unit);
+  }
+
+  renderWorkingDir();
+}
+
+/* ============================================================
+   FILE SORTER — everything below only runs meaningfully in HTA
+   ============================================================ */
+
+function renderWorkingDir() {
+  if (state.workingDir) {
+    dom.workDirPath.textContent = state.workingDir;
+    dom.workDirPath.className = "workdir-path is-set";
+  } else {
+    dom.workDirPath.textContent = "No working folder selected";
+    dom.workDirPath.className = "workdir-path";
+  }
+}
+
+function initFileSorter() {
+  if (!HTA_MODE) {
+    dom.htaDisabledNote.className = "hta-disabled-note show";
+    dom.chooseFolderBtn.disabled = true;
+    dom.sortBtn.disabled = true;
+  }
+
+  dom.chooseFolderBtn.addEventListener("click", handleChooseFolder);
+  dom.sortBtn.addEventListener("click", handleSortClick);
+  dom.openFolderBtn.addEventListener("click", handleOpenFolder);
+}
+
+/* ---- Auto-scan matching (replaces drag & drop) ----
+   Same "trim search" approach as the EDI/BOL sweep: a case-
+   insensitive substring match against each file name in the
+   working folder. Each slot is expected to match exactly one
+   file — 2+ matches is treated as an error (ambiguous), 0
+   matches is just skipped with a warning. */
+
+function findFilesForSlot(folder, patterns) {
+  var matches = [];
+  var filesEnum = new Enumerator(folder.Files);
+  for (; !filesEnum.atEnd(); filesEnum.moveNext()) {
+    var f = filesEnum.item();
+    var nameLower = f.Name.toLowerCase();
+    for (var p = 0; p < patterns.length; p++) {
+      var pat = patterns[p].replace(/^\s+|\s+$/g, "").toLowerCase();
+      if (pat && nameLower.indexOf(pat) !== -1) {
+        matches.push(f);
+        break; // don't double-count one file matching 2 patterns of the same slot
+      }
+    }
+  }
+  return matches;
+}
+
+/* ---- Choose working folder (Shell.Application.BrowseForFolder) ---- */
+
+function handleChooseFolder() {
+  if (!HTA_MODE) return;
+  try {
+    var shellApp = new ActiveXObject("Shell.Application");
+    // 0x0001 = BIF_DONTGOBELOWDOMAIN off, 0x0040 = BIF_NEWDIALOGSTYLE
+    var folder = shellApp.BrowseForFolder(0, "Select the working folder for this shipment", 0x0041, 0);
+    if (folder) {
+      var item = folder.Self;
+      state.workingDir = item.Path;
+      renderWorkingDir();
+      saveState();
+    }
+  } catch (err) {
+    alert("Could not open the folder picker: " + err.description);
+  }
+}
+
+/* ---- Path helpers ---- */
+
+function toSafeFsName(str) {
+  var cleaned = str.replace(/[\\\/:\*\?"<>\|]/g, "-");
+  cleaned = cleaned.replace(/\s{2,}/g, " ");
+  cleaned = cleaned.replace(/^\s+|\s+$/g, "");
+  cleaned = cleaned.replace(/[\s.]+$/g, ""); // Windows disallows trailing space/dot
+  return cleaned;
+}
+
+function uniquePath(targetPath) {
+  if (!fso.FileExists(targetPath) && !fso.FolderExists(targetPath)) return targetPath;
+  var dir = fso.GetParentFolderName(targetPath);
+  var base = fso.GetBaseName(targetPath);
+  var ext = fso.GetExtensionName(targetPath);
+  var n = 1, candidate;
+  do {
+    candidate = fso.BuildPath(dir, base + " (" + n + ")" + (ext ? "." + ext : ""));
+    n++;
+  } while (fso.FileExists(candidate) || fso.FolderExists(candidate));
+  return candidate;
+}
+
+/* ---- Log panel ---- */
+
+function clearLog() {
+  dom.sorterLog.innerHTML = "";
+  dom.sorterLog.className = "sorter-log";
+}
+
+function logLine(text, kind) {
+  var line = document.createElement("div");
+  line.className = "log-line" + (kind ? " " + kind : "");
+  line.textContent = text;
+  dom.sorterLog.appendChild(line);
+  dom.sorterLog.className = "sorter-log show";
+  dom.sorterLog.scrollTop = dom.sorterLog.scrollHeight;
+}
+
+/* ---- Sort button ---- */
+
+function handleSortClick() {
+  if (!HTA_MODE || !fso) return;
+
+  var computedPickSlip = computePickSlip(getActivePickSlips());
+  var folderName = buildFolderName(computedPickSlip);
+
+  if (!folderName) {
+    alert("Fill in Destination, PN, Qty and at least one Pick Slip before sorting.");
+    return;
+  }
+  if (!state.workingDir) {
+    alert("Choose a working folder first — that's where your source files live.");
+    return;
+  }
+  if (!fso.FolderExists(state.workingDir)) {
+    alert("The working folder no longer exists. Please choose it again.");
+    return;
+  }
+
+  var srcFolder;
+  try {
+    srcFolder = fso.GetFolder(state.workingDir);
+  } catch (err) {
+    alert("Could not read the working folder: " + err.description);
+    return;
+  }
+
+  // ---- Auto-scan the working folder for each expected file, by its
+  // naming-convention code. Exactly 1 match per slot is expected;
+  // 2+ matches is ambiguous and stops the whole sort before anything
+  // is created or moved. 0 matches just skips that slot. ----
+  var i, slot;
+  var slotMatches = {};
+  var dupErrors = [];
+
+  for (i = 0; i < SLOT_IDS.length; i++) {
+    slot = SLOT_IDS[i];
+    var matches = findFilesForSlot(srcFolder, FILE_MATCH_PATTERNS[slot]);
+    if (matches.length > 1) {
+      var names = [];
+      for (var m = 0; m < matches.length; m++) names.push(matches[m].Name);
+      dupErrors.push(OUTPUT_LABELS[slot] + ": " + matches.length + " matching files found (" + names.join(", ") + ") — expected only 1.");
+    } else {
+      slotMatches[slot] = matches.length === 1 ? matches[0] : null;
+    }
+  }
+
+  if (dupErrors.length > 0) {
+    alert("Cannot sort — ambiguous matches in the working folder:\n\n" + dupErrors.join("\n"));
+    return;
+  }
+
+  var safeFolderName = toSafeFsName(folderName);
+  var targetFolder = fso.BuildPath(state.workingDir, safeFolderName);
+
+  var plannedSlots = 0;
+  for (i = 0; i < SLOT_IDS.length; i++) { if (slotMatches[SLOT_IDS[i]]) plannedSlots++; }
+  var ediValue = state.ediBol.replace(/^\s+|\s+$/g, "");
+
+  var confirmMsg = "Create folder:\n" + safeFolderName +
+    "\n\nMatched files to move in: " + plannedSlots + " of " + SLOT_IDS.length +
+    (ediValue ? "\nPlus: scan for any file containing \"" + ediValue + "\"" : "") +
+    "\n\nContinue?";
+  if (!window.confirm(confirmMsg)) return;
+
+  clearLog();
+
+  try {
+    if (!fso.FolderExists(targetFolder)) {
+      fso.CreateFolder(targetFolder);
+      logLine("Created folder: " + safeFolderName, "ok");
+    } else {
+      logLine("Folder already exists, reusing: " + safeFolderName, "warn");
+    }
+  } catch (err) {
+    logLine("Could not create the folder: " + err.description, "err");
+    return;
+  }
+
+  // ---- Move the 4 matched output files ----
+  var labels = {
+    commercialInvoice: suffixed("Commercial Invoice", computedPickSlip),
+    serialProduct: suffixed("Serial Product", computedPickSlip),
+    pickSlipFinal: suffixed("Pick Slip Final", computedPickSlip),
+    releaseForm: suffixed("Rls", computedPickSlip)
+  };
+
+  var movedAny = false;
+
+  for (i = 0; i < SLOT_IDS.length; i++) {
+    slot = SLOT_IDS[i];
+    var srcFile = slotMatches[slot];
+    if (!srcFile) {
+      logLine(OUTPUT_LABELS[slot] + ": no matching file found (looking for " + FILE_MATCH_PATTERNS[slot].join(" / ") + ")", "warn");
+      continue;
+    }
+
+    var ext = fso.GetExtensionName(srcFile.Path);
+    var newBaseName = toSafeFsName(labels[slot]);
+    var destPath = fso.BuildPath(targetFolder, newBaseName + (ext ? "." + ext : ""));
+    destPath = uniquePath(destPath);
+
+    try {
+      srcFile.Move(destPath);
+      logLine(OUTPUT_LABELS[slot] + " -> " + fso.GetFileName(destPath), "ok");
+      movedAny = true;
+    } catch (err) {
+      logLine(OUTPUT_LABELS[slot] + ": move failed - " + err.description, "err");
+    }
+  }
+
+  // ---- EDI / BOL sweep ----
+  if (ediValue) {
+    var matchCount = 0;
+    try {
+      var srcFolder = fso.GetFolder(state.workingDir);
+      var filesEnum = new Enumerator(srcFolder.Files);
+      var ediLower = ediValue.toLowerCase();
+      var toMove = [];
+
+      for (; !filesEnum.atEnd(); filesEnum.moveNext()) {
+        var f = filesEnum.item();
+        if (f.Name.toLowerCase().indexOf(ediLower) !== -1) {
+          toMove.push(f);
+        }
+      }
+
+      for (var m = 0; m < toMove.length; m++) {
+        var srcFile = toMove[m];
+        var dest = fso.BuildPath(targetFolder, srcFile.Name);
+        dest = uniquePath(dest);
+        try {
+          srcFile.Move(dest);
+          matchCount++;
+          movedAny = true;
+        } catch (moveErr) {
+          logLine("EDI match \"" + srcFile.Name + "\": move failed - " + moveErr.description, "err");
+        }
+      }
+
+      if (matchCount > 0) {
+        logLine("EDI/BOL sweep: moved " + matchCount + " file(s) containing \"" + ediValue + "\"", "ok");
+      } else {
+        logLine("EDI/BOL sweep: no files in the working folder contain \"" + ediValue + "\"", "warn");
+      }
+    } catch (err) {
+      logLine("EDI/BOL sweep failed: " + err.description, "err");
+    }
+  }
+
+  if (movedAny) {
+    lastSortedFolder = targetFolder;
+    dom.openFolderBtn.style.display = "inline-block";
+    showToast("Sorted!");
+  }
+}
+
+function handleOpenFolder() {
+  if (!lastSortedFolder) return;
+  try {
+    var shell = new ActiveXObject("WScript.Shell");
+    shell.Run('explorer.exe "' + lastSortedFolder + '"');
+  } catch (err) {
+    alert("Could not open Explorer: " + err.description);
+  }
+}
+
+/* ============================================================
+   Init
+   ============================================================ */
+
+/* Each step runs in its own try/catch so a failure in one card
+   (e.g. File Sorter, which touches ActiveX) can never prevent the
+   others — like the Pick Slip list — from rendering. */
+function safeStep(fn, label) {
+  try {
+    fn();
+  } catch (err) {
+    if (window.console && console.error) console.error("QuickSlip init step failed: " + label, err);
+  }
+}
+
+function init() {
+  safeStep(loadState, "loadState");
+  safeStep(renderPickSlipRows, "renderPickSlipRows");
+  safeStep(hydrateFieldsFromState, "hydrateFieldsFromState");
+  safeStep(bindSimpleFields, "bindSimpleFields");
+  safeStep(bindStandaloneCopyButtons, "bindStandaloneCopyButtons");
+  safeStep(bindClearAll, "bindClearAll");
+  safeStep(initFileSorter, "initFileSorter");
+  safeStep(recalculate, "recalculate");
+}
+
+window.attachEvent ? window.attachEvent("onload", init) : window.addEventListener("load", init);
+</script>
+</body>
+</html>

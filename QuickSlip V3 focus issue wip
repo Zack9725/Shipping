@@ -735,6 +735,7 @@ function renderPickSlipRows() {
     var isLastRow = index === state.pickSlips.length - 1;
     var row = buildPickSlipRow(state.pickSlips[index], index, isLastRow);
     dom.pickSlipList.appendChild(row);
+    autoResizeHeight()
   }
 }
 
@@ -1330,7 +1331,7 @@ function handleOpenFolder() {
 
 function setInitialWindowSize() {
     try {
-        window.resizeTo(920, 850);   // Width, Height
+        window.resizeTo(976, 820);   // Width, Height
         window.moveTo(
             (screen.availWidth - 1200) / 2,
             (screen.availHeight - 850) / 2
@@ -1340,7 +1341,7 @@ function setInitialWindowSize() {
 
 function autoResizeHeight() {
     try {
-        var minHeight = 850; // tinggi minimum
+        var minHeight = 820; // tinggi minimum
         var extra = 40;      // padding bawah
 
         var newHeight = document.body.scrollHeight + extra;

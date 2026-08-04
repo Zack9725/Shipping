@@ -599,8 +599,11 @@ if(HTA_MODE) {
 }
 /* Nak determine USER */
 function getDefaultWorkingDir() {
-    if (!HTA_MODE)  return "";
+
+    if (!HTA_MODE) return "";
+
     return shell.ExpandEnvironmentStrings("%USERPROFILE%") + "\\Downloads";
+
 }
 
 /* ============================================================

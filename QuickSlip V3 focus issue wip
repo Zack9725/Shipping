@@ -1338,6 +1338,20 @@ function setInitialWindowSize() {
     } catch (e) {}
 }
 
+function autoResizeHeight() {
+    try {
+        var minHeight = 850; // tinggi minimum
+        var extra = 40;      // padding bawah
+
+        var newHeight = document.body.scrollHeight + extra;
+
+        if (newHeight < minHeight)
+            newHeight = minHeight;
+
+        window.resizeTo(window.outerWidth, newHeight);
+    } catch (e) {}
+}
+
 /* ============================================================
    Init
    ============================================================ */

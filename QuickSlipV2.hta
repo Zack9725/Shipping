@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<title>QuickSlip - Made By Zack</title>
+
+<HTA:APPLICATION
+  ID="quickSlipHTA"
+  APPLICATIONNAME="QuickSlip - Made By Zack"
+  BORDER="thin"
+  BORDERSTYLE="normal"
+  CAPTION="yes"
+  MAXIMIZEBUTTON="yes"
+  MINIMIZEBUTTON="yes"
+  NAVIGABLE="no"
+  SCROLL="yes"
+  SCROLLFLAT="yes"
+  SELECTION="yes"
+  SHOWINTASKBAR="yes"
+  SINGLEINSTANCE="yes"
+  SYSMENU="yes"
+  VERSION="1.0"
+  WINDOWSTATE="normal"
+/>
+
+<style>
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+  line-height: 1.5;
+}
+
+/* ============ Header ============ */
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid #3c3c3c;
+  background: #252526;
+}
+
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand-mark { color: #007acc; font-size: 20px; }
+.brand-text h1 { margin: 0; font-size: 16px; font-weight: 600; }
+.brand-text p { margin: 2px 0 0; font-size: 11.5px; color: #9d9d9d; }
+
+/* ============ Layout (flex, not grid — HTA-safe) ============ */
+
+.layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding: 20px 24px 8px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.column { flex: 1 1 440px; min-width: 320px; }
+
+.column-title {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 1.1px;
+  color: #6a6a6a;
+  margin: 2px 0 12px;
+  font-weight: 600;
+}
+
+/* ============ Card ============ */
+
+.card {
+  background: #252526;
+  border: 1px solid #3c3c3c;
+  border-radius: 14px;
+  padding: 16px 16px 12px;
+  margin-bottom: 16px;
+}
+
+.card-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #d4d4d4;
+}
+
+.card-hint { margin: -4px 0 10px; font-size: 11.5px; color: #6a6a6a; }
+
+/* ============ Fields ============ */
+
+.field { margin-bottom: 12px; }
+.field:last-child { margin-bottom: 4px; }
+.field label { display: block; font-size: 12px; color: #9d9d9d; margin-bottom: 5px; }
+.field-row { display: flex; gap: 12px; }
+.field-qty { flex: 0 0 90px; }
+.field-unit { flex: 1; }
+
+input[type="text"], input[type="number"] {
+  width: 100%;
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  color: #d4d4d4;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 13px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  outline: none;
+}
+
+input[type="text"]:focus, input[type="number"]:focus {
+  border-color: #007acc;
+}
+
+input::-webkit-input-placeholder { color: #6a6a6a; }
+input:-ms-input-placeholder { color: #6a6a6a; }
+input::placeholder { color: #6a6a6a; }
+
+/* ============ Unit radio pills ============ */
+
+.radio-group { display: flex; gap: 8px; flex-wrap: wrap; }
+.radio-pill { position: relative; display: inline-block; }
+.radio-pill input[type="radio"] { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; left: 0; top: 0; }
+.radio-pill span {
+  display: inline-block;
+  padding: 7px 13px;
+  border-radius: 999px;
+  border: 1px solid #3c3c3c;
+  background: #1e1e1e;
+  font-size: 12px;
+  color: #9d9d9d;
+}
+.radio-pill input[type="radio"]:checked + span {
+  background: rgba(0, 122, 204, 0.12);
+  border-color: #007acc;
+  color: #ffffff;
+}
+
+/* ============ Pick Slip list ============ */
+
+.pickslip-list { display: flex; flex-direction: column; gap: 6px; }
+
+.pickslip-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  border-radius: 6px;
+  padding: 3px 3px 3px 6px;
+}
+
+.pickslip-row.drag-over { border-color: #007acc; }
+
+.drag-handle { color: #6a6a6a; cursor: move; font-size: 13px; padding: 0 2px; }
+
+.pickslip-row input[type="text"] { border: none; background: transparent; padding: 7px 4px; flex: 1; min-width: 0; }
+
+.row-btn {
+  background: transparent;
+  border: none;
+  color: #9d9d9d;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 5px 6px;
+  border-radius: 6px;
+}
+
+.row-btn.delete-btn:hover { background: rgba(241, 76, 76, 0.1); color: #f14c4c; }
+
+/* ============ Copy buttons ============ */
+
+.copy-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #9d9d9d;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+.copy-btn:hover { background: rgba(0, 122, 204, 0.12); border-color: #007acc; color: #ffffff; }
+
+.input-with-copy { display: flex; gap: 6px; }
+.input-with-copy input { flex: 1; }
+
+/* ============ Output section ============ */
+
+.output-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 0;
+  border-bottom: 1px solid #333333;
+}
+.output-row:last-child { border-bottom: none; }
+
+.output-label { flex: 0 0 128px; font-size: 11.5px; color: #9d9d9d; }
+
+.output-value {
+  flex: 1;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 12.5px;
+  color: #4ec9b0;
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  border-radius: 6px;
+  padding: 7px 9px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.output-value.is-empty { color: #6a6a6a; }
+.output-value-folder { font-size: 13px; font-weight: 500; }
+
+/* ============ Buttons (general) ============ */
+
+.btn {
+  display: inline-block;
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
+  border: 1px solid #3c3c3c;
+  background: transparent;
+  color: #9d9d9d;
+}
+.btn-danger-ghost:hover { background: rgba(241, 76, 76, 0.1); border-color: #f14c4c; color: #f14c4c; }
+.btn-primary { background: #007acc; border-color: #007acc; color: #ffffff; }
+.btn-primary:hover { background: #1a8ad4; }
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-secondary { background: transparent; border: 1px solid #3c3c3c; color: #d4d4d4; }
+.btn-secondary:hover { border-color: #007acc; color: #ffffff; background: rgba(0, 122, 204, 0.12); }
+.btn-ghost { background: transparent; border: 1px solid #3c3c3c; color: #9d9d9d; }
+
+/* ============ File Sorter section ============ */
+
+.filesorter-wrap { max-width: 1200px; margin: 0 auto; padding: 0 24px 40px; }
+
+.badge-hta {
+  font-size: 10px;
+  background: rgba(0, 122, 204, 0.12);
+  color: #ffffff;
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-left: 8px;
+  border: 1px solid #007acc;
+}
+
+.hta-disabled-note {
+  font-size: 11.5px;
+  color: #f14c4c;
+  background: rgba(241, 76, 76, 0.1);
+  border: 1px solid #f14c4c;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 14px;
+  display: none;
+}
+.hta-disabled-note.show { display: block; }
+
+.workdir-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.workdir-path {
+  flex: 1;
+  min-width: 220px;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 12px;
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: #6a6a6a;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.workdir-path.is-set { color: #d4d4d4; }
+
+.filesorter-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+
+.sorter-log {
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 11.5px;
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  border-radius: 6px;
+  padding: 10px 12px;
+  max-height: 160px;
+  overflow-y: auto;
+  color: #9d9d9d;
+  display: none;
+}
+.sorter-log.show { display: block; }
+.log-line { padding: 2px 0; }
+.log-line.ok { color: #4ec9b0; }
+.log-line.err { color: #f14c4c; }
+.log-line.warn { color: #d7ba7d; }
+
+/* ============ Toast ============ */
+
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  margin-left: -70px;
+  width: 140px;
+  text-align: center;
+  background: #0e639c;
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 9px 12px;
+  border-radius: 10px;
+  opacity: 0;
+  display: none;
+  z-index: 100;
+}
+.toast.show { opacity: 1; display: block; }
+
+@media (max-width: 860px) {
+  .layout { flex-direction: column; padding: 16px 14px 4px; }
+  .filesorter-wrap { padding: 0 14px 32px; }
+  .app-header { padding: 12px 14px; }
+}
+</style>
+</head>
+<body>
+
+  <!-- ============ HEADER ============ -->
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-mark">&#9657;</span>
+      <div class="brand-text">
+        <h1>QuickSlip</h1>
+        <p>Inventory Handler 1 BTW</p>
+      </div>
+    </div>
+    <button id="clearAllBtn" class="btn btn-danger-ghost" title="Reset every field">
+      <span class="icon">&#128465;</span> Clear All
+    </button>
+  </header>
+
+  <main class="layout">
+
+    <!-- ============ INPUT COLUMN ============ -->
+    <section class="column">
+      <h2 class="column-title">Inputs</h2>
+
+      <div class="card">
+        <h3 class="card-title">Shipment</h3>
+
+        <div class="field">
+          <label for="destination">Destination</label>
+          <input type="text" id="destination" placeholder="LMM" autocomplete="off">
+        </div>
+
+        <div class="field">
+          <label for="pn">PN</label>
+          <input type="text" id="pn" placeholder="SSR002 / 203" autocomplete="off">
+        </div>
+
+        <div class="field-row">
+          <div class="field field-qty">
+            <label for="qty">Qty</label>
+            <input type="text" id="qty" inputmode="numeric" pattern="[0-9]*" placeholder="0" autocomplete="off">
+          </div>
+
+          <div class="field field-unit">
+            <label>Unit</label>
+            <div class="radio-group" id="unitGroup">
+              <label class="radio-pill">
+                <input type="radio" name="unit" value="Carton" checked>
+                <span>Carton</span>
+              </label>
+              <label class="radio-pill">
+                <input type="radio" name="unit" value="Crate">
+                <span>Crate</span>
+              </label>
+              <label class="radio-pill">
+                <input type="radio" name="unit" value="Pallet">
+                <span>Pallet</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">Pick Slip</h3>
+        <p class="card-hint">Paste all pick slip numbers</p>
+        <div id="pickSlipList" class="pickslip-list"></div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">References</h3>
+
+        <div class="field">
+          <label for="hawb">HAWB</label>
+          <div class="input-with-copy">
+            <input type="text" id="hawb" placeholder="HAWB number" autocomplete="off">
+            <button class="copy-btn" data-copy-target="hawb" title="Copy HAWB">&#128203;</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="ediBol">EDI / BOL <span style="color:#6a6a6a;">(optional)</span></label>
+          <div class="input-with-copy">
+            <input type="text" id="ediBol" placeholder="EDI / BOL number" autocomplete="off">
+            <button class="copy-btn" data-copy-target="ediBol" title="Copy EDI / BOL">&#128203;</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ OUTPUT COLUMN ============ -->
+    <section class="column">
+      <h2 class="column-title">Outputs</h2>
+
+      <div class="card output-card">
+        <h3 class="card-title">Generated Names</h3>
+
+        <div class="output-row">
+          <div class="output-label">Commercial Invoice</div>
+          <div class="output-value" id="out-commercialInvoice">&mdash;</div>
+          <button class="copy-btn" data-copy-target-out="out-commercialInvoice" title="Copy">&#128203;</button>
+        </div>
+
+        <div class="output-row">
+          <div class="output-label">Serial Product</div>
+          <div class="output-value" id="out-serialProduct">&mdash;</div>
+          <button class="copy-btn" data-copy-target-out="out-serialProduct" title="Copy">&#128203;</button>
+        </div>
+
+        <div class="output-row">
+          <div class="output-label">Pick Slip Final</div>
+          <div class="output-value" id="out-pickSlipFinal">&mdash;</div>
+          <button class="copy-btn" data-copy-target-out="out-pickSlipFinal" title="Copy">&#128203;</button>
+        </div>
+
+        <div class="output-row">
+          <div class="output-label">Release Form</div>
+          <div class="output-value" id="out-releaseForm">&mdash;</div>
+          <button class="copy-btn" data-copy-target-out="out-releaseForm" title="Copy">&#128203;</button>
+        </div>
+      </div>
+
+      <div class="card output-card">
+        <h3 class="card-title">Folder Name</h3>
+        <div class="output-row">
+          <div class="output-value output-value-folder" id="out-folderName">&mdash;</div>
+          <button class="copy-btn" data-copy-target-out="out-folderName" title="Copy folder name">&#128203;</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============ FILE SORTER (HTA-only) ============ -->
+  <section class="filesorter-wrap">
+    <div class="card">
+      <h3 class="card-title">&#128193; File Sorter <span class="badge-hta">.hta only</span></h3>
+      <p class="card-hint">Choose the working folder, then click Sort. QuickSlip scans it for files matching each document's code below and moves them into a new folder named from the Folder Name above.</p>
+
+      <div class="hta-disabled-note" id="htaDisabledNote">
+        This is running in a regular browser, so folder/file actions are switched off.
+        Save this file as <b>QuickSlip.hta</b> and double-click it on Windows to enable the sorter.
+      </div>
+
+      <div class="workdir-row">
+        <div class="workdir-path" id="workDirPath">No working folder selected</div>
+        <button class="btn btn-secondary" id="chooseFolderBtn" type="button">Choose Folder&hellip;</button>
+      </div>
+
+      <div class="card output-card" style="margin-bottom:14px;">
+        <h3 class="card-title">Match Codes</h3>
+        <div class="output-row">
+          <div class="output-label">Commercial Invoice</div>
+          <div class="output-value">R5542651</div>
+        </div>
+        <div class="output-row">
+          <div class="output-label">Serial Product</div>
+          <div class="output-value">R5542064</div>
+        </div>
+        <div class="output-row">
+          <div class="output-label">Pick Slip Final</div>
+          <div class="output-value">R5542050A</div>
+        </div>
+        <div class="output-row">
+          <div class="output-label">Release Form (Rls)</div>
+          <div class="output-value">R5542047</div>
+        </div>
+      </div>
+
+      <p class="card-hint" id="ediScanHint">If EDI / BOL has a value when you click Sort, QuickSlip also gathers every file in the working folder whose name contains that value (e.g. multiple images) into the same folder.</p>
+
+      <div class="filesorter-actions">
+        <button class="btn btn-primary" id="sortBtn" type="button">&#128193; Sort into Folder</button>
+        <button class="btn btn-ghost" id="openFolderBtn" type="button" style="display:none;">Open Folder</button>
+      </div>
+
+      <div class="sorter-log" id="sorterLog"></div>
+    </div>
+  </section>
+
+  <div id="toast" class="toast">Copied!</div>
+
+<script language="JScript">
+/* ============================================================
+   QuickSlip — script (JScript / ES5 only)
+   -----------------------------------------------------------
+   Written for the legacy JScript engine mshta.exe uses (NOT the
+   modern Chakra/V8 engine). That means: no let/const, no arrow
+   functions, no template literals, no destructuring/spread, no
+   default parameters, no Promise/async. Everything below uses
+   plain var / function / string concatenation on purpose so it
+   runs the same whether opened as .hta or (minus file features)
+   in a normal browser.
+   ============================================================ */
+
+/* ---- Constants ---- */
+
+var STORAGE_KEY = "quickslip_state_v1";
+
+var UNIT_PLURALS = { Carton: "Cartons", Crate: "Crates", Pallet: "Pallets" };
+
+var OUTPUT_LABELS = {
+  commercialInvoice: "Commercial Invoice",
+  serialProduct: "Serial Product",
+  pickSlipFinal: "Pick Slip Final",
+  releaseForm: "Rls"
+};
+
+var SLOT_IDS = ["commercialInvoice", "serialProduct", "pickSlipFinal", "releaseForm"];
+
+var MATCH_CODES = {
+  commercialInvoice: "R5542651",
+  serialProduct: "R5542064",
+  pickSlipFinal: "R5542050A",
+  releaseForm: "R5542047"
+};
+
+var DEFAULT_WORKING_DIR = "C:\\Users\\zulkarnain.chesu\\Downloads";
+
+/* ---- DOM references ---- */
+
+var dom = {
+  destination: document.getElementById("destination"),
+  pn: document.getElementById("pn"),
+  qty: document.getElementById("qty"),
+  unitGroup: document.getElementById("unitGroup"),
+  pickSlipList: document.getElementById("pickSlipList"),
+  hawb: document.getElementById("hawb"),
+  ediBol: document.getElementById("ediBol"),
+  clearAllBtn: document.getElementById("clearAllBtn"),
+  toast: document.getElementById("toast"),
+
+  outCommercialInvoice: document.getElementById("out-commercialInvoice"),
+  outSerialProduct: document.getElementById("out-serialProduct"),
+  outPickSlipFinal: document.getElementById("out-pickSlipFinal"),
+  outReleaseForm: document.getElementById("out-releaseForm"),
+  outFolderName: document.getElementById("out-folderName"),
+
+  htaDisabledNote: document.getElementById("htaDisabledNote"),
+  workDirPath: document.getElementById("workDirPath"),
+  chooseFolderBtn: document.getElementById("chooseFolderBtn"),
+  sortBtn: document.getElementById("sortBtn"),
+  openFolderBtn: document.getElementById("openFolderBtn"),
+  sorterLog: document.getElementById("sorterLog")
+};
+
+/* ---- Application state ---- */
+
+var state = {
+  destination: "",
+  pn: "",
+  qty: "",
+  unit: "Carton",
+  pickSlips: [""],
+  hawb: "",
+  ediBol: "",
+  workingDir: ""
+};
+
+var dragFromIndex = null;
+var lastSortedFolder = "";
+
+/* ---- HTA / file-system capability detection ---- */
+
+var HTA_MODE = false;
+var fso = null;
+
+try {
+  fso = new ActiveXObject("Scripting.FileSystemObject");
+  HTA_MODE = true;
+} catch (activeXErr) {
+  HTA_MODE = false;
+}
+
+/* ============================================================
+   Persistence (localStorage)
+   ============================================================ */
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (err) {
+    // Storage unavailable — app still works, just won't persist.
+  }
+}
+
+function loadState() {
+  try {
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    var saved = JSON.parse(raw);
+    for (var key in saved) {
+      if (saved.hasOwnProperty(key)) state[key] = saved[key];
+    }
+    if (!isRealArray(state.pickSlips) || state.pickSlips.length === 0) {
+      state.pickSlips = [""];
+    }
+  } catch (err) {
+    // Corrupted save — ignore and start fresh.
+  }
+}
+
+function isRealArray(val) {
+  return Object.prototype.toString.call(val) === "[object Array]";
+}
+
+/* ============================================================
+   Helpers — parsing & formatting
+   ============================================================ */
+
+function splitPastedTokens(text) {
+  var raw = text.split(/[\n\r,]+|\s+/);
+  var out = [];
+  for (var i = 0; i < raw.length; i++) {
+    var t = raw[i].replace(/^\s+|\s+$/g, "");
+    if (t) out.push(t);
+  }
+  return out;
+}
+
+function getActivePickSlips() {
+  var out = [];
+  for (var i = 0; i < state.pickSlips.length; i++) {
+    var v = state.pickSlips[i].replace(/^\s+|\s+$/g, "");
+    if (v) out.push(v);
+  }
+  return out;
+}
+
+/**
+ * Core rule engine for the hidden ComputedPickSlip value.
+ *  0 values  -> ""
+ *  1 value   -> that value
+ *  2+, purely numeric & perfectly consecutive -> "min-max"
+ *  otherwise -> comma separated list (no partial ranges, ever)
+ */
+function computePickSlip(values) {
+  if (values.length === 0) return "";
+  if (values.length === 1) return values[0];
+
+  var asNumbers = [];
+  var allNumeric = true;
+  var i;
+  for (i = 0; i < values.length; i++) {
+    var n = parseInt(values[i], 10);
+    asNumbers.push(n);
+    if (!/^-?\d+$/.test(values[i]) || isNaN(n)) allNum

@@ -155,8 +155,6 @@ input::placeholder { color: #6a6a6a; }
   padding: 0;
 }
 
-.drag-handle { color: #6a6a6a; cursor: move; font-size: 13px; padding: 0 2px; }
-
 .pickslip-row input[type="text"] {
   border: 1px solid #3c3c3c;
   background: #1e1e1e;
@@ -172,7 +170,6 @@ input::placeholder { color: #6a6a6a; }
 }
 
 .pickslip-row input[type="text"]:focus { border-color: #007acc; }
-.pickslip-row.drag-over input[type="text"] { border-color: #007acc; }
 
 .row-btn {
   background: transparent;
@@ -541,11 +538,6 @@ var FILE_MATCH_PATTERNS = {
   releaseForm: ["R5542047"]
 };
 
-/* ---- File Sorter: default working folder, still changeable via
-   "Choose Folder..." — this only seeds it on first run / when no
-   folder has been chosen yet. ---- */
-var DEFAULT_WORKING_DIR = "C:\\Users\\zulkarnain.chesu\\Downloads";
-
 /* ---- DOM references ---- */
 
 var dom = {
@@ -583,10 +575,9 @@ var state = {
   pickSlips: [""],
   hawb: "",
   ediBol: "",
-  workingDir: DEFAULT_WORKING_DIR
+  workingDir: ""
 };
 
-var dragFromIndex = null;
 var lastSortedFolder = "";
 
 /* ---- HTA / file-system capability detection ---- */
@@ -599,6 +590,17 @@ try {
   HTA_MODE = true;
 } catch (activeXErr) {
   HTA_MODE = false;
+}
+
+var shell = null;
+
+if(HTA_MODE) {
+   shell = new ActiveXObject("WScript.Shell");
+}
+/* Nak determine USER */
+function getDefaultWorkingDir() {
+    if (!HTA_MODE)  return "";
+    return shell.ExpandEnvironmentStrings("%USERPROFILE%") + "\\Downloads";
 }
 
 /* ============================================================
@@ -628,7 +630,7 @@ function loadState() {
     // empty workingDir) — seed the default, still overridable by the
     // user via "Choose Folder...".
     if (!state.workingDir) {
-      state.workingDir = DEFAULT_WORKING_DIR;
+      state.workingDir = getDefaultWorkingDir();
     }
   } catch (err) {
     // Corrupted save — ignore and start fresh.
@@ -750,14 +752,7 @@ function renderPickSlipRows() {
 function buildPickSlipRow(value, index, isLastRow) {
   var row = document.createElement("div");
   row.className = "pickslip-row";
-  row.setAttribute("draggable", "true");
   row.setAttribute("data-index", String(index));
-
-  var handle = document.createElement("span");
-  handle.className = "drag-handle";
-  handle.innerHTML = "&#8942;&#8942;";
-  handle.title = "Drag to reorder";
-  row.appendChild(handle);
 
   var input = document.createElement("input");
   input.type = "text";
@@ -806,28 +801,6 @@ function attachRowEvents(row, input, copyBtn) {
       recalculate();
     });
   }
-
-  row.addEventListener("dragstart", function () {
-    dragFromIndex = Number(row.getAttribute("data-index"));
-  });
-
-  row.addEventListener("dragover", function (e) {
-    if (e.preventDefault) e.preventDefault();
-    e.returnValue = false;
-    row.className = "pickslip-row drag-over";
-    return false;
-  });
-
-  row.addEventListener("dragleave", function () {
-    row.className = "pickslip-row";
-  });
-
-  row.addEventListener("drop", function (e) {
-    if (e.preventDefault) e.preventDefault();
-    var toIndex = Number(row.getAttribute("data-index"));
-    reorderPickSlips(dragFromIndex, toIndex);
-    return false;
-  });
 }
 
 function reorderPickSlips(fromIndex, toIndex) {
@@ -1093,7 +1066,7 @@ function hydrateFieldsFromState() {
 }
 
 /* ============================================================
-   FILE SORTER — everything below only runs meaningfully in HTA
+   FILE SORTER — everything below only runs in HTA
    ============================================================ */
 
 function renderWorkingDir() {
@@ -1118,10 +1091,7 @@ function initFileSorter() {
   dom.openFolderBtn.addEventListener("click", handleOpenFolder);
 }
 
-/* ---- Auto-scan matching (replaces drag & drop) ----
-   Same "trim search" approach as the EDI/BOL sweep: a case-
-   insensitive substring match against each file name in the
-   working folder. Each slot is expected to match exactly one
+/* Each slot is expected to match exactly one
    file — 2+ matches is treated as an error (ambiguous), 0
    matches is just skipped with a warning. */
 

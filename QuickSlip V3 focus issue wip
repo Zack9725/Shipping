@@ -1328,6 +1328,16 @@ function handleOpenFolder() {
   }
 }
 
+function setInitialWindowSize() {
+    try {
+        window.resizeTo(920, 850);   // Width, Height
+        window.moveTo(
+            (screen.availWidth - 1200) / 2,
+            (screen.availHeight - 850) / 2
+        );
+    } catch (e) {}
+}
+
 /* ============================================================
    Init
    ============================================================ */
@@ -1352,6 +1362,7 @@ function init() {
   safeStep(bindClearAll, "bindClearAll");
   safeStep(initFileSorter, "initFileSorter");
   safeStep(recalculate, "recalculate");
+  safeStep(setInitialWindowSize, "setInitialWindowSize");
 }
 
 window.attachEvent ? window.attachEvent("onload", init) : window.addEventListener("load", init);

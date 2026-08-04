@@ -620,25 +620,34 @@ function saveState() {
 }
 
 function loadState() {
-  try {
-    var raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    var saved = JSON.parse(raw);
-    for (var key in saved) {
-      if (saved.hasOwnProperty(key)) state[key] = saved[key];
+
+    try {
+
+        var raw = localStorage.getItem(STORAGE_KEY);
+
+        if (raw) {
+
+            var saved = JSON.parse(raw);
+
+            for (var key in saved) {
+                if (saved.hasOwnProperty(key))
+                    state[key] = saved[key];
+            }
+
+        }
+
+    } catch (err) {
+        // ignore corrupted save
     }
+
     if (!isRealArray(state.pickSlips) || state.pickSlips.length === 0) {
-      state.pickSlips = [""];
+        state.pickSlips = [""];
     }
-    // No folder chosen yet (fresh install, or an older save with an
-    // empty workingDir) — seed the default, still overridable by the
-    // user via "Choose Folder...".
+
     if (!state.workingDir) {
-      state.workingDir = getDefaultWorkingDir();
+        state.workingDir = getDefaultWorkingDir();
     }
-  } catch (err) {
-    // Corrupted save — ignore and start fresh.
-  }
+
 }
 
 function isRealArray(val) {

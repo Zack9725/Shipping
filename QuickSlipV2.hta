@@ -594,9 +594,10 @@ try {
 
 var shell = null;
 
-if(HTA_MODE) {
+if (HTA_MODE) {
    shell = new ActiveXObject("WScript.Shell");
 }
+
 /* Nak determine USER */
 function getDefaultWorkingDir() {
 

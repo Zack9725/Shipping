@@ -1,0 +1,10 @@
+-need to rework on EDI/BOL data handling since there could be multiple EDI numbers. file searching also include all listed EDI numbers (if available).
+-"Item" card now able to append so need to setup button to append and close accordingly (if 1 card available, no "X" button),this card introduce new variables dimensions and weight.
+this data need to be processed with this certain rules.
+dimensions input must be trimmed to be "0x0x0" (this input field have copy button) (only contain space on processed value)
+weight input must be trimmed and formatted to be "0.0" (this input field have copy button)
+on 1 "item" card input, output must be "Dimension : 0 x 0 x 0 Cm<br>Weight : 0.0 Kgs<br>Total : qty +unit"
+on 2+ "item" card input, output mus be "Dimension : 0 x 0 x 0 Cm (qty +unit)<br>1 x 1 x 1 Cm (qty1 +unit1)<br>Weight : 0.0 Kgs<br>Total : qty +unit & qty1 +unit1" if unit is same then just sum the value instead. weight is always sum value
+-references on generated edi is just simple "EDInumber - qty unit". if multiple EDI numbers are present, append n value of row to have value for each item unit
+-need to rework on qty handling due to could be multiple qty with different PN and unit. folder naming convention can be (eg: "LMM 203 514 1 Pallet 2 Crates - pickslip1,pickslip2") (file names maintain the same)
+-pick slip string output is a simple string of available pick slips (eg: "p1,p2,...")

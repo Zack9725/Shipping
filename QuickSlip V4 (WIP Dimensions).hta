@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-<title>QuickSlip - Made By Zack</title>
+<title>QuickSlip</title>
 
 <HTA:APPLICATION
   ID="quickSlipHTA"
-  APPLICATIONNAME="QuickSlip - Made By Zack"
+  APPLICATIONNAME="QuickSlip"
   BORDER="thin"
   BORDERSTYLE="normal"
   CAPTION="yes"
@@ -342,7 +342,7 @@ input::placeholder { color: #6a6a6a; }
       <span class="brand-mark">&#9657;</span>
       <div class="brand-text">
         <h1>QuickSlip</h1>
-        <p>Inventory Handler 1 BTW</p>
+        <p>Made By - Zack (Inventory Handler 1 BTW)</p>
       </div>
     </div>
     <button id="clearAllBtn" class="btn btn-danger-ghost" title="Reset every field">
@@ -360,39 +360,17 @@ input::placeholder { color: #6a6a6a; }
         <h3 class="card-title">Shipment</h3>
 
         <div class="field">
-          <label for="destination">Destination</label>
+          <label for="destination">Destination :</label>
           <input type="text" id="destination" placeholder="LMM" autocomplete="off">
         </div>
 
         <div class="field">
-          <label for="pn">PN</label>
-          <input type="text" id="pn" placeholder="SSR002 / 203" autocomplete="off">
-        </div>
-
-        <div class="field-row">
-          <div class="field field-qty">
-            <label for="qty">Qty</label>
-            <input type="text" id="qty" inputmode="numeric" pattern="[0-9]*" placeholder="0" autocomplete="off">
+          <label for="hawb">HAWB : <span style="color:#6a6a6a;">(optional)</span></label>
+          <div class="input-with-copy">
+            <input type="text" id="hawb" placeholder="HAWB number" autocomplete="off">
+            <button class="copy-btn" data-copy-target="hawb" title="Copy HAWB">&#128203;</button>
           </div>
-
-          <div class="field field-unit">
-             <label> Unit</label>
-             <div class="radio-group" id="unitGroup">
-               <label class="radio-pill">
-                 <input type="radio" name="unit" value="Carton" checked>
-                 <span>Carton</span>
-               </label>
-               <label class="radio-pill">
-                 <input type="radio" name="unit" value="Crate">
-                 <span>Crate</span>
-               </label>
-               <label class="radio-pill">
-                 <input type="radio" name="unit" value="Pallet">
-                 <span>Pallet</span>
-               </label>
-             </div>
-           </div>
-         </div>
+        </div>
       </div>
 
       <div class="card">
@@ -402,14 +380,11 @@ input::placeholder { color: #6a6a6a; }
       </div>
 
       <div class="card">
-        <h3 class="card-title">References</h3>
+        <h3 class="card-title">Item</h3>
 
         <div class="field">
-          <label for="hawb">HAWB : <span style="color:#6a6a6a;">(optional)</span></label>
-          <div class="input-with-copy">
-            <input type="text" id="hawb" placeholder="HAWB number" autocomplete="off">
-            <button class="copy-btn" data-copy-target="hawb" title="Copy HAWB">&#128203;</button>
-          </div>
+          <label for="pn">PN :</label>
+          <input type="text" id="pn" placeholder="SSR002 / 203" autocomplete="off">
         </div>
 
         <div class="field">
@@ -419,26 +394,48 @@ input::placeholder { color: #6a6a6a; }
             <button class="copy-btn" data-copy-target="ediBol" title="Copy EDI / BOL">&#128203;</button>
           </div>
         </div>
-      </div>
-      <div class="card">
-        <h3 class="card-title">Dimensions & Weight</h3>
 
-        <div class="field">
-          <label for="dimensions">Dimensions :</label>
-          <div class="input-with-copy">
+	<div class="field-row">
+          <div class="field">
+            <label for="dimensions">Dimensions :</label>
             <input type="text" id="dimensions" placeholder="0x0x0" autocomplete="off">
-            <button class="copy-btn" data-copy-target="dimensions" title="Copy Dimensions">&#128203;</button>
           </div>
-        </div>
 
-        <div class="field">
-          <label for="weight">Weight :</label>
-          <div class="input-with-copy">
-            <input type="text" id="weight" placeholder="0" autocomplete="off">
-            <button class="copy-btn" data-copy-target="weight" title="Copy Weight">&#128203;</button>
+          <div class="field">
+            <label for="weight">Weight :</label>
+            <input type="text" id="weight" placeholder="0.0" autocomplete="off">
           </div>
-        </div>
+         </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="qty">Qty :</label>
+            <input type="text" id="qty" inputmode="numeric" pattern="[0-9]*" placeholder="0" autocomplete="off">
+          </div>
+
+          <div class="field field-unit">
+             <label> Unit :</label>
+             <div class="radio-group" id="unitGroup">
+               <label class="radio-pill">
+                 <input type="radio" name="unit" value="Carton" checked>
+                 <span>Carton</span>
+               </label>
+               <label class="radio-pill">
+                 <input type="radio" name="unit" value="Pallet">
+                 <span>Crate</span>
+               </label>
+               <label class="radio-pill">
+                 <input type="radio" name="unit" value="Crate">
+                 <span>Pallet</span>
+               </label>
+             </div>
+           </div>
+         </div>
       </div>
+      
+      <div class="btn btn-ghost">+ Add Item</div> <!-- Button ni supposedly append new "Item" card, kalau card "Item"
+ada banyak, ada red "X" on top right untuk remove incase x perlu -->
+
     </section>
 
     <!-- ============ OUTPUT COLUMN ============ -->
@@ -446,35 +443,7 @@ input::placeholder { color: #6a6a6a; }
       <h2 class="column-title">Outputs</h2>
 
       <div class="card output-card">
-        <h3 class="card-title">Generated Names</h3>
-
-        <div class="output-row">
-          <div class="output-label">Commercial Invoice</div>
-          <div class="output-value" id="out-commercialInvoice">&mdash;</div>
-          <button class="copy-btn" data-copy-target-out="out-commercialInvoice" title="Copy">&#128203;</button>
-        </div>
-
-        <div class="output-row">
-          <div class="output-label">Serial Product</div>
-          <div class="output-value" id="out-serialProduct">&mdash;</div>
-          <button class="copy-btn" data-copy-target-out="out-serialProduct" title="Copy">&#128203;</button>
-        </div>
-
-        <div class="output-row">
-          <div class="output-label">Pick Slip Final</div>
-          <div class="output-value" id="out-pickSlipFinal">&mdash;</div>
-          <button class="copy-btn" data-copy-target-out="out-pickSlipFinal" title="Copy">&#128203;</button>
-        </div>
-
-        <div class="output-row">
-          <div class="output-label">Release Form</div>
-          <div class="output-value" id="out-releaseForm">&mdash;</div>
-          <button class="copy-btn" data-copy-target-out="out-releaseForm" title="Copy">&#128203;</button>
-        </div>
-      </div>
-
-      <div class="card output-card">
-        <h3 class="card-title">Folder Name</h3>
+        <h3 class="card-title">Folder Name Preview</h3>
         <div class="output-row">
           <div class="output-value output-value-folder" id="out-folderName">&mdash;</div>
           <button class="copy-btn" data-copy-target-out="out-folderName" title="Copy folder name">&#128203;</button>
@@ -500,8 +469,32 @@ input::placeholder { color: #6a6a6a; }
       <div class="sorter-log" id="sorterLog"></div>
     </div>
 
-    </section>
+      <h2 class="column-title">REFERENCES</h2>
 
+      <div class="card output-card">
+        <h3 class="card-title">Generated Dimensions :<span style="font-size:11px;color:#6a6a6a;"> (JDE Tracking)</span></h3>
+
+        <div class="output-row">
+          <div class="output-value" id="generatedDimensions">&mdash;</div>
+          <button class="copy-btn" data-copy-target-out="generatedDimensions" title="Copy">&#128203;</button>
+        </div>
+      </div>
+
+	<div class="card output-card">
+        <h3 class="card-title">Generated EDI :<span style="font-size:11px;color:#6a6a6a;"> (CTZ E-mail Purposes)</span></h3>
+	<div class="output-row">
+          <div class="output-value" id="generatedEDI">&mdash;</div>
+          <button class="copy-btn" data-copy-target-out="generatedEDI" title="Copy">&#128203;</button>
+        </div>
+       </div>
+
+	<div class="card output-card">
+        <h3 class="card-title">Pick Slip String :<br><span style="font-size:11px;color:#6a6a6a;"> (would be nice kalau IT bagi access extension or if I made my own extension, whichever allowed. If not = deprecated features)</span>
+	<div class="output-row">
+          <div class="output-value" id="generatedEDI">&mdash;</div>
+          <button class="copy-btn" data-copy-target-out="generatedEDI" title="Copy">&#128203;</button>
+        </div>
+       </div>
   </main>
 
   <div id="toast" class="toast">Copied!</div>

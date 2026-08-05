@@ -102,17 +102,34 @@ html, body {
 .field { margin-bottom: 12px; }
 .field:last-child { margin-bottom: 4px; }
 .field label { display: block; font-size: 12px; color: #9d9d9d; margin-bottom: 5px; }
-.field-row { display: flex; gap: 12px;}
-.field-qty { flex: 0 0 90px; }
-.field-unit { margin-left: 16px; }
 
-/* Explicit equal flex-basis for paired fields (Dimensions / Weight).
-   Old IE's flexbox engine (used by native .hta) sizes flex items to
-   their content by default and can collapse them very narrow; a
-   modern browser rendering the plain .html doesn't have this bug.
-   Forcing flex-basis 0 + min-width 0 makes both engines split the
-   row evenly and stop shrinking. */
-.field-half { flex: 1 1 0; min-width: 0; }
+/* field-row previously used display:flex, but mshta's (HTA) rendering
+   engine handles flexbox item-sizing unreliably — paired fields would
+   collapse/shrink to the left instead of splitting evenly, even with
+   the usual flex-basis:0 + min-width:0 workaround. Table layout has
+   been fully, consistently supported since IE7 and needs no such
+   workarounds, so the row is built as a CSS table instead. Renders
+   identically in a normal browser opening the plain .html. */
+.field-row {
+  display: table;
+  table-layout: fixed;
+  width: 100%;
+  margin-bottom: 12px;
+}
+.field-row > .field {
+  display: table-cell;
+  vertical-align: top;
+  margin-bottom: 0;
+  padding-right: 12px;
+}
+.field-row > .field:last-child { padding-right: 0; }
+
+.field-qty { width: 90px; }
+.field-unit { padding-left: 16px; }
+
+/* Paired fields (Dimensions / Weight) — no explicit width means the
+   fixed table layout splits the remaining space evenly, 50/50. */
+.field-half { }
 
 input[type="text"], input[type="number"] {
   width: 100%;

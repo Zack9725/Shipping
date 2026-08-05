@@ -229,8 +229,8 @@ input::placeholder { color: #6a6a6a; }
 }
 .copy-btn:hover { background: rgba(0, 122, 204, 0.12); border-color: #007acc; color: #ffffff; }
 
-.input-with-copy { display: flex; gap: 6px; }
-.input-with-copy input { flex: 1; }
+.input-with-copy { display: flex; gap: 6px; min-width: 0; }
+.input-with-copy input { flex: 1; min-width: 0; }
 
 /* ============ Output section ============ */
 
@@ -481,7 +481,7 @@ input::placeholder { color: #6a6a6a; }
 var STORAGE_KEY = "quickslip_state_v2";
 var LEGACY_STORAGE_KEY = "quickslip_state_v1";
 
-var UNIT_PLURALS = { Carton: "Cartons", Pallet: "Pallets", Crate: "Crates" };
+var UNIT_PLURALS = { Carton: "Cartons", Crate: "Crates", Pallet: "Pallets" };
 
 function defaultItem() {
   return { pn: "", ediBol: "", dimensions: "", weight: "", qty: "", unit: "Carton" };
@@ -1182,8 +1182,8 @@ function buildItemCard(item, index, isOnlyCard) {
 
   var unitOptions = [
     { value: "Carton", text: "Carton" },
-    { value: "Pallet", text: "Pallet" },
-    { value: "Crate", text: "Crate" }
+    { value: "Pallet", text: "Crate" },
+    { value: "Crate", text: "Pallet" }
   ];
   for (var u = 0; u < unitOptions.length; u++) {
     var pill = document.createElement("label");
@@ -1342,7 +1342,7 @@ function buildGeneratedDimensions(activeItems) {
     var unitWeight = parseFloat(only.weight);
     var totalWeight = isNaN(unitWeight) ? 0 : unitWeight * effQty;
 
-    var text = displayDimensions(only.dimensions) + " Cm<br>" +
+    var text = "Dimensions : " + displayDimensions(only.dimensions) + " Cm<br>" +
       "Weight : " + formatWeightSum(totalWeight) + " Kgs<br>" +
       "Total : " + totalText;
     return { html: text, plain: htmlBrToPlain(text) };
@@ -1358,7 +1358,7 @@ function buildGeneratedDimensions(activeItems) {
     var itQty = trim(it.qty);
     var qtyUnitLabel = itQty ? (itQty + " " + pluralizedUnit(itQty, it.unit)) : "";
     var dimLine = displayDimensions(it.dimensions) + " Cm" + (qtyUnitLabel ? " (" + qtyUnitLabel + ")" : "");
-    lines.push(dimLine);
+    lines.push(i === 0 ? "Dimensions : " + dimLine : dimLine);
 
     // Weight input is per single unit — multiply by this card's qty
     // before adding it to the running total.

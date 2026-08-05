@@ -400,12 +400,6 @@ input::placeholder { color: #6a6a6a; }
         <div id="pickSlipList" class="pickslip-list"></div>
       </div>
 
-      <div class="card">
-        <h3 class="card-title">EDI / BOL <span style="color:#6a6a6a;font-weight:400;">(If available)</span></h3>
-        <p class="card-hint">Paste all EDI / BOL numbers</p>
-        <div id="ediBolList" class="pickslip-list"></div>
-      </div>
-
       <div id="itemCardsList"></div>
 
       <div class="btn btn-ghost" id="addItemBtn">+ Add Item</div>
@@ -482,7 +476,7 @@ var LEGACY_STORAGE_KEY = "quickslip_state_v1";
 var UNIT_PLURALS = { Carton: "Cartons", Crate: "Crates", Pallet: "Pallets" };
 
 function defaultItem() {
-  return { pn: "", dimensions: "", weight: "", qty: "", unit: "Carton" };
+  return { pn: "", ediBol: "", dimensions: "", weight: "", qty: "", unit: "Carton" };
 }
 
 var OUTPUT_LABELS = {
@@ -510,7 +504,6 @@ var FILE_MATCH_PATTERNS = {
 var dom = {
   destination: document.getElementById("destination"),
   pickSlipList: document.getElementById("pickSlipList"),
-  ediBolList: document.getElementById("ediBolList"),
   itemCardsList: document.getElementById("itemCardsList"),
   addItemBtn: document.getElementById("addItemBtn"),
   hawb: document.getElementById("hawb"),
@@ -539,7 +532,6 @@ var dom = {
 var state = {
   destination: "",
   pickSlips: [""],
-  ediBols: [""],
   items: [defaultItem()],
   hawb: "",
   workingDir: ""
@@ -615,10 +607,6 @@ function loadState() {
         state.pickSlips = [""];
     }
 
-    if (!isRealArray(state.ediBols) || state.ediBols.length === 0) {
-        state.ediBols = [""];
-    }
-
     if (!isRealArray(state.items) || state.items.length === 0) {
         state.items = [defaultItem()];
     } else {
@@ -626,6 +614,7 @@ function loadState() {
             var it = state.items[i] || {};
             state.items[i] = {
                 pn: it.pn || "",
+                ediBol: it.ediBol || "",
                 dimensions: it.dimensions || "",
                 weight: it.weight || "",
                 qty: it.qty || "",
@@ -654,13 +643,10 @@ function migrateLegacyState() {
             state.pickSlips = legacy.pickSlips;
         }
 
-        if (legacy.ediBol) {
-            state.ediBols = [legacy.ediBol];
-        }
-
-        if (legacy.pn || legacy.qty || legacy.dimensions || legacy.weight) {
+        if (legacy.pn || legacy.qty || legacy.dimensions || legacy.weight || legacy.ediBol) {
             state.items = [{
                 pn: legacy.pn || "",
+                ediBol: legacy.ediBol || "",
                 dimensions: legacy.dimensions || "",
                 weight: legacy.weight || "",
                 qty: legacy.qty || "",
@@ -701,8 +687,8 @@ function getActivePickSlips() {
 
 function getActiveEdiBols() {
   var out = [];
-  for (var i = 0; i < state.ediBols.length; i++) {
-    var v = trim(state.ediBols[i]);
+  for (var i = 0; i < state.items.length; i++) {
+    var v = trim(state.items[i].ediBol);
     if (v) out.push(v);
   }
   return out;
@@ -713,7 +699,7 @@ function getActiveItems() {
   var out = [];
   for (var i = 0; i < state.items.length; i++) {
     var it = state.items[i];
-    if (trim(it.pn) || trim(it.dimensions) || trim(it.weight) || trim(it.qty)) {
+    if (trim(it.pn) || trim(it.ediBol) || trim(it.dimensions) || trim(it.weight) || trim(it.qty)) {
       out.push(it);
     }
   }
@@ -967,121 +953,6 @@ function focusRowInput(index) {
 }
 
 /* ============================================================
-   Rendering — EDI / BOL rows (paste-multiple list, mirrors Pick Slip)
-   ============================================================ */
-
-function renderEdiBolRows() {
-  dom.ediBolList.innerHTML = "";
-  for (var index = 0; index < state.ediBols.length; index++) {
-    var isLastRow = index === state.ediBols.length - 1;
-    var row = buildEdiBolRow(state.ediBols[index], index, isLastRow);
-    dom.ediBolList.appendChild(row);
-  }
-}
-
-function buildEdiBolRow(value, index, isLastRow) {
-  var row = document.createElement("div");
-  row.className = "pickslip-row";
-  row.setAttribute("data-index", String(index));
-
-  var input = document.createElement("input");
-  input.type = "text";
-  input.value = value;
-  input.placeholder = isLastRow ? "+" : "";
-  input.setAttribute("data-index", String(index));
-  input.autocomplete = "off";
-  row.appendChild(input);
-
-  var copyBtn = document.createElement("button");
-  copyBtn.className = "row-btn copy-btn";
-  copyBtn.innerHTML = "&#128203;";
-  copyBtn.title = "Copy this EDI / BOL";
-  copyBtn.setAttribute("type", "button");
-  row.appendChild(copyBtn);
-
-  if (!isLastRow) {
-    var delBtn = document.createElement("button");
-    delBtn.className = "row-btn delete-btn";
-    delBtn.innerHTML = "&#10005;";
-    delBtn.title = "Remove this row";
-    delBtn.setAttribute("type", "button");
-    row.appendChild(delBtn);
-  }
-
-  attachEdiBolRowEvents(row, input, copyBtn);
-  return row;
-}
-
-function attachEdiBolRowEvents(row, input, copyBtn) {
-  input.addEventListener("input", handleEdiBolInput);
-  input.addEventListener("paste", handleEdiBolPaste);
-
-  copyBtn.addEventListener("click", function () {
-    var val = trim(input.value);
-    if (val) copyToClipboard(val);
-  });
-
-  var delBtn = row.querySelector(".delete-btn");
-  if (delBtn) {
-    delBtn.addEventListener("click", function () {
-      var idx = Number(row.getAttribute("data-index"));
-      state.ediBols.splice(idx, 1);
-      ensureTrailingEmptyEdiRow();
-      renderEdiBolRows();
-      recalculate();
-    });
-  }
-}
-
-function handleEdiBolInput(e) {
-  var idx = Number(e.target.getAttribute("data-index"));
-  state.ediBols[idx] = e.target.value;
-
-  var isLastRow = idx === state.ediBols.length - 1;
-  var hasValue = trim(e.target.value).length > 0;
-
-  if (isLastRow && hasValue) {
-    state.ediBols.push("");
-    renderEdiBolRows();
-    focusEdiRowInput(idx);
-  }
-
-  recalculate();
-}
-
-function handleEdiBolPaste(e) {
-  var cd = e.clipboardData || window.clipboardData;
-  var clipboardText = cd ? cd.getData("Text") : "";
-  var tokens = splitPastedTokens(clipboardText);
-
-  if (tokens.length <= 1) return; // let native paste happen for a single token
-
-  if (e.preventDefault) e.preventDefault();
-  var idx = Number(e.target.getAttribute("data-index"));
-
-  var args = [idx, 1].concat(tokens);
-  state.ediBols.splice.apply(state.ediBols, args);
-  ensureTrailingEmptyEdiRow();
-  renderEdiBolRows();
-  recalculate();
-}
-
-function ensureTrailingEmptyEdiRow() {
-  if (state.ediBols.length === 0) { state.ediBols.push(""); return; }
-  var last = state.ediBols[state.ediBols.length - 1];
-  if (trim(last) !== "") state.ediBols.push("");
-}
-
-function focusEdiRowInput(index) {
-  var input = dom.ediBolList.querySelector('input[data-index="' + index + '"]');
-  if (input) {
-    input.focus();
-    var len = input.value.length;
-    try { input.setSelectionRange(len, len); } catch (e) { /* ignore */ }
-  }
-}
-
-/* ============================================================
    Rendering — Item cards (appendable)
    ============================================================ */
 
@@ -1141,6 +1012,37 @@ function buildItemCard(item, index, isOnlyCard) {
   pnField.appendChild(pnLabel);
   pnField.appendChild(pnInput);
   card.appendChild(pnField);
+
+  var ediField = document.createElement("div");
+  ediField.className = "field";
+  var ediLabel = document.createElement("label");
+  ediLabel.innerHTML = 'EDI / BOL : <span style="color:#6a6a6a;">(If available)</span>';
+  var ediWrap = document.createElement("div");
+  ediWrap.className = "input-with-copy";
+  var ediInput = document.createElement("input");
+  ediInput.type = "text";
+  ediInput.placeholder = "EDI / BOL number";
+  ediInput.autocomplete = "off";
+  ediInput.value = item.ediBol;
+  ediInput.addEventListener("input", function (e) {
+    var idx = Number(card.getAttribute("data-index"));
+    state.items[idx].ediBol = e.target.value;
+    recalculate();
+  });
+  var ediCopyBtn = document.createElement("button");
+  ediCopyBtn.className = "copy-btn";
+  ediCopyBtn.type = "button";
+  ediCopyBtn.title = "Copy EDI / BOL";
+  ediCopyBtn.innerHTML = "&#128203;";
+  ediCopyBtn.addEventListener("click", function () {
+    var val = trim(ediInput.value);
+    if (val) copyToClipboard(val);
+  });
+  ediWrap.appendChild(ediInput);
+  ediWrap.appendChild(ediCopyBtn);
+  ediField.appendChild(ediLabel);
+  ediField.appendChild(ediWrap);
+  card.appendChild(ediField);
 
   var dimWeightRow = document.createElement("div");
   dimWeightRow.className = "field-row";
@@ -1342,7 +1244,6 @@ function fallbackCopy(text) {
 function recalculate() {
   var computedPickSlip = computePickSlip(getActivePickSlips());
   var activeItems = getActiveItems();
-  var activeEdiBols = getActiveEdiBols();
 
   setOutput(dom.outCommercialInvoice, suffixed("Commercial Invoice", computedPickSlip));
   setOutput(dom.outSerialProduct, suffixed("Serial Product", computedPickSlip));
@@ -1351,7 +1252,7 @@ function recalculate() {
   setOutput(dom.outFolderName, buildFolderName(computedPickSlip, activeItems));
 
   setOutputHtml(dom.generatedDimensions, buildGeneratedDimensions(activeItems));
-  setOutputHtml(dom.generatedEDI, buildGeneratedEDI(activeEdiBols, state.items));
+  setOutputHtml(dom.generatedEDI, buildGeneratedEDI(state.items));
   setOutput(dom.pickSlipString, getActivePickSlips().join(","));
 
   saveState();
@@ -1457,22 +1358,22 @@ function formatWeightSum(n) {
   return str;
 }
 
-/* "Generated EDI" output — one line per EDI/BOL row, paired by row
-   position with the Item card at the same index: "EDInumber - qty unit" */
-function buildGeneratedEDI(activeEdiBols, allItems) {
-  if (activeEdiBols.length === 0) return null;
-
+/* "Generated EDI" output — each Item card that has an EDI/BOL filled in
+   contributes one line, paired with that same card's own qty + unit:
+   "EDInumber - qty unit" */
+function buildGeneratedEDI(allItems) {
   var lines = [];
-  for (var i = 0; i < activeEdiBols.length; i++) {
-    var edi = activeEdiBols[i];
+  for (var i = 0; i < allItems.length; i++) {
     var it = allItems[i];
-    var qtyUnit = "";
-    if (it) {
-      var qty = trim(it.qty);
-      if (qty) qtyUnit = qty + " " + pluralizedUnit(qty, it.unit);
-    }
+    var edi = trim(it.ediBol);
+    if (!edi) continue;
+
+    var qty = trim(it.qty);
+    var qtyUnit = qty ? (qty + " " + pluralizedUnit(qty, it.unit)) : "";
     lines.push(edi + (qtyUnit ? " - " + qtyUnit : ""));
   }
+
+  if (lines.length === 0) return null;
 
   var html = lines.join("<br>");
   return { html: html, plain: htmlBrToPlain(html) };
@@ -1563,13 +1464,12 @@ function bindClearAll() {
     if (!confirmed) return;
 
     state = {
-      destination: "", pickSlips: [""], ediBols: [""],
+      destination: "", pickSlips: [""],
       items: [defaultItem()], hawb: "", workingDir: state.workingDir
     };
 
     hydrateFieldsFromState();
     renderPickSlipRows();
-    renderEdiBolRows();
     renderItemCards();
     recalculate();
 
@@ -1902,7 +1802,6 @@ function safeStep(fn, label) {
 function init() {
   safeStep(loadState, "loadState");
   safeStep(renderPickSlipRows, "renderPickSlipRows");
-  safeStep(renderEdiBolRows, "renderEdiBolRows");
   safeStep(renderItemCards, "renderItemCards");
   safeStep(hydrateFieldsFromState, "hydrateFieldsFromState");
   safeStep(bindSimpleFields, "bindSimpleFields");

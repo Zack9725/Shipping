@@ -447,7 +447,7 @@ input::placeholder { color: #6a6a6a; }
       <h3 class="card-title">&#128193; File Sorter <span class="badge-hta">.hta only</span></h3>
       <div class="hta-disabled-note" id="htaDisabledNote">
         This is running in a regular browser, so folder/file actions are switched off.
-        Save this file as <b>QuickSlip.hta</b> and double-click it on Windows to enable the sorter.
+        Save this file as <b>".hta" file</b> to enable the sorter.
       </div>
       <p class="card-hint">Select folder directory to work with</p>
       <div class="workdir-row">
@@ -1339,7 +1339,7 @@ function buildFolderName(computedPickSlip, activeItems) {
 /**
  * "Generated Dimensions" (JDE Tracking) output.
  *  0 active items -> ""
- *  1 active item  -> "Dimensions : D Cm<br>Weight : W Kgs<br>Total : qty unit"
+ *  1 active item  -> "D Cm<br>Weight : W Kgs<br>Total : qty unit"
  *  2+ active items -> one dimension line per item (qty+unit noted per line),
  *                      then a single summed Weight line, then a Total line
  *                      that sums qty per distinct unit and joins distinct
@@ -1359,7 +1359,7 @@ function buildGeneratedDimensions(activeItems) {
     var unitWeight = parseFloat(only.weight);
     var totalWeight = isNaN(unitWeight) ? 0 : unitWeight * effQty;
 
-    var text = "Dimensions : " + displayDimensions(only.dimensions) + " Cm<br>" +
+    var text = displayDimensions(only.dimensions) + " Cm<br>" +
       "Weight : " + formatWeightSum(totalWeight) + " Kgs<br>" +
       "Total : " + totalText;
     return { html: text, plain: htmlBrToPlain(text) };
@@ -1375,7 +1375,7 @@ function buildGeneratedDimensions(activeItems) {
     var itQty = trim(it.qty);
     var qtyUnitLabel = itQty ? (itQty + " " + pluralizedUnit(itQty, it.unit)) : "";
     var dimLine = displayDimensions(it.dimensions) + " Cm" + (qtyUnitLabel ? " (" + qtyUnitLabel + ")" : "");
-    lines.push(i === 0 ? "Dimensions : " + dimLine : dimLine);
+    lines.push(i === 0 ? dimLine : dimLine);
 
     // Weight input is per single unit — multiply by this card's qty
     // before adding it to the running total.

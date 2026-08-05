@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<title>QuickSlip</title>
+
+<HTA:APPLICATION
+  ID="quickSlipHTA"
+  APPLICATIONNAME="QuickSlip"
+  BORDER="thin"
+  BORDERSTYLE="normal"
+  CAPTION="yes"
+  MAXIMIZEBUTTON="yes"
+  MINIMIZEBUTTON="yes"
+  NAVIGABLE="no"
+  SCROLL="yes"
+  SCROLLFLAT="yes"
+  SELECTION="yes"
+  SHOWINTASKBAR="yes"
+  SINGLEINSTANCE="yes"
+  SYSMENU="yes"
+  VERSION="1.0"
+  WINDOWSTATE="normal"
+/>
+
+<style>
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+  line-height: 1.5;
+}
+
+/* ============ Header ============ */
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid #3c3c3c;
+  background: #252526;
+}
+
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand-mark { color: #007acc; font-size: 20px; }
+.brand-text h1 { margin: 0; font-size: 16px; font-weight: 600; }
+.brand-text p { margin: 2px 0 0; font-size: 11.5px; color: #9d9d9d; }
+
+/* ============ Layout (flex, not grid — HTA-safe) ============ */
+
+.layout {
+  display: flex;
+  gap: 20px;
+  padding: 20px 24px 8px;
+  allign-items: flex-start;
+  justify-content: flex-start;
+}
+
+.column:first-child {width: 390px; flex: 0 0 390px; margin-right: 24px;}
+.column:last-child {width: 500px; flex: 0 0 500px; margin-right: 24px;}
+
+.column-title {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 1.1px;
+  color: #6a6a6a;
+  margin: 2px 0 12px;
+  font-weight: 600;
+}
+
+/* ============ Card ============ */
+
+.card {
+  background: #252526;
+  border: 1px solid #3c3c3c;
+  border-radius: 14px;
+  padding: 16px 16px 12px;
+  margin-bottom: 16px;
+}
+
+.sorter-card {
+  border: 1px solid #1d7878;
+}
+
+.card-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #d4d4d4;
+}
+
+.card-hint { margin: -4px 0 10px; font-size: 11.5px; color: #6a6a6a; }
+
+/* ============ Fields ============ */
+
+.field { margin-bottom: 12px; }
+.field:last-child { margin-bottom: 4px; }
+.field label { display: block; font-size: 12px; color: #9d9d9d; margin-bottom: 5px; }
+.field-row { display: flex; gap: 12px;}
+.field-qty { flex: 0 0 90px; }
+.field-unit { margin-left: 16px; }
+
+input[type="text"], input[type="number"] {
+  width: 100%;
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  color: #d4d4d4;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 13px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  outline: none;
+}
+
+input[type="text"]:focus, input[type="number"]:focus {
+  border-color: #007acc;
+}
+
+input::-webkit-input-placeholder { color: #6a6a6a; }
+input:-ms-input-placeholder { color: #6a6a6a; }
+input::placeholder { color: #6a6a6a; }
+
+/* ============ Unit radio pills ============ */
+
+.radio-group { display: flex; gap: 8px; flex-wrap: wrap; }
+.radio-pill { position: relative; display: inline-block; }
+.radio-pill input[type="radio"] { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; left: 0; top: 0; }
+.radio-pill span {
+  display: inline-block;
+  padding: 7px 13px;
+  border-radius: 999px;
+  border: 1px solid #3c3c3c;
+  background: #1e1e1e;
+  font-size: 12px;
+  color: #9d9d9d;
+}
+.radio-pill input[type="radio"]:checked + span {
+  background: rgba(0, 122, 204, 0.12);
+  border-color: #007acc;
+  color: #ffffff;
+}
+
+/* ============ Pick Slip list ============ */
+
+.pickslip-list { display: flex; flex-direction: column; gap: 6px; }
+
+.pickslip-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.pickslip-row input[type="text"] {
+  border: 1px solid #3c3c3c;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 13px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  outline: none;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+}
+
+.pickslip-row input[type="text"]:focus { border-color: #007acc; }
+
+.row-btn {
+  background: transparent;
+  border: none;
+  color: #9d9d9d;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 5px 6px;
+  border-radius: 6px;
+}
+
+.row-btn.delete-btn:hover { background: rgba(241, 76, 76, 0.1); color: #f14c4c; }
+
+/* ============ Copy buttons ============ */
+
+.copy-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #9d9d9d;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+.copy-btn:hover { background: rgba(0, 122, 204, 0.12); border-color: #007acc; color: #ffffff; }
+
+.input-with-copy { display: flex; gap: 6px; }
+.input-with-copy input { flex: 1; }
+
+/* ============ Output section ============ */
+
+.output-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 0;
+  border-bottom: 1px solid #333333;
+}
+.output-row:last-child { border-bottom: none; }
+
+.output-label { flex: 0 0 128px; font-size: 11.5px; color: #9d9d9d; }
+
+.output-value {
+  flex: 1;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 12.5px;
+  color: #4ec9b0;
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  border-radius: 6px;
+  padding: 7px 9px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.output-value.is-empty { color: #6a6a6a; }
+.output-value-folder { font-size: 13px; font-weight: 500; }
+
+/* ============ Buttons (general) ============ */
+
+.btn {
+  display: inline-block;
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
+  border: 1px solid #3c3c3c;
+  background: transparent;
+  color: #9d9d9d;
+}
+.btn-danger-ghost:hover { background: rgba(241, 76, 76, 0.1); border-color: #f14c4c; color: #f14c4c; }
+.btn-primary { background: #007acc; border-color: #007acc; color: #ffffff; }
+.btn-primary:hover { background: #1a8ad4; }
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-secondary { background: transparent; border: 1px solid #3c3c3c; color: #d4d4d4; }
+.btn-secondary:hover { border-color: #007acc; color: #ffffff; background: rgba(0, 122, 204, 0.12); }
+.btn-ghost { background: transparent; border: 1px solid #3c3c3c; color: #9d9d9d; }
+
+.badge-hta {
+  font-size: 10px;
+  background: rgba(0, 122, 204, 0.12);
+  color: #ffffff;
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-left: 8px;
+  border: 1px solid #007acc;
+}
+
+.hta-disabled-note {
+  font-size: 11.5px;
+  color: #f14c4c;
+  background: rgba(241, 76, 76, 0.1);
+  border: 1px solid #f14c4c;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 14px;
+  display: none;
+}
+.hta-disabled-note.show { display: block; }
+
+.workdir-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.workdir-path {
+  flex: 1;
+  min-width: 220px;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 12px;
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: #6a6a6a;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.workdir-path.is-set { color: #d4d4d4; }
+
+.filesorter-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+
+.sorter-log {
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 11.5px;
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  border-radius: 6px;
+  padding: 10px 12px;
+  max-height: 160px;
+  overflow-y: auto;
+  color: #9d9d9d;
+  display: none;
+}
+.sorter-log.show { display: block; }
+.log-line { padding: 2px 0; }
+.log-line.ok { color: #4ec9b0; }
+.log-line.err { color: #f14c4c; }
+.log-line.warn { color: #d7ba7d; }
+
+/* ============ Toast ============ */
+
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  margin-left: -70px;
+  width: 140px;
+  text-align: center;
+  background: #0e639c;
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 9px 12px;
+  border-radius: 10px;
+  opacity: 0;
+  display: none;
+  z-index: 100;
+}
+.toast.show { opacity: 1; display: block; }
+}
+</style>
+</head>
+<body>
+
+  <!-- ============ HEADER ============ -->
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-mark">&#9657;</span>
+      <div class="brand-text">
+        <h1>QuickSlip</h1>
+        <p>Made By - Zack (Inventory Handler 1 BTW)</p>
+      </div>
+    </div>
+    <button id="clearAllBtn" class="btn btn-danger-ghost" title="Reset every field">
+      <span class="icon">&#128465;</span> Clear All
+    </button>
+  </header>
+
+  <main class="layout">
+
+    <!-- ============ INPUT COLUMN ============ -->
+    <section class="column">
+      <h2 class="column-title">Inputs</h2>
+
+      <div class="card">
+        <h3 class="card-title">Shipment</h3>
+
+        <div class="field">
+          <label for="destination">Destination :</label>
+          <input type="text" id="destination" placeholder="LMM" autocomplete="off">
+        </div>
+
+        <div class="field">
+          <label for="hawb">HAWB : <span style="color:#6a6a6a;">(optional)</span></label>
+          <div class="input-with-copy">
+            <input type="text" id="hawb" placeholder="HAWB number" autocomplete="off">
+            <button class="copy-btn" data-copy-target="hawb" title="Copy HAWB">&#128203;</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">Pick Slip</h3>
+        <p class="card-hint">Paste all pick slip numbers</p>
+        <div id="pickSlipList" class="pickslip-list"></div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">Item</h3>
+
+        <div class="field">
+          <label for="pn">PN :</label>
+          <input type="text" id="pn" placeholder="SSR002 / 203" autocomplete="off">
+        </div>
+
+        <div class="field">
+          <label for="ediBol">EDI / BOL : <span style="color:#6a6a6a;">(If available)</span></label>
+          <div class="input-with-copy">
+            <input type="text" id="ediBol" placeholder="EDI / BOL number" autocomplete="off">
+            <button class="copy-btn" data-copy-target="ediBol" title="Copy EDI / BOL">&#128203;</button>
+          </div>
+        </div>
+
+	<div class="field-row">
+          <div class="field">
+            <label for="dimensions">Dimensions :</label>
+            <input type="text" id="dimensions" placeholder="0x0x0" autocomplete="off">
+          </div>
+
+          <div class="field">
+            <label for="weight">Weight :</label>
+            <input type="text" id="weight" placeholder="0.0" autocomplete="off">
+          </div>
+         </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="qty">Qty :</label>
+            <input type="text" id="qty" inputmode="numeric" pattern="[0-9]*" placeholder="0" autocomplete="off">
+          </div>
+
+          <div class="field field-unit">
+             <label> Unit :</label>
+             <div class="radio-group" id="unitGroup">
+               <label class="radio-pill">
+                 <input type="radio" name="unit" value="Carton" checked>
+                 <span>Carton</span>
+               </label>
+               <label class="radio-pill">
+                 <input type="radio" name="unit" value="Pallet">
+                 <span>Crate</span>
+               </label>
+               <label class="radio-pill">
+                 <input type="radio" name="unit" value="Crate">
+                 <span>Pallet</span>
+               </label>
+             </div>
+           </div>
+         </div>
+      </div>
+      
+      <div class="btn btn-ghost">+ Add Item</div> <!-- Button ni supposedly append new "Item" card, kalau card "Item"
+ada banyak, ada red "X" on top right untuk remove incase x perlu -->
+
+    </section>
+
+    <!-- ============ OUTPUT COLUMN ============ -->
+    <section class="column">
+      <h2 class="column-title">Outputs</h2>
+
+      <div class="card output-card">
+        <h3 class="card-title">Folder Name Preview</h3>
+        <div class="output-row">
+          <div class="output-value output-value-folder" id="out-folderName">&mdash;</div>
+          <button class="copy-btn" data-copy-target-out="out-folderName" title="Copy folder name">&#128203;</button>
+        </div>
+      </div>
+
+      <div class="card sorter-card">
+      <h3 class="card-title">&#128193; File Sorter <span class="badge-hta">.hta only</span></h3>
+      <div class="hta-disabled-note" id="htaDisabledNote">
+        This is running in a regular browser, so folder/file actions are switched off.
+        Save this file as <b>QuickSlip.hta</b> and double-click it on Windows to enable the sorter.
+      </div>
+      <p class="card-hint">Select folder directory to work with</p>
+      <div class="workdir-row">
+        <div class="workdir-path" id="workDirPath">No working folder selected</div>
+        <button class="btn btn-secondary" id="chooseFolderBtn" type="button">Choose Folder&hellip;</button>
+      </div>
+      <div class="filesorter-actions">
+        <button class="btn btn-primary" id="sortBtn" type="button">&#128193; Sort into Folder</button>
+        <button class="btn btn-ghost" id="openFolderBtn" type="button" style="display:none;">Open Folder</button>
+      </div>
+
+      <div class="sorter-log" id="sorterLog"></div>
+    </div>
+
+      <h2 class="column-title">REFERENCES</h2>
+
+      <div class="card output-card">
+        <h3 class="card-title">Generated Dimensions :<span style="font-size:11px;color:#6a6a6a;"> (JDE Tracking)</span></h3>
+
+        <div class="output-row">
+          <div class="output-value" id="generatedDimensions">&mdash;</div>
+          <button class="copy-btn" data-copy-target-out="generatedDimensions" title="Copy">&#128203;</button>
+        </div>
+      </div>
+
+	<div class="card output-card">
+        <h3 class="card-title">Generated EDI :<span style="font-size:11px;color:#6a6a6a;"> (CTZ E-mail Purposes)</span></h3>
+	<div class="output-row">
+          <div class="output-value" id="generatedEDI">&mdash;</div>
+          <button class="copy-btn" data-copy-target-out="generatedEDI" title="Copy">&#128203;</button>
+        </div>
+       </div>
+
+	<div class="card output-card">
+        <h3 class="card-title">Pick Slip String :<br><span style="font-size:11px;color:#6a6a6a;"> (would be nice kalau IT bagi access extension or if I made my own extension, whichever allowed. If not = deprecated features)</span>
+	<div class="output-row">
+          <div class="output-value" id="generatedEDI">&mdash;</div>
+          <button class="copy-btn" data-copy-target-out="generatedEDI" title="Copy">&#128203;</button>
+        </div>
+       </div>
+  </main>
+
+  <div id="toast" class="toast">Copied!</div>
+
+<script language="JScript">
+/* ---- Constants ---- */
+
+var STORAGE_KEY = "quickslip_state_v1";
+
+var UNIT_PLURALS = { Carton: "Cartons", Crate: "Crates", Pallet: "Pallets" };
+
+var OUTPUT_LABELS = {
+  commercialInvoice: "Commercial Invoice",
+  serialProduct: "Serial Product",
+  pickSlipFinal: "Pick Slip Final",
+  releaseForm: "Rls"
+};
+
+var SLOT_IDS = ["commercialInvoice", "serialProduct", "pickSlipFinal", "releaseForm"];
+
+/* ---- File Sorter: naming-convention codes used to auto-match each
+   expected file inside the working folder. Add more strings to a
+   slot's array if that document ever ships under more than one code
+   (e.g. Pick Slip Final "A" vs "B" revisions). ---- */
+var FILE_MATCH_PATTERNS = {
+  commercialInvoice: ["R5542651"],
+  serialProduct: ["R5542064"],
+  pickSlipFinal: ["R5542050","R5542050A"],
+  releaseForm: ["R5542047"]
+};
+
+/* ---- DOM references ---- */
+
+var dom = {
+  destination: document.getElementById("destination"),
+  pn: document.getElementById("pn"),
+  qty: document.getElementById("qty"),
+  unitGroup: document.getElementById("unitGroup"),
+  pickSlipList: document.getElementById("pickSlipList"),
+  hawb: document.getElementById("hawb"),
+  ediBol: document.getElementById("ediBol"),
+  clearAllBtn: document.getElementById("clearAllBtn"),
+  toast: document.getElementById("toast"),
+
+  outCommercialInvoice: document.getElementById("out-commercialInvoice"),
+  outSerialProduct: document.getElementById("out-serialProduct"),
+  outPickSlipFinal: document.getElementById("out-pickSlipFinal"),
+  outReleaseForm: document.getElementById("out-releaseForm"),
+  outFolderName: document.getElementById("out-folderName"),
+
+  htaDisabledNote: document.getElementById("htaDisabledNote"),
+  workDirPath: document.getElementById("workDirPath"),
+  chooseFolderBtn: document.getElementById("chooseFolderBtn"),
+  sortBtn: document.getElementById("sortBtn"),
+  openFolderBtn: document.getElementById("openFolderBtn"),
+  sorterLog: document.getElementById("sorterLog")
+};
+
+/* ---- Application state ---- */
+
+var state = {
+  destination: "",
+  pn: "",
+  qty: "",
+  unit: "Carton",
+  pickSlips: [""],
+  hawb: "",
+  ediBol: "",
+  workingDir: ""
+};
+
+var lastSortedFolder = "";
+
+/* ---- HTA / file-system capability detection ---- */
+
+var HTA_MODE = false;
+var fso = null;
+
+try {
+  fso = new ActiveXObject("Scripting.FileSystemObject");
+  HTA_MODE = true;
+} catch (activeXErr) {
+  HTA_MODE = false;
+}
+
+var shell = null;
+
+if (HTA_MODE) {
+   shell = new ActiveXObject("WScript.Shell");
+}
+
+/* Nak determine USER */
+function getDefaultWorkingDir() {
+
+    if (!HTA_MODE) return "";
+
+    return shell.ExpandEnvironmentStrings("%USERPROFILE%") + "\\Downloads";
+
+}
+
+/* ============================================================
+   Persistence (localStorage)
+   ============================================================ */
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (err) {
+    // Storage unavailable — app still works, just won't persist.
+  }
+}
+
+function loadState() {
+
+    try {
+
+        var raw = localStorage.getItem(STORAGE_KEY);
+
+        if (raw) {
+
+            var saved = JSON.parse(raw);
+
+            for (var key in saved) {
+                if (saved.hasOwnProperty(key))
+                    state[key] = saved[key];
+            }
+
+        }
+
+    } catch (err) {
+        // ignore corrupted save
+    }
+
+    if (!isRealArray(state.pickSlips) || state.pickSlips.length === 0) {
+        state.pickSlips = [""];
+    }
+
+    if (!state.workingDir) {
+        state.workingDir = getDefaultWorkingDir();
+    }
+
+}
+
+function isRealArray(val) {
+  return Object.prototype.toString.call(val) === "[object Array]";
+}
+
+/* ============================================================
+   Helpers — parsing & formatting
+   ============================================================ */
+
+function splitPastedTokens(text) {
+  var raw = text.split(/[\n\r,]+|\s+/);
+  var out = [];
+  for (var i = 0; i < raw.length; i++) {
+    var t = raw[i].replace(/^\s+|\s+$/g, "");
+    if (t) out.push(t);
+  }
+  return out;
+}
+
+function getActivePickSlips() {
+  var out = [];
+  for (var i = 0; i < state.pickSlips.length; i++) {
+    var v = state.pickSlips[i].replace(/^\s+|\s+$/g, "");
+    if (v) out.push(v);
+  }
+  return out;
+}
+
+/**
+ * Core rule engine for the hidden ComputedPickSlip value.
+ *  0 values  -> ""
+ *  1 value   -> that value
+ *  2+, purely numeric & perfectly consecutive -> "min-max"
+ *  otherwise -> comma separated list (no partial ranges, ever)
+ */
+function computePickSlip(values) {
+  if (values.length === 0) return "";
+  if (values.length === 1) return values[0];
+
+  var asNumbers = [];
+  var allNumeric = true;
+  var i;
+  for (i = 0; i < values.length; i++) {
+    var n = parseInt(values[i], 10);
+    asNumbers.push(n);
+    if (!/^-?\d+$/.test(values[i]) || isNaN(n)) allNumeric = false;
+  }
+
+  if (!allNumeric) return values.join(",");
+
+  var sorted = asNumbers.slice().sort(function (a, b) { return a - b; });
+  var isConsecutive = true;
+  for (i = 1; i < sorted.length; i++) {
+    if (sorted[i] !== sorted[i - 1] + 1) { isConsecutive = false; break; }
+  }
+
+  if (!isConsecutive) return values.join(",");
+
+  var minIndex = indexOfNum(asNumbers, sorted[0]);
+  var maxIndex = indexOfNum(asNumbers, sorted[sorted.length - 1]);
+  return values[minIndex] + "-" + values[maxIndex];
+}
+
+function indexOfNum(arr, val) {
+  for (var i = 0; i < arr.length; i++) { if (arr[i] === val) return i; }
+  return -1;
+}
+
+function pluralizedUnit(qty, unit) {
+  var base = UNIT_PLURALS[unit] ? unit : "Carton";
+  var n = parseInt(qty, 10);
+  if (isNaN(n) || n === 1) return base;
+  return UNIT_PLURALS[base];
+}
+
+/**
+ * Keep only digits, then strip leading zeros so "0" -> "" and
+ * "01" -> "1" and "1a" -> "1". Qty must be a positive integer,
+ * never zero — this makes zero collapse to empty automatically.
+ */
+function sanitizeQty(raw) {
+  var digits = raw.replace(/[^0-9]/g, "");
+  digits = digits.replace(/^0+/, "");
+  return digits;
+}
+
+/**
+ * Uppercase a value while preserving the caret position, since
+ * setting .value mid-typing would otherwise jump the cursor.
+ */
+function uppercaseInPlace(input) {
+  var start = input.selectionStart;
+  var end = input.selectionEnd;
+  input.value = input.value.toUpperCase();
+  if (typeof start === "number") {
+    try { input.setSelectionRange(start, end); } catch (e) { /* IE quirk, ignore */ }
+  }
+  return input.value;
+}
+
+/* ============================================================
+   Rendering — Pick Slip rows
+   ============================================================ */
+
+function renderPickSlipRows() {
+  dom.pickSlipList.innerHTML = "";
+  for (var index = 0; index < state.pickSlips.length; index++) {
+    var isLastRow = index === state.pickSlips.length - 1;
+    var row = buildPickSlipRow(state.pickSlips[index], index, isLastRow);
+    dom.pickSlipList.appendChild(row);
+  }
+}
+
+function buildPickSlipRow(value, index, isLastRow) {
+  var row = document.createElement("div");
+  row.className = "pickslip-row";
+  row.setAttribute("data-index", String(index));
+
+  var input = document.createElement("input");
+  input.type = "text";
+  input.value = value;
+  input.placeholder = isLastRow ? "+" : "";
+  input.setAttribute("data-index", String(index));
+  input.autocomplete = "off";
+  row.appendChild(input);
+
+  var copyBtn = document.createElement("button");
+  copyBtn.className = "row-btn copy-btn";
+  copyBtn.innerHTML = "&#128203;";
+  copyBtn.title = "Copy this pick slip";
+  copyBtn.setAttribute("type", "button");
+  row.appendChild(copyBtn);
+
+  if (!isLastRow) {
+    var delBtn = document.createElement("button");
+    delBtn.className = "row-btn delete-btn";
+    delBtn.innerHTML = "&#10005;";
+    delBtn.title = "Remove this row";
+    delBtn.setAttribute("type", "button");
+    row.appendChild(delBtn);
+  }
+
+  attachRowEvents(row, input, copyBtn);
+  return row;
+}
+
+function attachRowEvents(row, input, copyBtn) {
+  input.addEventListener("input", handlePickSlipInput);
+  input.addEventListener("paste", handlePickSlipPaste);
+
+  copyBtn.addEventListener("click", function () {
+    var val = input.value.replace(/^\s+|\s+$/g, "");
+    if (val) copyToClipboard(val);
+  });
+
+  var delBtn = row.querySelector(".delete-btn");
+  if (delBtn) {
+    delBtn.addEventListener("click", function () {
+      var idx = Number(row.getAttribute("data-index"));
+      state.pickSlips.splice(idx, 1);
+      ensureTrailingEmptyRow();
+      renderPickSlipRows();
+      recalculate();
+    });
+  }
+}
+
+function reorderPickSlips(fromIndex, toIndex) {
+  if (fromIndex === null || toIndex === null || fromIndex === toIndex ||
+      isNaN(fromIndex) || isNaN(toIndex)) {
+    return;
+  }
+  var removed = state.pickSlips.splice(fromIndex, 1);
+  var moved = removed[0];
+  state.pickSlips.splice(toIndex, 0, moved);
+  ensureTrailingEmptyRow();
+  renderPickSlipRows();
+  recalculate();
+}
+
+/* ============================================================
+   Pick Slip input handling
+   ============================================================ */
+
+function handlePickSlipInput(e) {
+  var idx = Number(e.target.getAttribute("data-index"));
+  state.pickSlips[idx] = e.target.value;
+
+  var isLastRow = idx === state.pickSlips.length - 1;
+  var hasValue = e.target.value.replace(/^\s+|\s+$/g, "").length > 0;
+
+  if (isLastRow && hasValue) {
+    state.pickSlips.push("");
+    renderPickSlipRows();
+    focusRowInput(idx);
+  }
+
+  recalculate();
+}
+
+function handlePickSlipPaste(e) {
+  var cd = e.clipboardData || window.clipboardData;
+  var clipboardText = cd ? cd.getData("Text") : "";
+  var tokens = splitPastedTokens(clipboardText);
+
+  if (tokens.length <= 1) return; // let native paste happen for a single token
+
+  if (e.preventDefault) e.preventDefault();
+  var idx = Number(e.target.getAttribute("data-index"));
+
+  var args = [idx, 1].concat(tokens);
+  state.pickSlips.splice.apply(state.pickSlips, args);
+  ensureTrailingEmptyRow();
+  renderPickSlipRows();
+  recalculate();
+}
+
+function ensureTrailingEmptyRow() {
+  if (state.pickSlips.length === 0) { state.pickSlips.push(""); return; }
+  var last = state.pickSlips[state.pickSlips.length - 1];
+  if (last.replace(/^\s+|\s+$/g, "") !== "") state.pickSlips.push("");
+}
+
+function focusRowInput(index) {
+  var input = dom.pickSlipList.querySelector('input[data-index="' + index + '"]');
+  if (input) {
+    input.focus();
+    var len = input.value.length;
+    try { input.setSelectionRange(len, len); } catch (e) { /* ignore */ }
+  }
+}
+
+/* ============================================================
+   Clipboard + toast
+   ============================================================ */
+
+var toastTimer = null;
+
+function showToast(message) {
+  if (typeof message === "undefined" || !message) message = "Copied!";
+  dom.toast.textContent = message;
+  dom.toast.className = "toast show";
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { dom.toast.className = "toast"; }, 1400);
+}
+
+function copyToClipboard(text) {
+  if (!text) return;
+  // HTA/IE uses window.clipboardData directly — no async Clipboard API here.
+  try {
+    if (window.clipboardData && window.clipboardData.setData) {
+      window.clipboardData.setData("Text", text);
+      showToast("Copied!");
+      return;
+    }
+  } catch (e) { /* fall through to execCommand */ }
+  fallbackCopy(text);
+}
+
+function fallbackCopy(text) {
+  var temp = document.createElement("textarea");
+  temp.value = text;
+  temp.style.position = "fixed";
+  temp.style.opacity = "0";
+  document.body.appendChild(temp);
+  temp.select();
+  try {
+    document.execCommand("copy");
+    showToast("Copied!");
+  } catch (err) {
+    // Clipboard unreachable in this context — nothing more we can do.
+  } finally {
+    document.body.removeChild(temp);
+  }
+}
+
+/* ============================================================
+   Recalculate — single source of truth for every output
+   ============================================================ */
+
+function recalculate() {
+  var computedPickSlip = computePickSlip(getActivePickSlips());
+
+  setOutput(dom.outCommercialInvoice, suffixed("Commercial Invoice", computedPickSlip));
+  setOutput(dom.outSerialProduct, suffixed("Serial Product", computedPickSlip));
+  setOutput(dom.outPickSlipFinal, suffixed("Pick Slip Final", computedPickSlip));
+  setOutput(dom.outReleaseForm, suffixed("Rls", computedPickSlip));
+  setOutput(dom.outFolderName, buildFolderName(computedPickSlip));
+
+  saveState();
+}
+
+function suffixed(label, computedPickSlip) {
+  if (!computedPickSlip) return "";
+  return label + " - " + computedPickSlip;
+}
+
+function buildFolderName(computedPickSlip) {
+  var destination = state.destination.replace(/^\s+|\s+$/g, "");
+  var pn = state.pn.replace(/^\s+|\s+$/g, "");
+  var qty = String(state.qty).replace(/^\s+|\s+$/g, "");
+  var unit = pluralizedUnit(qty, state.unit);
+
+  var parts = [];
+  if (destination) parts.push(destination);
+  if (pn) parts.push(pn);
+  if (qty) parts.push(qty);
+  if (qty) parts.push(unit);
+
+  if (parts.length === 0 || !computedPickSlip) return "";
+  return parts.join(" ") + " - " + computedPickSlip;
+}
+
+function setOutput(el, value) {
+  if (value) {
+    el.textContent = value;
+    el.className = el.className.replace(/\s*is-empty/, "");
+  } else {
+    el.textContent = "\u2014";
+    if (el.className.indexOf("is-empty") === -1) el.className += " is-empty";
+  }
+}
+
+/* ============================================================
+   Wiring — simple fields
+   ============================================================ */
+
+function bindSimpleFields() {
+  dom.destination.addEventListener("input", function (e) {
+    state.destination = uppercaseInPlace(e.target);
+    recalculate();
+  });
+
+  dom.pn.addEventListener("input", function (e) {
+    state.pn = uppercaseInPlace(e.target);
+    recalculate();
+  });
+
+  dom.qty.addEventListener("input", function (e) {
+    var clean = sanitizeQty(e.target.value);
+    e.target.value = clean;
+    state.qty = clean;
+    recalculate();
+  });
+
+  var radios = dom.unitGroup.getElementsByTagName("input");
+  for (var i = 0; i < radios.length; i++) {
+    radios[i].addEventListener("change", function (e) {
+      if (e.target.name === "unit") {
+        state.unit = e.target.value;
+        recalculate();
+      }
+    });
+  }
+
+  dom.hawb.addEventListener("input", function (e) {
+    state.hawb = e.target.value;
+    recalculate();
+  });
+
+  dom.ediBol.addEventListener("input", function (e) {
+    state.ediBol = e.target.value;
+    recalculate();
+  });
+}
+
+function bindStandaloneCopyButtons() {
+  var i, btn;
+
+  var copyInputs = document.querySelectorAll(".copy-btn[data-copy-target]");
+  for (i = 0; i < copyInputs.length; i++) {
+    btn = copyInputs[i];
+    (function (b) {
+      b.addEventListener("click", function () {
+        var targetId = b.getAttribute("data-copy-target");
+        var input = document.getElementById(targetId);
+        if (input) copyToClipboard(input.value.replace(/^\s+|\s+$/g, ""));
+      });
+    })(btn);
+  }
+
+  var copyOutputs = document.querySelectorAll(".copy-btn[data-copy-target-out]");
+  for (i = 0; i < copyOutputs.length; i++) {
+    btn = copyOutputs[i];
+    (function (b) {
+      b.addEventListener("click", function () {
+        var targetId = b.getAttribute("data-copy-target-out");
+        var el = document.getElementById(targetId);
+        if (el && el.className.indexOf("is-empty") === -1) {
+          copyToClipboard(el.textContent);
+        }
+      });
+    })(btn);
+  }
+}
+
+function bindClearAll() {
+  dom.clearAllBtn.addEventListener("click", function () {
+    var confirmed = window.confirm("Clear all fields? This cannot be undone.");
+    if (!confirmed) return;
+
+    state = {
+      destination: "", pn: "", qty: "", unit: "Carton",
+      pickSlips: [""], hawb: "", ediBol: "", workingDir: state.workingDir
+    };
+
+    hydrateFieldsFromState();
+    renderPickSlipRows();
+    recalculate();
+
+    clearLog();
+  });
+}
+
+function hydrateFieldsFromState() {
+  dom.destination.value = state.destination;
+  dom.pn.value = state.pn;
+  dom.qty.value = state.qty;
+  dom.hawb.value = state.hawb;
+  dom.ediBol.value = state.ediBol;
+
+  var radios = dom.unitGroup.getElementsByTagName("input");
+  for (var i = 0; i < radios.length; i++) {
+    radios[i].checked = (radios[i].value === state.unit);
+  }
+
+  renderWorkingDir();
+}
+
+/* ============================================================
+   FILE SORTER — everything below only runs in HTA
+   ============================================================ */
+
+function renderWorkingDir() {
+  if (state.workingDir) {
+    dom.workDirPath.textContent = state.workingDir;
+    dom.workDirPath.className = "workdir-path is-set";
+  } else {
+    dom.workDirPath.textContent = "No working folder selected";
+    dom.workDirPath.className = "workdir-path";
+  }
+}
+
+function initFileSorter() {
+  if (!HTA_MODE) {
+    dom.htaDisabledNote.className = "hta-disabled-note show";
+    dom.chooseFolderBtn.disabled = true;
+    dom.sortBtn.disabled = true;
+  }
+
+  dom.chooseFolderBtn.addEventListener("click", handleChooseFolder);
+  dom.sortBtn.addEventListener("click", handleSortClick);
+  dom.openFolderBtn.addEventListener("click", handleOpenFolder);
+}
+
+/* Each slot is expected to match exactly one
+   file — 2+ matches is treated as an error (ambiguous), 0
+   matches is just skipped with a warning. */
+
+function findFilesForSlot(folder, patterns) {
+  var matches = [];
+  var filesEnum = new Enumerator(folder.Files);
+  for (; !filesEnum.atEnd(); filesEnum.moveNext()) {
+    var f = filesEnum.item();
+    var nameLower = f.Name.toLowerCase();
+    for (var p = 0; p < patterns.length; p++) {
+      var pat = patterns[p].replace(/^\s+|\s+$/g, "").toLowerCase();
+      if (pat && nameLower.indexOf(pat) !== -1) {
+        matches.push(f);
+        break; // don't double-count one file matching 2 patterns of the same slot
+      }
+    }
+  }
+  return matches;
+}
+
+/* ---- Choose working folder (Shell.Application.BrowseForFolder) ---- */
+
+function handleChooseFolder() {
+  if (!HTA_MODE) return;
+  try {
+    var shellApp = new ActiveXObject("Shell.Application");
+    // 0x0001 = BIF_DONTGOBELOWDOMAIN off, 0x0040 = BIF_NEWDIALOGSTYLE
+    var folder = shellApp.BrowseForFolder(0, "Select the working folder for this shipment", 0x0041, 0);
+    if (folder) {
+      var item = folder.Self;
+      state.workingDir = item.Path;
+      renderWorkingDir();
+      saveState();
+    }
+  } catch (err) {
+    alert("Could not open the folder picker: " + err.description);
+  }
+}
+
+/* ---- Path helpers ---- */
+
+function toSafeFsName(str) {
+  var cleaned = str.replace(/[\\\/:\*\?"<>\|]/g, "-");
+  cleaned = cleaned.replace(/\s{2,}/g, " ");
+  cleaned = cleaned.replace(/^\s+|\s+$/g, "");
+  cleaned = cleaned.replace(/[\s.]+$/g, ""); // Windows disallows trailing space/dot
+  return cleaned;
+}
+
+function uniquePath(targetPath) {
+  if (!fso.FileExists(targetPath) && !fso.FolderExists(targetPath)) return targetPath;
+  var dir = fso.GetParentFolderName(targetPath);
+  var base = fso.GetBaseName(targetPath);
+  var ext = fso.GetExtensionName(targetPath);
+  var n = 1, candidate;
+  do {
+    candidate = fso.BuildPath(dir, base + " (" + n + ")" + (ext ? "." + ext : ""));
+    n++;
+  } while (fso.FileExists(candidate) || fso.FolderExists(candidate));
+  return candidate;
+}
+
+/* ---- Log panel ---- */
+
+function clearLog() {
+  dom.sorterLog.innerHTML = "";
+  dom.sorterLog.className = "sorter-log";
+}
+
+function logLine(text, kind) {
+  var line = document.createElement("div");
+  line.className = "log-line" + (kind ? " " + kind : "");
+  line.textContent = text;
+  dom.sorterLog.appendChild(line);
+  dom.sorterLog.className = "sorter-log show";
+  dom.sorterLog.scrollTop = dom.sorterLog.scrollHeight;
+}
+
+/* ---- Sort button ---- */
+
+function handleSortClick() {
+  if (!HTA_MODE || !fso) return;
+
+  var computedPickSlip = computePickSlip(getActivePickSlips());
+  var folderName = buildFolderName(computedPickSlip);
+
+  if (!folderName) {
+    alert("Fill in Destination, PN, Qty and at least one Pick Slip before sorting.");
+    return;
+  }
+  if (!state.workingDir) {
+    alert("Choose a working folder first — that's where your source files live.");
+    return;
+  }
+  if (!fso.FolderExists(state.workingDir)) {
+    alert("The working folder no longer exists. Please choose it again.");
+    return;
+  }
+
+  var srcFolder;
+  try {
+    srcFolder = fso.GetFolder(state.workingDir);
+  } catch (err) {
+    alert("Could not read the working folder: " + err.description);
+    return;
+  }
+
+  // ---- Auto-scan the working folder for each expected file, by its
+  // naming-convention code. Exactly 1 match per slot is expected;
+  // 2+ matches is ambiguous and stops the whole sort before anything
+  // is created or moved. 0 matches just skips that slot. ----
+  var i, slot;
+  var slotMatches = {};
+  var dupErrors = [];
+
+  for (i = 0; i < SLOT_IDS.length; i++) {
+    slot = SLOT_IDS[i];
+    var matches = findFilesForSlot(srcFolder, FILE_MATCH_PATTERNS[slot]);
+    if (matches.length > 1) {
+      var names = [];
+      for (var m = 0; m < matches.length; m++) names.push(matches[m].Name);
+      dupErrors.push(OUTPUT_LABELS[slot] + ": " + matches.length + " matching files found (" + names.join(", ") + ") — expected only 1.");
+    } else {
+      slotMatches[slot] = matches.length === 1 ? matches[0] : null;
+    }
+  }
+
+  if (dupErrors.length > 0) {
+    alert("Cannot sort — ambiguous matches in the working folder:\n\n" + dupErrors.join("\n"));
+    return;
+  }
+
+  var safeFolderName = toSafeFsName(folderName);
+  var targetFolder = fso.BuildPath(state.workingDir, safeFolderName);
+
+  var plannedSlots = 0;
+  for (i = 0; i < SLOT_IDS.length; i++) { if (slotMatches[SLOT_IDS[i]]) plannedSlots++; }
+  var ediValue = state.ediBol.replace(/^\s+|\s+$/g, "");
+
+  var confirmMsg = "Create folder:\n" + safeFolderName +
+    "\n\nMatched files to move in: " + plannedSlots + " of " + SLOT_IDS.length +
+    (ediValue ? "\nPlus: scan for any file containing \"" + ediValue + "\"" : "") +
+    "\n\nContinue?";
+  if (!window.confirm(confirmMsg)) return;
+
+  clearLog();
+
+  try {
+    if (!fso.FolderExists(targetFolder)) {
+      fso.CreateFolder(targetFolder);
+      logLine("Created folder: " + safeFolderName, "ok");
+    } else {
+      logLine("Folder already exists, reusing: " + safeFolderName, "warn");
+    }
+  } catch (err) {
+    logLine("Could not create the folder: " + err.description, "err");
+    return;
+  }
+
+  // ---- Move the 4 matched output files ----
+  var labels = {
+    commercialInvoice: suffixed("Commercial Invoice", computedPickSlip),
+    serialProduct: suffixed("Serial Product", computedPickSlip),
+    pickSlipFinal: suffixed("Pick Slip Final", computedPickSlip),
+    releaseForm: suffixed("Rls", computedPickSlip)
+  };
+
+  var movedAny = false;
+
+  for (i = 0; i < SLOT_IDS.length; i++) {
+    slot = SLOT_IDS[i];
+    var srcFile = slotMatches[slot];
+    if (!srcFile) {
+      logLine(OUTPUT_LABELS[slot] + ": no matching file found (looking for " + FILE_MATCH_PATTERNS[slot].join(" / ") + ")", "warn");
+      continue;
+    }
+
+    var ext = fso.GetExtensionName(srcFile.Path);
+    var newBaseName = toSafeFsName(labels[slot]);
+    var destPath = fso.BuildPath(targetFolder, newBaseName + (ext ? "." + ext : ""));
+    destPath = uniquePath(destPath);
+
+    try {
+      srcFile.Move(destPath);
+      logLine(OUTPUT_LABELS[slot] + " -> " + fso.GetFileName(destPath), "ok");
+      movedAny = true;
+    } catch (err) {
+      logLine(OUTPUT_LABELS[slot] + ": move failed - " + err.description, "err");
+    }
+  }
+
+  // ---- EDI / BOL sweep ----
+  if (ediValue) {
+    var matchCount = 0;
+    try {
+      var srcFolder = fso.GetFolder(state.workingDir);
+      var filesEnum = new Enumerator(srcFolder.Files);
+      var ediLower = ediValue.toLowerCase();
+      var toMove = [];
+
+      for (; !filesEnum.atEnd(); filesEnum.moveNext()) {
+        var f = filesEnum.item();
+        if (f.Name.toLowerCase().indexOf(ediLower) !== -1) {
+          toMove.push(f);
+        }
+      }
+
+      for (var m = 0; m < toMove.length; m++) {
+        var srcFile = toMove[m];
+        var dest = fso.BuildPath(targetFolder, srcFile.Name);
+        dest = uniquePath(dest);
+        try {
+          srcFile.Move(dest);
+          matchCount++;
+          movedAny = true;
+        } catch (moveErr) {
+          logLine("EDI match \"" + srcFile.Name + "\": move failed - " + moveErr.description, "err");
+        }
+      }
+
+      if (matchCount > 0) {
+        logLine("EDI/BOL sweep: moved " + matchCount + " file(s) containing \"" + ediValue + "\"", "ok");
+      } else {
+        logLine("EDI/BOL sweep: no files in the working folder contain \"" + ediValue + "\"", "warn");
+      }
+    } catch (err) {
+      logLine("EDI/BOL sweep failed: " + err.description, "err");
+    }
+  }
+
+  if (movedAny) {
+    lastSortedFolder = targetFolder;
+    dom.openFolderBtn.style.display = "inline-block";
+    showToast("Sorted!");
+  }
+}
+
+function handleOpenFolder() {
+  if (!lastSortedFolder) return;
+  try {
+    var shell = new ActiveXObject("WScript.Shell");
+    shell.Run('explorer.exe "' + lastSortedFolder + '"');
+  } catch (err) {
+    alert("Could not open Explorer: " + err.description);
+  }
+}
+
+function setInitialWindowSize() {
+    try {
+        window.resizeTo(980, 840);   // Width, Height
+        window.moveTo(
+            (screen.availWidth - 1200) / 2,
+            (screen.availHeight - 850) / 2
+        );
+    } catch (e) {}
+}
+
+/* ============================================================
+   Init
+   ============================================================ */
+
+/* Each step runs in its own try/catch so a failure in one card
+   (e.g. File Sorter, which touches ActiveX) can never prevent the
+   others — like the Pick Slip list — from rendering. */
+function safeStep(fn, label) {
+  try {
+    fn();
+  } catch (err) {
+    if (window.console && console.error) console.error("QuickSlip init step failed: " + label, err);
+  }
+}
+
+function init() {
+  safeStep(loadState, "loadState");
+  safeStep(renderPickSlipRows, "renderPickSlipRows");
+  safeStep(hydrateFieldsFromState, "hydrateFieldsFromState");
+  safeStep(bindSimpleFields, "bindSimpleFields");
+  safeStep(bindStandaloneCopyButtons, "bindStandaloneCopyButtons");
+  safeStep(bindClearAll, "bindClearAll");
+  safeStep(initFileSorter, "initFileSorter");
+  safeStep(recalculate, "recalculate");
+  safeStep(setInitialWindowSize, "setInitialWindowSize");
+}
+
+window.attachEvent ? window.attachEvent("onload", init) : window.addEventListener("load", init);
+</script>
+</body>
+</html>

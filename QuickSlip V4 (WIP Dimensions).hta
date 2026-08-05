@@ -106,6 +106,14 @@ html, body {
 .field-qty { flex: 0 0 90px; }
 .field-unit { margin-left: 16px; }
 
+/* Explicit equal flex-basis for paired fields (Dimensions / Weight).
+   Old IE's flexbox engine (used by native .hta) sizes flex items to
+   their content by default and can collapse them very narrow; a
+   modern browser rendering the plain .html doesn't have this bug.
+   Forcing flex-basis 0 + min-width 0 makes both engines split the
+   row evenly and stop shrinking. */
+.field-half { flex: 1 1 0; min-width: 0; }
+
 input[type="text"], input[type="number"] {
   width: 100%;
   background: #1e1e1e;
@@ -713,16 +721,28 @@ function computePickSlip(values) {
   if (values.length === 0) return "";
   if (values.length === 1) return values[0];
 
+  // Each value must be a common (non-numeric) prefix followed by a
+  // trailing integer — e.g. "p1", "p2" share prefix "p". This lets
+  // "p1".."p3" range like plain numbers do, instead of only bare
+  // digits qualifying for a range.
+  var prefix = null;
   var asNumbers = [];
-  var allNumeric = true;
+  var allMatch = true;
+  var re = /^(\D*)(\d+)$/;
   var i;
   for (i = 0; i < values.length; i++) {
-    var n = parseInt(values[i], 10);
-    asNumbers.push(n);
-    if (!/^-?\d+$/.test(values[i]) || isNaN(n)) allNumeric = false;
+    var m = re.exec(values[i]);
+    if (!m) { allMatch = false; break; }
+    if (prefix === null) {
+      prefix = m[1];
+    } else if (m[1] !== prefix) {
+      allMatch = false;
+      break;
+    }
+    asNumbers.push(parseInt(m[2], 10));
   }
 
-  if (!allNumeric) return values.join(",");
+  if (!allMatch) return values.join(",");
 
   var sorted = asNumbers.slice().sort(function (a, b) { return a - b; });
   var isConsecutive = true;
@@ -793,9 +813,15 @@ function displayDimensions(dim) {
   return dim.split("x").join(" x ");
 }
 
-function displayWeight(w) {
-  if (!w) return "0.0";
-  return w;
+/* Format a raw weight string to a fixed "0.0" style token. Returns
+   "" for empty/invalid input — used to reformat the input box itself
+   on blur/Enter (e.g. "50" -> "50.0"). */
+function formatWeightValue(raw) {
+  var trimmed = trim(raw);
+  if (!trimmed) return "";
+  var n = parseFloat(trimmed);
+  if (isNaN(n)) return "";
+  return n.toFixed(1);
 }
 
 function trim(str) {
@@ -1044,7 +1070,7 @@ function buildItemCard(item, index, isOnlyCard) {
   dimWeightRow.className = "field-row";
 
   var dimField = document.createElement("div");
-  dimField.className = "field";
+  dimField.className = "field field-half";
   var dimLabel = document.createElement("label");
   dimLabel.textContent = "Dimensions :";
   var dimWrap = document.createElement("div");
@@ -1075,7 +1101,7 @@ function buildItemCard(item, index, isOnlyCard) {
   dimField.appendChild(dimWrap);
 
   var weightField = document.createElement("div");
-  weightField.className = "field";
+  weightField.className = "field field-half";
   var weightLabel = document.createElement("label");
   weightLabel.textContent = "Weight :";
   var weightWrap = document.createElement("div");
@@ -1091,6 +1117,20 @@ function buildItemCard(item, index, isOnlyCard) {
     e.target.value = clean;
     state.items[idx].weight = clean;
     recalculate();
+  });
+  // On leaving the field (blur — clicking another box — or Enter),
+  // lock the value into "0.0" style formatting, e.g. "50" -> "50.0".
+  weightInput.addEventListener("blur", function (e) {
+    var idx = Number(card.getAttribute("data-index"));
+    var formatted = formatWeightValue(e.target.value);
+    e.target.value = formatted;
+    state.items[idx].weight = formatted;
+    recalculate();
+  });
+  weightInput.addEventListener("keydown", function (e) {
+    if (e.keyCode === 13 || e.key === "Enter") {
+      e.target.blur();
+    }
   });
   var weightCopyBtn = document.createElement("button");
   weightCopyBtn.className = "copy-btn";
@@ -1282,7 +1322,7 @@ function buildFolderName(computedPickSlip, activeItems) {
 /**
  * "Generated Dimensions" (JDE Tracking) output.
  *  0 active items -> ""
- *  1 active item  -> "Dimension : D Cm<br>Weight : W Kgs<br>Total : qty unit"
+ *  1 active item  -> "Dimensions : D Cm<br>Weight : W Kgs<br>Total : qty unit"
  *  2+ active items -> one dimension line per item (qty+unit noted per line),
  *                      then a single summed Weight line, then a Total line
  *                      that sums qty per distinct unit and joins distinct
@@ -1295,8 +1335,15 @@ function buildGeneratedDimensions(activeItems) {
     var only = activeItems[0];
     var qty = trim(only.qty);
     var totalText = qty ? (qty + " " + pluralizedUnit(qty, only.unit)) : "";
-    var text = "Dimension : " + displayDimensions(only.dimensions) + " Cm<br>" +
-      "Weight : " + displayWeight(only.weight) + " Kgs<br>" +
+
+    // Weight input is per single unit — multiply by qty for the total.
+    var qtyNum = parseFloat(qty);
+    var effQty = (!isNaN(qtyNum) && qtyNum > 0) ? qtyNum : 1;
+    var unitWeight = parseFloat(only.weight);
+    var totalWeight = isNaN(unitWeight) ? 0 : unitWeight * effQty;
+
+    var text = "Dimensions : " + displayDimensions(only.dimensions) + " Cm<br>" +
+      "Weight : " + formatWeightSum(totalWeight) + " Kgs<br>" +
       "Total : " + totalText;
     return { html: text, plain: htmlBrToPlain(text) };
   }
@@ -1311,12 +1358,15 @@ function buildGeneratedDimensions(activeItems) {
     var itQty = trim(it.qty);
     var qtyUnitLabel = itQty ? (itQty + " " + pluralizedUnit(itQty, it.unit)) : "";
     var dimLine = displayDimensions(it.dimensions) + " Cm" + (qtyUnitLabel ? " (" + qtyUnitLabel + ")" : "");
-    lines.push(i === 0 ? "Dimension : " + dimLine : dimLine);
+    lines.push(i === 0 ? "Dimensions : " + dimLine : dimLine);
 
-    var w = parseFloat(it.weight);
-    if (!isNaN(w)) weightSum += w;
-
+    // Weight input is per single unit — multiply by this card's qty
+    // before adding it to the running total.
     var qn = parseFloat(itQty);
+    var effQty = (!isNaN(qn) && qn > 0) ? qn : 1;
+    var w = parseFloat(it.weight);
+    if (!isNaN(w)) weightSum += w * effQty;
+
     if (!isNaN(qn) && qn > 0) {
       if (!unitSums.hasOwnProperty(it.unit)) {
         unitSums[it.unit] = 0;
@@ -1333,21 +1383,18 @@ function buildGeneratedDimensions(activeItems) {
     totalParts.push(sum + " " + pluralizedUnit(sum, unitKey));
   }
 
-  var weightDisplay = weightSum ? formatWeightSum(weightSum) : "0.0";
-
   var outLines = lines.slice();
-  outLines.push("Weight : " + weightDisplay + " Kgs");
+  outLines.push("Weight : " + formatWeightSum(weightSum) + " Kgs");
   outLines.push("Total : " + totalParts.join(" & "));
 
   var html = outLines.join("<br>");
   return { html: html, plain: htmlBrToPlain(html) };
 }
 
+/* Always formats to a fixed "0.0" style token, regardless of input. */
 function formatWeightSum(n) {
-  var rounded = Math.round(n * 100) / 100;
-  var str = String(rounded);
-  if (str.indexOf(".") === -1) str += ".0";
-  return str;
+  if (isNaN(n)) return "0.0";
+  return n.toFixed(1);
 }
 
 /* "Generated EDI" output — each Item card that has an EDI/BOL filled in

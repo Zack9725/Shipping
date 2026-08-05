@@ -498,7 +498,7 @@ input::placeholder { color: #6a6a6a; }
 var STORAGE_KEY = "quickslip_state_v2";
 var LEGACY_STORAGE_KEY = "quickslip_state_v1";
 
-var UNIT_PLURALS = { Carton: "Cartons", Crate: "Crates", Pallet: "Pallets" };
+var UNIT_PLURALS = { Carton: "Cartons", Pallet: "Pallets", Crate: "Crates" };
 
 function defaultItem() {
   return { pn: "", ediBol: "", dimensions: "", weight: "", qty: "", unit: "Carton" };
@@ -1199,8 +1199,8 @@ function buildItemCard(item, index, isOnlyCard) {
 
   var unitOptions = [
     { value: "Carton", text: "Carton" },
-    { value: "Pallet", text: "Crate" },
-    { value: "Crate", text: "Pallet" }
+    { value: "Pallet", text: "Pallet" },
+    { value: "Crate", text: "Crate" }
   ];
   for (var u = 0; u < unitOptions.length; u++) {
     var pill = document.createElement("label");

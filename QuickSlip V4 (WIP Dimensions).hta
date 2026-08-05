@@ -510,10 +510,6 @@ var dom = {
   clearAllBtn: document.getElementById("clearAllBtn"),
   toast: document.getElementById("toast"),
 
-  outCommercialInvoice: document.getElementById("out-commercialInvoice"),
-  outSerialProduct: document.getElementById("out-serialProduct"),
-  outPickSlipFinal: document.getElementById("out-pickSlipFinal"),
-  outReleaseForm: document.getElementById("out-releaseForm"),
   outFolderName: document.getElementById("out-folderName"),
   generatedDimensions: document.getElementById("generatedDimensions"),
   generatedEDI: document.getElementById("generatedEDI"),
@@ -1245,10 +1241,6 @@ function recalculate() {
   var computedPickSlip = computePickSlip(getActivePickSlips());
   var activeItems = getActiveItems();
 
-  setOutput(dom.outCommercialInvoice, suffixed("Commercial Invoice", computedPickSlip));
-  setOutput(dom.outSerialProduct, suffixed("Serial Product", computedPickSlip));
-  setOutput(dom.outPickSlipFinal, suffixed("Pick Slip Final", computedPickSlip));
-  setOutput(dom.outReleaseForm, suffixed("Rls", computedPickSlip));
   setOutput(dom.outFolderName, buildFolderName(computedPickSlip, activeItems));
 
   setOutputHtml(dom.generatedDimensions, buildGeneratedDimensions(activeItems));
@@ -1384,6 +1376,7 @@ function htmlBrToPlain(html) {
 }
 
 function setOutput(el, value) {
+  if (!el) return; // markup for this output isn't in the DOM — skip instead of crashing
   if (value) {
     el.textContent = value;
     el.removeAttribute("data-copy-value");
@@ -1398,6 +1391,7 @@ function setOutput(el, value) {
 /* Same as setOutput, but the value is a {html, plain} pair — html is
    rendered (so <br> line breaks show), plain is what gets copied. */
 function setOutputHtml(el, value) {
+  if (!el) return; // markup for this output isn't in the DOM — skip instead of crashing
   if (value && value.html) {
     el.innerHTML = value.html;
     el.setAttribute("data-copy-value", value.plain);

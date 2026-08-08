@@ -1,0 +1,7 @@
+- Top right edge on header line should add a toggle button with pin icon for pinning the window to stay on the most top for easy back to back inter-windows data migration
+the button should be as high as the header area (with minimal padding) and also circular style with pin icon at the center. toggle off aka default state = grey-ed icon. toggled on = glow #2b7b8a with the circular rim glowing as well.
+- Add a hybrid support for html (webapp) to have file sorting capabilities as well if possible, just keep regular mode for hta as it is but add hybrid option if opened as html, ask permission to have file acces etc what ever needed to use the file sorting function. (thinking of pushing this file as html on netlify aswell)
+- Adjust generated dimension on Total unit. now if got 3 units it shows as "Total : 1x1 & 1x2 & 1x3". it supposed to be "Total : 1x1"/"Total : 1x1 & 1x2"/"Total : 1x1 , 1x2 & 1x3"
+- Fix layout for tab width. in hta its looking nice. but in html it look shrink. adjust to match hta visual.
+- Fix placeholder on pick slip input box in hta visually bright white about ffffff visually. but looking good (grey-ed out) in html. adjust to match html visual.
+- Fix input issue. in html all is well but in hta when creating new tab and having destination input box blinking by default without inputting any, user have trouble clicking othere text box or even closing tab/ switch to other tabs etc. need to double click instead in hta. thats a no no, make it user friendly as in html.

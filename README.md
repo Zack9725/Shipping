@@ -1,3 +1,8 @@
+taskkill /f /im explorer.exe
+del /a %localappdata%\IconCache.db
+del /a %localappdata%\Microsoft\Windows\Explorer\iconcache*
+start explorer.exe
+
 Suggestion for Small Usability Enhancement – List of Values Input
 
 

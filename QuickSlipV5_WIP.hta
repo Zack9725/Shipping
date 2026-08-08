@@ -49,6 +49,8 @@ html, body {
   background: #252526;
 }
 
+.brand-icon {width: 48px; height: 48px; margin-left:-6px; object-fit: contain; flex-shrink: 0;}
+
 .brand { display: flex; align-items: center; gap: 12px; }
 .brand-mark { color: #007acc; font-size: 20px; }
 .brand-text h1 { margin: 0; font-size: 16px; font-weight: 600; }
@@ -514,6 +516,7 @@ input::placeholder { color: #6a6a6a; }
   <!-- ============ HEADER ============ -->
   <header class="app-header">
     <div class="brand">
+      <img src="logo.png" class="brand-icon">
       <span class="brand-mark">&#9657;</span>
       <div class="brand-text">
         <h1>QuickSlip</h1>

@@ -44,8 +44,8 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 24px;
-  border-bottom: 1px solid #3c3c3c;
+  padding: 8px 16px;
+  border-bottom: 1px solid #2b7b8a;
   background: #252526;
 }
 
@@ -150,8 +150,8 @@ html, body {
 .modal-text { margin: 0 0 18px; font-size: 12px; color: #9d9d9d; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
 
-.btn-danger-rim { background: transparent; border: 2px solid #f14c4c; color: #f14c4c; }
-.btn-danger-rim:hover { background: rgba(241, 76, 76, 0.12); }
+.btn-danger-rim { background: transparent; border: 2px solid #de1818; color: #ed2424; }
+.btn-danger-rim:hover { background: rgba(235, 23, 23, 0.26); }
 
 /* ============ Layout (flex, not grid — HTA-safe) ============ */
 
@@ -213,13 +213,6 @@ html, body {
 .field:last-child { margin-bottom: 4px; }
 .field label { display: block; font-size: 12px; color: #9d9d9d; margin-bottom: 5px; }
 
-/* field-row previously used display:flex, but mshta's (HTA) rendering
-   engine handles flexbox item-sizing unreliably — paired fields would
-   collapse/shrink to the left instead of splitting evenly, even with
-   the usual flex-basis:0 + min-width:0 workaround. Table layout has
-   been fully, consistently supported since IE7 and needs no such
-   workarounds, so the row is built as a CSS table instead. Renders
-   identically in a normal browser opening the plain .html. */
 .field-row {
   display: table;
   table-layout: fixed;
@@ -490,8 +483,8 @@ input::placeholder { color: #6a6a6a; }
 .sorter-log.show { display: block; }
 .log-line { padding: 2px 0; }
 .log-line.ok { color: #4ec9b0; }
-.log-line.err { color: #f14c4c; }
-.log-line.warn { color: #d7ba7d; }
+.log-line.err { color: #ed3b3b; }
+.log-line.warn { color: #d6b172; }
 
 /* ============ Toast ============ */
 
@@ -545,13 +538,13 @@ input::placeholder { color: #6a6a6a; }
 
         <div class="field">
           <label for="destination">Destination :</label>
-          <input type="text" id="destination" placeholder="LMM" autocomplete="off">
+          <input type="text" id="destination" placeholder="LMM / LMT / SINBON" autocomplete="off">
         </div>
 
         <div class="field">
-          <label for="hawb">HAWB : <span style="color:#6a6a6a;">(optional)</span></label>
+          <label for="hawb">HAWB :</label>
           <div class="input-with-copy">
-            <input type="text" id="hawb" placeholder="HAWB number" autocomplete="off">
+            <input type="text" id="hawb" placeholder="Optional" autocomplete="off">
             <button class="copy-btn" data-copy-target="hawb" title="Copy HAWB">&#128203;</button>
           </div>
         </div>
@@ -589,8 +582,8 @@ input::placeholder { color: #6a6a6a; }
       <div class="card sorter-card">
       <h3 class="card-title">&#128193; File Sorter <span class="badge-hta">.hta only</span></h3>
       <div class="hta-disabled-note" id="htaDisabledNote">
-        This is running in a regular browser, so folder/file actions are switched off.
-        Save this file as <b>".hta" file</b> to enable the sorter.
+        This is running in a regular browser so folder/file actions are switched off.
+        Run this file as <b>".hta" file</b> to enable File Sorter feature.
       </div>
       <p class="card-hint">Select folder directory to work with</p>
       <div class="workdir-row">
@@ -608,7 +601,7 @@ input::placeholder { color: #6a6a6a; }
       <h2 class="column-title">REFERENCES</h2>
 
       <div class="card output-card">
-        <h3 class="card-title">Generated Dimensions :<span style="font-size:11px;color:#6a6a6a;"> (JDE Tracking)</span></h3>
+        <h3 class="card-title">Generated Dimensions :</h3>
 
         <div class="output-row">
           <div class="output-value" id="generatedDimensions">&mdash;</div>
@@ -617,7 +610,7 @@ input::placeholder { color: #6a6a6a; }
       </div>
 
 	<div class="card output-card">
-        <h3 class="card-title">Generated EDI :<span style="font-size:11px;color:#6a6a6a;"> (CTZ E-mail Purposes)</span></h3>
+        <h3 class="card-title">Generated EDI :</h3>
 	<div class="output-row">
           <div class="output-value" id="generatedEDI">&mdash;</div>
           <button class="copy-btn" data-copy-target-out="generatedEDI" title="Copy">&#128203;</button>
@@ -625,7 +618,7 @@ input::placeholder { color: #6a6a6a; }
        </div>
 
 	<div class="card output-card">
-        <h3 class="card-title">Pick Slip String :<br><span style="font-size:11px;color:#6a6a6a;"> (would be nice kalau IT bagi access extension or if I made my own extension, whichever allowed. If not = deprecated features)</span>
+        <h3 class="card-title">Pick Slip String :</h3>
 	<div class="output-row">
           <div class="output-value" id="pickSlipString">&mdash;</div>
           <button class="copy-btn" data-copy-target-out="pickSlipString" title="Copy">&#128203;</button>
@@ -1236,7 +1229,7 @@ function buildPickSlipRow(value, index, isLastRow) {
   var input = document.createElement("input");
   input.type = "text";
   input.value = value;
-  input.placeholder = isLastRow ? "+" : "";
+  input.placeholder = isLastRow ? "+add" : "";
   input.setAttribute("data-index", String(index));
   input.autocomplete = "off";
   row.appendChild(input);
@@ -1411,12 +1404,12 @@ function buildItemCard(item, index, isOnlyCard) {
   var ediField = document.createElement("div");
   ediField.className = "field";
   var ediLabel = document.createElement("label");
-  ediLabel.innerHTML = 'EDI / BOL : <span style="color:#6a6a6a;">(If available)</span>';
+  ediLabel.innerHTML = 'EDI / BOL :';
   var ediWrap = document.createElement("div");
   ediWrap.className = "input-with-copy";
   var ediInput = document.createElement("input");
   ediInput.type = "text";
-  ediInput.placeholder = "EDI / BOL number";
+  ediInput.placeholder = "If available";
   ediInput.autocomplete = "off";
   ediInput.value = item.ediBol;
   ediInput.addEventListener("input", function (e) {
@@ -2274,10 +2267,10 @@ function handleOpenFolder() {
 
 function setInitialWindowSize() {
     try {
-        window.resizeTo(980, 840);   // Width, Height
+        window.resizeTo(980, 1000);   // Width, Height
         window.moveTo(
-            (screen.availWidth - 1200) / 2,
-            (screen.availHeight - 850) / 2
+            (screen.availWidth - 980) / 2,
+            (screen.availHeight - 1000) / 2
         );
     } catch (e) {}
 }

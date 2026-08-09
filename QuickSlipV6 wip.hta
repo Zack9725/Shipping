@@ -6,6 +6,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QuickSlip</title>
 <link rel="icon" type="image/x-icon" href="icon.ico">
+<!-- PWA install support — only kicks in when this file is served over
+     http://localhost or https:// (Chrome/Edge refuse to register a
+     service worker on a plain file:// page, so double-clicking the
+     .html directly will NOT show an install prompt; see the
+     serviceWorker registration guard further down). -->
+<link rel="manifest" href="manifest.json">
 
 <HTA:APPLICATION
   ID="quickSlipHTA"
@@ -85,6 +91,12 @@ html, body {
 }
 .pin-btn.active:hover { color: #37a1b5; border-color: #37a1b5; }
 
+/* Pin-to-top is a browser-only (Document Picture-in-Picture) feature —
+   there's no equivalent left in the .hta build, so the button is
+   fully hidden in hta-mode. Belt-and-braces alongside the JS-side
+   skip in initPinButton(). */
+.hta-mode .pin-btn { display: none; }
+
 /* ============ Shipment tab bar (Chrome-style) ============ */
 
 .tab-bar-wrap {
@@ -92,38 +104,64 @@ html, body {
   align-items: flex-end;
   gap: 6px;
   padding: 10px 24px 0;
-  background: #252526;
+  background: #1e1e1e;
   overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
 }
 
-.tab-bar { display: flex; align-items: flex-end; gap: 2px; flex: 0 1 auto; min-width: 200px; overflow: hidden; }
+/* min-width:0 (instead of a fixed floor) is what lets this shrink to
+   its actual content instead of forcing a gap before the add button
+   when there's only 1-2 tabs. Once tabs hit their own min-width and
+   still don't fit, this scrolls internally (overflow-x: auto) rather
+   than pushing .tab-bar-wrap — and the whole page — wider than the
+   viewport, which is what used to strand the add button off-screen. */
+.tab-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #3c3c3c transparent;
+}
+.tab-bar::-webkit-scrollbar { height: 5px; }
+.tab-bar::-webkit-scrollbar-track { background: transparent; }
+.tab-bar::-webkit-scrollbar-thumb { background: #3c3c3c; border-radius: 3px; }
+.tab-bar::-webkit-scrollbar-thumb:hover { background: #4a4a4a; }
 
 .tab {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 0 1 168px;
+  flex: 0 1 200px;
   max-width: 200px;
-  min-width: 200px;
+  min-width: 84px;
   padding: 6px 8px 6px 14px;
   background: #2d2d2d;
-  border: 1px solid #3c3c3c;
-  border-bottom: none;
+  border-style: solid;
+  border-width: 1px 1px 0 1px;
+  border-color: #3c3c3c;
   border-radius: 8px 8px 0 0;
-  color: #9d9d9d;
-  font-size: 9px;
+  color: #c0c0c0;
+  font-size: 11px;
+  font-weight: 600;
   cursor: pointer;
   position: relative;
   top: 1px;
   white-space: nowrap;
-  transition: padding 0.12s ease, font-size 0.12s ease, background 0.12s ease, color 0.12s ease;
+  transition: padding 0.12s ease, font-size 0.12s ease, background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 
 .tab.active {
   padding: 8px 8px 8px 14px;
-  font-size: 12px;
+  font-size: 13px;
   background: #1e1e1e;
-  border-color: #3c3c3c;
+  border-width: 1px 1px 0 1px;
+  border-color: #2b7b8a;
   color: #4fb2ff;
   font-weight: 600;
 }
@@ -192,10 +230,58 @@ html, body {
   padding: 20px 24px 8px;
   allign-items: flex-start;
   justify-content: flex-start;
+  position: relative;
+  border-top: 1px solid #2b7b8a;
+}
+
+/* Erases the segment of .layout's own top border that sits directly
+   under the active tab, painting it the same colour as the page
+   background — that's what makes the active tab read as fused into
+   the box below it instead of a separate piece sitting on top.
+   Positioned/sized by updateTabLayoutBridge() in JS since it has to
+   track wherever the active tab currently is (tab count/width/order
+   all change at runtime). */
+.tab-layout-bridge {
+  position: absolute;
+  top: -1px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: #1e1e1e;
+  pointer-events: none;
+  z-index: 2;
 }
 
 .column:first-child {width: 390px; flex: 0 0 390px; margin-right: 24px;}
 .column:last-child {width: 500px; flex: 0 0 500px; margin-right: 24px;}
+
+/* Centered, capped-width content — the header stays flush left (no
+   left padding gap there). The tab bar (right below the header's
+   blue border line) and .layout (the Inputs/Outputs columns) are
+   both capped and centered together, since the tabs need to line up
+   with the columns they belong to underneath. */
+.tab-bar-wrap,
+.layout {
+  max-width: 946px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Floor at 980px instead of stacking/squishing columns when the
+   window is narrower. There is no script API that can force a real
+   browser tab's window size (see setInitialWindowSize below), so
+   this is the practical substitute there: the page just gets a
+   horizontal scrollbar rather than a broken layout.
+
+   web-mode ONLY — the .hta build already has its own hard JS-side
+   980x1000 lock (lockHtaMinSize) and its actual client area (inside
+   the window's own scrollbar/border) is a little narrower than the
+   980px outer window size, so applying this same 980px floor there
+   too over-constrains it and forces an unwanted horizontal
+   scrollbar / clipped right column. */
+html.web-mode, html.web-mode body {
+  min-width: 980px;
+}
 
 .column-title {
   font-size: 11.5px;
@@ -213,7 +299,7 @@ html, body {
   gap: 10px;
 }
 .column-title-row .column-title { margin: 2px 0 12px; }
-.btn-sm { padding: 5px 10px; font-size: 11px; }
+.btn-sm { padding: 5px 10px; font-size: 11px; position: relative; top: -3px; }
 
 /* ============ Card ============ */
 
@@ -536,7 +622,7 @@ input::placeholder { color: #6a6a6a; }
 
 .toast {
   position: fixed;
-  bottom: 20px;
+  bottom: 40px;
   left: 50%;
   margin-left: -70px;
   width: 140px;
@@ -548,11 +634,14 @@ input::placeholder { color: #6a6a6a; }
   padding: 9px 12px;
   border-radius: 10px;
   opacity: 0;
-  display: none;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
   z-index: 100;
 }
-.toast.show { opacity: 1; display: block; }
-}
+.toast.show { opacity: 1; }
+
+.input-placeholder::placeholder{text-align: center;}
+
 </style>
 </head>
 <body>
@@ -562,11 +651,11 @@ input::placeholder { color: #6a6a6a; }
   <!-- ============ HEADER ============ -->
   <header class="app-header">
     <div class="brand">
-      <img src="logo.png" class="brand-icon">
+      <img src="logo.png" class="brand-icon" alt="" onerror="this.style.display='none';">
       <span class="brand-mark">&#9657;</span>
       <div class="brand-text">
         <h1>QuickSlip</h1>
-        <p>Made By - Zack (Inventory Handler 1 BTW)</p>
+        <p>Made By - Zack</p>
       </div>
     </div>
     <button id="pinBtn" class="pin-btn" type="button" title="Pin window on top">&#128204;</button>
@@ -578,6 +667,7 @@ input::placeholder { color: #6a6a6a; }
   </div>
 
   <main class="layout">
+    <div id="tabLayoutBridge" class="tab-layout-bridge"></div>
 
     <!-- ============ INPUT COLUMN ============ -->
     <section class="column">
@@ -588,13 +678,13 @@ input::placeholder { color: #6a6a6a; }
 
         <div class="field">
           <label for="destination">Destination :</label>
-          <input type="text" id="destination" placeholder="LMM / LMT / SINBON" autocomplete="off">
+          <input type="text" id="destination" placeholder="Simple Destination Name" autocomplete="off">
         </div>
 
         <div class="field">
           <label for="hawb">HAWB :</label>
           <div class="input-with-copy">
-            <input type="text" id="hawb" placeholder="Optional" autocomplete="off">
+            <input type="text" id="hawb" placeholder="( Optional )" class="input-placeholder autocomplete="off">
             <button class="copy-btn" data-copy-target="hawb" title="Copy HAWB">&#128203;</button>
           </div>
         </div>
@@ -615,40 +705,11 @@ input::placeholder { color: #6a6a6a; }
     <!-- ============ OUTPUT COLUMN ============ -->
     <section class="column">
       <div class="column-title-row">
-        <h2 class="column-title">Outputs</h2>
+        <h2 class="column-title">OUTPUT</h2>
         <button id="clearAllBtn" class="btn btn-danger-ghost btn-sm" type="button" title="Clear this shipment's fields">
           <span class="icon">&#128465;</span> Clear
         </button>
       </div>
-
-      <div class="card output-card">
-        <h3 class="card-title">Folder Name Preview</h3>
-        <div class="output-row">
-          <div class="output-value output-value-folder" id="out-folderName">&mdash;</div>
-          <button class="copy-btn" data-copy-target-out="out-folderName" title="Copy folder name">&#128203;</button>
-        </div>
-      </div>
-
-      <div class="card sorter-card">
-      <h3 class="card-title">&#128193; File Sorter <span class="badge-hta">local files</span></h3>
-      <div class="hta-disabled-note" id="htaDisabledNote">
-        This browser doesn't support local file access (File System Access API). Use Chrome or Edge for the File Sorter here, or run the <b>".hta"</b> version on Windows.
-      </div>
-      <p class="card-hint">Select folder directory to work with</p>
-      <div class="workdir-row">
-        <div class="workdir-path" id="workDirPath">No working folder selected</div>
-        <button class="btn btn-secondary" id="chooseFolderBtn" type="button">Choose Folder&hellip;</button>
-      </div>
-      <div class="filesorter-actions">
-        <button class="btn btn-primary" id="sortBtn" type="button">&#128193; Sort into Folder</button>
-        <button class="btn btn-ghost" id="openFolderBtn" type="button" style="display:none;">Open Folder</button>
-      </div>
-
-      <div class="sorter-log" id="sorterLog"></div>
-    </div>
-
-      <h2 class="column-title">REFERENCES</h2>
-
       <div class="card output-card">
         <h3 class="card-title">Generated Dimensions :</h3>
 
@@ -673,6 +734,33 @@ input::placeholder { color: #6a6a6a; }
           <button class="copy-btn" data-copy-target-out="pickSlipString" title="Copy">&#128203;</button>
         </div>
        </div>
+      <div class="column-title-row">
+        <h2 class="column-title">MISCELLANEOUS</h2>
+      </div>
+
+      <div class="card sorter-card">
+      <h3 class="card-title">&#128193; File Sorter <span class="badge-hta">local files</span></h3>
+      <div class="hta-disabled-note" id="htaDisabledNote">
+        This browser doesn't support local file access (File System Access API). Use Chrome or Edge for the File Sorter here, or run the <b>".hta"</b> version on Windows.
+      </div>
+      <p class="card-hint">Select folder directory to work with</p>
+      <div class="workdir-row">
+        <div class="workdir-path" id="workDirPath">No working folder selected</div>
+        <button class="btn btn-secondary" id="chooseFolderBtn" type="button">Choose Folder&hellip;</button>
+      </div>
+
+      <h4 class="card-title">Folder Name Preview</h4>
+          <div class="output-value output-value-folder" id="out-folderName">&mdash;</div>
+          <p class="card-hint"></p><!--spacer -->
+      <div class="sorter-log" id="sorterLog"></div>
+      <p class="card-hint"></p><!--spacer -->
+
+      <div class="filesorter-actions">
+        <button class="btn btn-primary" id="sortBtn" type="button">&#128193; Sort into Folder</button>
+        <button class="btn btn-ghost" id="openFolderBtn" type="button" style="display:none;">Open Folder</button>
+      </div>
+
+    </div>
   </main>
 
   <div id="toast" class="toast">Copied!</div>
@@ -693,6 +781,7 @@ input::placeholder { color: #6a6a6a; }
 <script language="JScript">
 /* ---- Constants ---- */
 
+var MAX_TABS = 6;
 var STORAGE_KEY = "quickslip_state_v3";
 var LEGACY_V2_KEY = "quickslip_state_v2";
 var LEGACY_V1_KEY = "quickslip_state_v1";
@@ -736,6 +825,7 @@ var dom = {
   pinBtn: document.getElementById("pinBtn"),
 
   tabBar: document.getElementById("tabBar"),
+  tabLayoutBridge: document.getElementById("tabLayoutBridge"),
   addTabBtn: document.getElementById("addTabBtn"),
   closeTabModal: document.getElementById("closeTabModal"),
   closeTabCancelBtn: document.getElementById("closeTabCancelBtn"),
@@ -771,10 +861,9 @@ function newTabId() {
   return "tab-" + (++tabIdSeq) + "-" + new Date().getTime() + "-" + Math.floor(Math.random() * 10000);
 }
 
-function defaultShipment(tabNumber) {
+function defaultShipment() {
   return {
     id: newTabId(),
-    tabNumber: tabNumber,
     destination: "",
     pickSlips: [""],
     items: [defaultItem()],
@@ -784,7 +873,7 @@ function defaultShipment(tabNumber) {
   };
 }
 
-var appState = { tabs: [], activeTabId: null, nextTabNumber: 1 };
+var appState = { tabs: [], activeTabId: null };
 var state = null; // always points at appState.tabs[activeIndex]
 
 var pendingCloseTabId = null;
@@ -815,6 +904,14 @@ if (HTA_MODE) {
   try { FS_ACCESS_SUPPORTED = (typeof window.showDirectoryPicker === "function"); } catch (fsErr) { FS_ACCESS_SUPPORTED = false; }
 }
 
+/* Lets CSS branch on HTA vs plain-browser rendering — still used
+   for a few mode-specific tweaks (e.g. hiding the pin button in
+   hta-mode), even though the centered layout below is now universal
+   across both modes. */
+try {
+  document.documentElement.className += (document.documentElement.className ? " " : "") + (HTA_MODE ? "hta-mode" : "web-mode");
+} catch (modeClassErr) { /* ignore */ }
+
 /* Nak determine USER */
 function getDefaultWorkingDir() {
 
@@ -830,7 +927,6 @@ function getDefaultWorkingDir() {
 
 function saveState() {
   try {
-    appState.nextTabNumber = appState.nextTabNumber || (appState.tabs.length + 1);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
   } catch (err) {
     // Storage unavailable — app still works, just won't persist.
@@ -839,7 +935,7 @@ function saveState() {
 
 /* Fill in every field of a saved (or legacy) shipment with safe
    defaults, the same way the old single-shipment loadState used to. */
-function normalizeShipment(raw, tabNumber) {
+function normalizeShipment(raw) {
     raw = raw || {};
 
     var items;
@@ -864,7 +960,6 @@ function normalizeShipment(raw, tabNumber) {
 
     return {
         id: raw.id || newTabId(),
-        tabNumber: raw.tabNumber || tabNumber,
         destination: raw.destination || "",
         pickSlips: pickSlips,
         items: items,
@@ -884,11 +979,10 @@ function loadState() {
             if (saved && isRealArray(saved.tabs) && saved.tabs.length) {
                 var tabs = [];
                 for (var i = 0; i < saved.tabs.length; i++) {
-                    tabs.push(normalizeShipment(saved.tabs[i], i + 1));
+                    tabs.push(normalizeShipment(saved.tabs[i]));
                 }
                 appState.tabs = tabs;
                 appState.activeTabId = saved.activeTabId;
-                appState.nextTabNumber = saved.nextTabNumber || (tabs.length + 1);
                 loaded = true;
             }
         }
@@ -902,7 +996,6 @@ function loadState() {
         var migrated = migrateFromFlatState();
         appState.tabs = [migrated];
         appState.activeTabId = migrated.id;
-        appState.nextTabNumber = 2;
     }
 
     if (indexOfTab(appState.activeTabId) === -1) {
@@ -947,7 +1040,7 @@ function migrateFromFlatState() {
         } catch (err) { /* ignore corrupted v1 save */ }
     }
 
-    return normalizeShipment(flat || {}, 1);
+    return normalizeShipment(flat || {});
 }
 
 function indexOfTab(id) {
@@ -971,11 +1064,49 @@ function isRealArray(val) {
    Shipment tabs (Chrome-style)
    ============================================================ */
 
-/* Default label is "Shipment N"; once Destination is filled in that
-   tab takes over as the label, live, and reverts if cleared again. */
+/* Default label is "Shipment N", where N is this tab's live position
+   among the currently open tabs (not a stored, ever-incrementing
+   counter) — so it renumbers naturally as tabs close/reorder and
+   never keeps climbing across a clear, a tab close, or a relaunch.
+   Once Destination is filled in, that takes over as the label, live,
+   and reverts back to the positional placeholder if cleared again. */
 function tabLabel(shipment) {
   var dest = trim(shipment.destination);
-  return dest ? dest : ("Shipment " + shipment.tabNumber);
+  if (dest) return dest;
+  var idx = indexOfTab(shipment.id);
+  return "Shipment " + (idx === -1 ? appState.tabs.length : idx + 1);
+}
+
+var TAB_MAX_WIDTH = 200; // keep in sync with .tab's max-width in CSS
+var TAB_GAP = 2;         // keep in sync with .tab-bar's gap in CSS
+
+/* #tabBar's own auto/max-content sizing can't be trusted here: in a
+   nested flex row, when a flex container's children have
+   flex-shrink > 0 (our tabs do, so they can squeeze down once the
+   strip is full), some engines compute that container's own
+   intrinsic width from the children's shrink floor rather than their
+   preferred width — so with only 1-2 tabs open, the whole bar (and
+   every tab in it) would collapse toward min-width even with plenty
+   of free space to spare. Setting #tabBar's width explicitly here
+   sidesteps that miscalculation entirely; CSS flex-shrink on .tab
+   still does the actual squeezing once this computed width genuinely
+   can't fit every tab at TAB_MAX_WIDTH. */
+function sizeTabBar() {
+  try {
+    var bar = dom.tabBar;
+    var wrap = bar.parentElement;
+    var addBtn = dom.addTabBtn;
+    var count = appState.tabs.length;
+    if (!wrap || count === 0) { bar.style.width = "0px"; return; }
+    var desired = TAB_MAX_WIDTH * count + TAB_GAP * (count - 1);
+    var wrapStyle = window.getComputedStyle(wrap);
+    var wrapPadding = (parseFloat(wrapStyle.paddingLeft) || 0) + (parseFloat(wrapStyle.paddingRight) || 0);
+    var wrapGap = parseFloat(wrapStyle.columnGap || wrapStyle.gap) || 0;
+    var addBtnWidth = addBtn ? addBtn.offsetWidth : 0;
+    var available = wrap.clientWidth - wrapPadding - wrapGap - addBtnWidth;
+    if (available < 0) available = 0;
+    bar.style.width = Math.min(desired, available) + "px";
+  } catch (e) {}
 }
 
 function renderTabBar() {
@@ -1013,6 +1144,40 @@ function renderTabBar() {
 
     dom.tabBar.appendChild(tabEl);
   }
+  sizeTabBar();
+  var activeEl = dom.tabBar.querySelector(".tab.active");
+  if (activeEl && activeEl.scrollIntoView) {
+    activeEl.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+  updateTabLayoutBridge();
+}
+
+/* Keeps the "seamless tab" illusion correct — measures the active
+   tab's real on-screen position/width and sizes the bridge (see the
+   .tab-layout-bridge CSS comment) to match exactly. Needs to re-run
+   any time the active tab, tab count, or tab widths could have
+   changed (every renderTabBar() call already does this) and any time
+   the window/HTA resizes, since .tab-bar-wrap and .layout are both
+   centered independently and could in theory drift apart on reflow. */
+function updateTabLayoutBridge() {
+  try {
+    if (!dom.tabLayoutBridge) return;
+    var activeTab = dom.tabBar.querySelector(".tab.active");
+    var layoutEl = document.querySelector(".layout");
+    if (!activeTab || !layoutEl) {
+      dom.tabLayoutBridge.style.width = "0";
+      return;
+    }
+    var tabRect = activeTab.getBoundingClientRect();
+    var layoutRect = layoutEl.getBoundingClientRect();
+    /* Inset 1px on each side — tabRect (from getBoundingClientRect)
+       runs slightly wider than the tab's actual visible border on
+       screen, so an exact-width bridge overshoots and eats into the
+       layout's top border just past each corner. Insetting by 1px
+       keeps the erase confined to under the tab itself. */
+    dom.tabLayoutBridge.style.left = (tabRect.left - layoutRect.left + 1) + "px";
+    dom.tabLayoutBridge.style.width = (tabRect.width - 2) + "px";
+  } catch (e) {}
 }
 
 /* Full refresh of every panel from whichever shipment is now active —
@@ -1036,7 +1201,11 @@ function switchTab(id) {
 }
 
 function addTab() {
-  var fresh = defaultShipment(appState.nextTabNumber++);
+  if (appState.tabs.length >= MAX_TABS) {
+    showToast("Max " + MAX_TABS + " shipment tabs open — close one first.");
+    return;
+  }
+  var fresh = defaultShipment();
   appState.tabs.push(fresh);
   appState.activeTabId = fresh.id;
   state = fresh;
@@ -1045,8 +1214,35 @@ function addTab() {
   focusSoon(dom.destination);
 }
 
+/* True if this shipment has anything a user actually typed in — used
+   to decide whether closing its tab needs a confirmation. Items start
+   out with qty "1" and unit "Carton" (see defaultItem()); those are
+   stock/default values, not something the user entered, so they don't
+   count on their own. A tab that's still exactly as addTab() created
+   it (blank destination, blank pick slip, one untouched default item)
+   returns false and closes with no warning. */
+function shipmentHasValue(shipment) {
+  if (trim(shipment.destination)) return true;
+  if (trim(shipment.hawb)) return true;
+  for (var i = 0; i < shipment.pickSlips.length; i++) {
+    if (trim(shipment.pickSlips[i])) return true;
+  }
+  for (var i = 0; i < shipment.items.length; i++) {
+    var it = shipment.items[i];
+    if (trim(it.pn) || trim(it.ediBol) || trim(it.dimensions) || trim(it.weight)) return true;
+    if (trim(it.qty) !== "1") return true;
+    if (it.unit !== "Carton") return true;
+  }
+  return false;
+}
+
 function requestCloseTab(id) {
   if (appState.tabs.length <= 1) return; // close button is hidden in this case anyway
+  var idx = indexOfTab(id);
+  if (idx !== -1 && !shipmentHasValue(appState.tabs[idx])) {
+    closeTabById(id);
+    return;
+  }
   pendingCloseTabId = id;
   dom.closeTabModal.className = "modal-overlay show";
 }
@@ -1073,7 +1269,7 @@ function closeTabById(id) {
 
   if (appState.tabs.length === 0) {
     // Always keep at least one tab open.
-    var fresh = defaultShipment(appState.nextTabNumber++);
+    var fresh = defaultShipment();
     appState.tabs.push(fresh);
     appState.activeTabId = fresh.id;
   } else if (wasActive) {
@@ -1087,6 +1283,12 @@ function closeTabById(id) {
 }
 
 function bindTabBar() {
+  dom.tabBar.addEventListener("wheel", function (e) {
+    if (dom.tabBar.scrollWidth <= dom.tabBar.clientWidth) return;
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // already horizontal, let it be
+    e.preventDefault();
+    dom.tabBar.scrollLeft += e.deltaY;
+  }, { passive: false });
   dom.addTabBtn.addEventListener("click", addTab);
   dom.closeTabCancelBtn.addEventListener("click", cancelCloseTab);
   dom.closeTabConfirmBtn.addEventListener("click", confirmCloseTab);
@@ -1304,7 +1506,8 @@ function buildPickSlipRow(value, index, isLastRow) {
   var input = document.createElement("input");
   input.type = "text";
   input.value = value;
-  input.placeholder = isLastRow ? "+add" : "";
+  input.placeholder = isLastRow ? "+ pick slip  " : "";
+  input.className = "input-placeholder"
   input.setAttribute("data-index", String(index));
   input.autocomplete = "off";
   row.appendChild(input);
@@ -1464,7 +1667,7 @@ function buildItemCard(item, index, isOnlyCard) {
   pnLabel.textContent = "PN :";
   var pnInput = document.createElement("input");
   pnInput.type = "text";
-  pnInput.placeholder = "SSR002 / 203";
+  pnInput.placeholder = "Part Number";
   pnInput.autocomplete = "off";
   pnInput.value = item.pn;
   pnInput.addEventListener("input", function (e) {
@@ -1484,7 +1687,8 @@ function buildItemCard(item, index, isOnlyCard) {
   ediWrap.className = "input-with-copy";
   var ediInput = document.createElement("input");
   ediInput.type = "text";
-  ediInput.placeholder = "If available";
+  ediInput.placeholder = "( If Available )";
+  ediInput.className = "input-placeholder"
   ediInput.autocomplete = "off";
   ediInput.value = item.ediBol;
   ediInput.addEventListener("input", function (e) {
@@ -1519,6 +1723,7 @@ function buildItemCard(item, index, isOnlyCard) {
   var dimInput = document.createElement("input");
   dimInput.type = "text";
   dimInput.placeholder = "0x0x0";
+  dimInput.style.textAlign = "center";
   dimInput.autocomplete = "off";
   dimInput.value = item.dimensions;
   dimInput.addEventListener("input", function (e) {
@@ -1550,6 +1755,7 @@ function buildItemCard(item, index, isOnlyCard) {
   var weightInput = document.createElement("input");
   weightInput.type = "text";
   weightInput.placeholder = "0.0";
+  weightInput.style.textAlign = "center";
   weightInput.autocomplete = "off";
   weightInput.value = item.weight;
   weightInput.addEventListener("input", function (e) {
@@ -1605,6 +1811,7 @@ function buildItemCard(item, index, isOnlyCard) {
   qtyInput.setAttribute("inputmode", "numeric");
   qtyInput.setAttribute("pattern", "[0-9]*");
   qtyInput.placeholder = "1";
+  qtyInput.style.textAlign = "center";
   qtyInput.autocomplete = "off";
   qtyInput.value = item.qty;
   qtyInput.addEventListener("input", function (e) {
@@ -1734,7 +1941,7 @@ function showToast(message) {
   dom.toast.textContent = message;
   dom.toast.className = "toast show";
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(function () { dom.toast.className = "toast"; }, 1400);
+  toastTimer = setTimeout(function () { dom.toast.className = "toast"; }, 4000);
 }
 
 function copyToClipboard(text) {
@@ -2016,7 +2223,7 @@ function bindClearAll() {
     state.items = [defaultItem()];
     state.hawb = "";
     state.lastSortedFolder = "";
-    // state.id, state.tabNumber and state.workingDir are preserved.
+    // state.id and state.workingDir are preserved.
 
     dom.openFolderBtn.style.display = "none";
 
@@ -2091,10 +2298,14 @@ function handleOpenFolder() {
    ============================================================ */
 
 var pinActive = false;
-var pinFocusInterval = null;
 
+/* Pin-to-top no longer exists in the .hta build at all — the button
+   is hidden outright (see .hta-mode .pin-btn CSS) and never gets a
+   click handler wired up here, so togglePin() below is unreachable
+   in HTA_MODE. */
 function initPinButton() {
   if (!dom.pinBtn) return;
+  if (HTA_MODE) return;
   dom.pinBtn.addEventListener("click", togglePin);
 }
 
@@ -2103,25 +2314,12 @@ function setPinVisual(isActive) {
   dom.pinBtn.className = "pin-btn" + (isActive ? " active" : "");
 }
 
-/* Dispatcher — HTA behavior stays right here (plain setInterval, no
-   modern syntax needed). The browser behavior (Document
-   Picture-in-Picture, which is always-on-top by the OS) lives in the
-   second <script> block and is reached only via typeof-check, so a
-   parse failure there can never affect this. */
+/* Dispatcher — browser-only now. The Document Picture-in-Picture
+   implementation (always-on-top by the OS) lives in the second
+   <script> block and is reached only via typeof-check, so a parse
+   failure there can never affect this. */
 function togglePin() {
-  if (HTA_MODE) {
-    pinActive = !pinActive;
-    setPinVisual(pinActive);
-    if (pinActive) {
-      pinFocusInterval = setInterval(function () {
-        try { window.focus(); } catch (e) { /* ignore */ }
-      }, 400);
-    } else if (pinFocusInterval) {
-      clearInterval(pinFocusInterval);
-      pinFocusInterval = null;
-    }
-    return;
-  }
+  if (HTA_MODE) return; // pin-to-top was removed from the .hta build
   if (typeof togglePinWeb === "function") { togglePinWeb(); return; }
   showToast("Pin isn't supported in this browser");
 }
@@ -2413,6 +2611,14 @@ function handleOpenFolderHTA() {
 }
 
 function setInitialWindowSize() {
+    /* Chrome/Edge only honor resizeTo/moveTo on windows the page
+       itself opened via window.open() — a normal tab, or a window
+       launched from a desktop shortcut/taskbar icon, silently ignores
+       this. It's kept as a harmless best-effort attempt (works in a
+       few edge cases, no-ops everywhere else); the real guarantee
+       against squishing is the universal min-width: 980px rule in
+       the CSS above, which forces a scrollbar instead of a broken
+       layout. */
     try {
         window.resizeTo(980, 1000);   // Width, Height
         window.moveTo(
@@ -2420,6 +2626,30 @@ function setInitialWindowSize() {
             (screen.availHeight - 1000) / 2
         );
     } catch (e) {}
+}
+
+/* HTA-only: locks the window to a 980x1000 floor. Unlike a browser
+   tab, resizeTo/moveTo work reliably on a real .hta window (it's
+   the OS-level top-level window, not chrome-restricted), so a
+   resize handler can actively snap the window back up the instant
+   the user drags it below the floor — this is an enforced minimum,
+   not just a best-effort suggestion like setInitialWindowSize above.
+   No-ops entirely outside HTA_MODE. */
+var HTA_MIN_W = 980;
+var HTA_MIN_H = 1000;
+function lockHtaMinSize() {
+    if (!HTA_MODE) return;
+    function clampToMin() {
+        try {
+            var w = window.outerWidth || document.documentElement.offsetWidth;
+            var h = window.outerHeight || document.documentElement.offsetHeight;
+            if (w < HTA_MIN_W || h < HTA_MIN_H) {
+                window.resizeTo(Math.max(w, HTA_MIN_W), Math.max(h, HTA_MIN_H));
+            }
+        } catch (e) {}
+    }
+    if (window.attachEvent) { window.attachEvent("onresize", clampToMin); }
+    else { window.addEventListener("resize", clampToMin); }
 }
 
 /* ============================================================
@@ -2451,6 +2681,20 @@ function init() {
   safeStep(initPinButton, "initPinButton");
   safeStep(recalculate, "recalculate");
   safeStep(setInitialWindowSize, "setInitialWindowSize");
+  safeStep(lockHtaMinSize, "lockHtaMinSize");
+  safeStep(initTabLayoutBridgeResize, "initTabLayoutBridgeResize");
+}
+
+/* Re-size and re-measure the bridge on resize too, not just on tab
+   changes — sizeTabBar()'s available-width math depends on the
+   window's current size, and .tab-bar-wrap/.layout being
+   independently centered means a resize can shift them (very
+   slightly) out of sync with each other even when the active tab
+   itself hasn't changed. */
+function initTabLayoutBridgeResize() {
+  function onResize() { sizeTabBar(); updateTabLayoutBridge(); }
+  if (window.attachEvent) { window.attachEvent("onresize", onResize); }
+  else { window.addEventListener("resize", onResize); }
 }
 
 window.attachEvent ? window.attachEvent("onload", init) : window.addEventListener("load", init);
@@ -2473,6 +2717,18 @@ window.attachEvent ? window.attachEvent("onload", init) : window.addEventListene
 
   if (typeof HTA_MODE === "undefined" || HTA_MODE) return; // nothing to do in HTA
 
+  /* ---- PWA installability ----
+     Only fires when this page is actually served over http/https
+     (e.g. `python -m http.server` + http://localhost:8000/...) —
+     Chrome refuses to register a service worker on a plain file://
+     page, so double-clicking the .html directly will never trigger
+     an install prompt no matter what's here. See README notes. */
+  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("service-worker.js").catch(function () { /* non-fatal — app still works without it */ });
+    });
+  }
+
   /* ---- Pin-to-top via Document Picture-in-Picture (Chrome/Edge) ----
      A PiP window is always-on-top by the OS itself, which is exactly
      the "stay on top for back-to-back data migration" behavior asked
@@ -2480,6 +2736,24 @@ window.attachEvent ? window.attachEvent("onload", init) : window.addEventListene
      from a plain browser tab. */
 
   var pinPipWindow = null;
+
+  /* The original tab isn't actually broken while pinned — its content
+     really did move into the PiP document, so an untouched <body> is
+     just empty/black. That's what reads as "blackout". Filling it
+     with a short explanation instead makes the behavior legible. */
+  function showPinPlaceholder() {
+    var ph = document.createElement("div");
+    ph.id = "pinPlaceholder";
+    ph.style.cssText = "position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:24px;background:#1e1e1e;color:#9d9d9d;font-family:'Segoe UI',Tahoma,Arial,sans-serif;";
+    ph.innerHTML =
+      '<div style="font-size:15px;color:#d4d4d4;">&#128204; QuickSlip is pinned in a floating window</div>' +
+      '<div style="font-size:12px;max-width:320px;">This tab is not stuck — its content moved to the floating window. You can minimize this tab; unpin from the floating window to bring it back here.</div>';
+    document.body.appendChild(ph);
+  }
+  function removePinPlaceholder() {
+    var ph = document.getElementById("pinPlaceholder");
+    if (ph && ph.parentNode) ph.parentNode.removeChild(ph);
+  }
 
   window.togglePinWeb = function () {
     if (!("documentPictureInPicture" in window)) {
@@ -2493,11 +2767,37 @@ window.attachEvent ? window.attachEvent("onload", init) : window.addEventListene
     }
   };
 
+  /* Ideal PiP size is 990x1010, but that's taken from a 2K+ monitor —
+     on a 1920x1080 (FHD) screen, availHeight after the taskbar is
+     usually only ~1030-1040px, so hardcoding 1010 risks the window
+     hanging off the bottom edge or fighting the taskbar. So: try for
+     990x1010, but clamp down to whatever the CURRENT screen can
+     actually fit (with a safety margin for taskbar/window chrome).
+     On a big enough monitor this clamp never kicks in and you get
+     the full 990x1010; on FHD it quietly shrinks just enough to stay
+     fully on-screen. The floor/lock below tracks this same clamped
+     size, not the hardcoded ideal, so the lock is always achievable
+     on whatever screen the app happens to be running on. */
+  var PIP_IDEAL_W = 990;
+  var PIP_IDEAL_H = 1010;
+  var PIP_SCREEN_MARGIN = 80; // room for taskbar + window chrome
+
+  function getPipTargetSize() {
+    return {
+      w: Math.min(PIP_IDEAL_W, screen.availWidth - PIP_SCREEN_MARGIN),
+      h: Math.min(PIP_IDEAL_H, screen.availHeight - PIP_SCREEN_MARGIN)
+    };
+  }
+
   function enterPinnedWindow() {
     var appRoot = document.getElementById("appRoot");
     if (!appRoot) return;
 
-    documentPictureInPicture.requestWindow({ width: 720, height: 900 }).then(function (pipWin) {
+    var target = getPipTargetSize();
+    var pipW = target.w;
+    var pipH = target.h;
+
+    documentPictureInPicture.requestWindow({ width: pipW, height: pipH }).then(function (pipWin) {
       pinPipWindow = pipWin;
 
       Array.prototype.forEach.call(document.styleSheets, function (sheet) {
@@ -2519,8 +2819,37 @@ window.attachEvent ? window.attachEvent("onload", init) : window.addEventListene
       pinPipWindow.document.body.style.margin = "0";
       pinPipWindow.document.body.style.background = "#1e1e1e";
       pinPipWindow.document.body.appendChild(appRoot);
+      showPinPlaceholder();
+
+      /* Force the exact target size (requestWindow's width/height
+         are only a request — some browsers adjust them) and center
+         the window on screen. Best-effort like setInitialWindowSize:
+         wrapped in try/catch since not every browser honors
+         resizeTo/moveTo on a PiP window. */
+      try {
+        pinPipWindow.resizeTo(pipW, pipH);
+        pinPipWindow.moveTo(
+          Math.round((screen.availWidth - pipW) / 2),
+          Math.round((screen.availHeight - pipH) / 2)
+        );
+      } catch (e) {}
+
+      /* Enforce the (screen-fitted) floor going forward — snap back
+         up the instant the user drags the PiP window smaller. Uses
+         pipW/pipH from this session's open, so it never asks a small
+         screen to hold a floor bigger than the screen itself. */
+      function clampPipToMin() {
+        try {
+          var w = pinPipWindow.outerWidth, h = pinPipWindow.outerHeight;
+          if (w < pipW || h < pipH) {
+            pinPipWindow.resizeTo(Math.max(w, pipW), Math.max(h, pipH));
+          }
+        } catch (e) {}
+      }
+      pinPipWindow.addEventListener("resize", clampPipToMin);
 
       pinPipWindow.addEventListener("pagehide", function () {
+        removePinPlaceholder();
         document.body.insertBefore(appRoot, document.body.firstChild);
         pinPipWindow = null;
         pinActive = false;

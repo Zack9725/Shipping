@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QuickShip</title>
 <link rel="icon" type="image/x-icon" href="icon.ico">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1e1e1e">
 
 <style>
 
@@ -1094,7 +1096,14 @@ function updateTabLayoutBridge() {
   try {
     if (!dom.tabLayoutBridge) return;
     var activeTab = dom.tabBar.querySelector(".tab.active");
-    var layoutEl = document.querySelector(".layout");
+    /* dom.tabBar.ownerDocument (not the bare global `document`) so
+       this keeps finding .layout even after the whole app has been
+       moved into the PiP window's own document — a plain
+       `document.querySelector` here would silently miss and zero
+       out the bridge, which is what let the tab's blue top border
+       show through (no longer erased) every time the tab bar
+       re-rendered while pinned. */
+    var layoutEl = dom.tabBar.ownerDocument.querySelector(".layout");
     if (!activeTab || !layoutEl) {
       dom.tabLayoutBridge.style.width = "0";
       return;
@@ -1403,6 +1412,20 @@ function escapeHtml(str) {
    now?" without duplicating that state. */
 function webWorkingDirHandleLive() {
   return (typeof window.getWebWorkingDirHandle === "function") ? window.getWebWorkingDirHandle() : null;
+}
+
+/* Native confirm()/alert() always run against the window they're
+   called on. When the app is pinned, its whole UI (and the user's
+   focus) has moved into the PiP window — calling plain window.confirm()
+   here would pop the dialog on the original (now background, often
+   not even visible) window, which is exactly why the Clear button
+   looked like it did nothing: the confirm dialog was opening
+   somewhere the user wasn't looking, silently blocking until it
+   auto-dismissed or just went unnoticed. Route through whichever
+   window is actually showing the UI right now. */
+function activeAppWindow() {
+  var pip = (typeof window.getPinnedWindow === "function") ? window.getPinnedWindow() : null;
+  return pip || window;
 }
 
 /* Deferring focus one tick with setTimeout lets the browser finish
@@ -2121,13 +2144,22 @@ function bindSimpleFields() {
 function bindStandaloneCopyButtons() {
   var i, btn;
 
+  /* Both loops resolve their target element ONCE here, at bind time
+     (main document, before the app can ever be pinned), and close
+     over that reference. A live document.getElementById(targetId)
+     inside the click handler would break the moment the app is
+     moved into the PiP window's own document — the target node no
+     longer lives in the (global) `document` the handler would be
+     querying, so the lookup silently returns null and the click
+     does nothing: no toast, no clipboard write. Caching the node
+     itself sidesteps that; the reference stays valid no matter
+     which document currently contains it. */
   var copyInputs = document.querySelectorAll(".copy-btn[data-copy-target]");
   for (i = 0; i < copyInputs.length; i++) {
     btn = copyInputs[i];
     (function (b) {
+      var input = document.getElementById(b.getAttribute("data-copy-target"));
       b.addEventListener("click", function () {
-        var targetId = b.getAttribute("data-copy-target");
-        var input = document.getElementById(targetId);
         if (input) copyToClipboard(input.value.replace(/^\s+|\s+$/g, ""));
       });
     })(btn);
@@ -2137,9 +2169,8 @@ function bindStandaloneCopyButtons() {
   for (i = 0; i < copyOutputs.length; i++) {
     btn = copyOutputs[i];
     (function (b) {
+      var el = document.getElementById(b.getAttribute("data-copy-target-out"));
       b.addEventListener("click", function () {
-        var targetId = b.getAttribute("data-copy-target-out");
-        var el = document.getElementById(targetId);
         if (el && el.className.indexOf("is-empty") === -1) {
           var copyVal = el.getAttribute("data-copy-value");
           copyToClipboard(copyVal !== null ? copyVal : el.textContent);
@@ -2153,7 +2184,7 @@ function bindStandaloneCopyButtons() {
    tabs are untouched. Working folder is kept, same as before. */
 function bindClearAll() {
   dom.clearAllBtn.addEventListener("click", function () {
-    var confirmed = window.confirm("Clear this shipment's fields? This cannot be undone.");
+    var confirmed = activeAppWindow().confirm("Clear this shipment's fields? This cannot be undone.");
     if (!confirmed) return;
 
     state.destination = "";
@@ -2381,7 +2412,22 @@ window.addEventListener("load", init);
      (e.g. `python -m http.server` + http://localhost:8000/...) —
      Chrome refuses to register a service worker on a plain file://
      page, so double-clicking the .html directly will never trigger
-     an install prompt no matter what's here. See README notes. */
+     a real install no matter what's here.
+
+     This matters for more than offline use: without a manifest +
+     service worker, "Install page as app" over file:// falls back
+     to a generic bookmark-app shortcut that just replays the exact
+     URL text Chrome captured at install time. That's what made
+     fresh desktop-icon launches show "page not found" while
+     launching via an already-open Chrome tab worked fine — the
+     shortcut's frozen URL and the file's actual current
+     path/filename had drifted apart (this file has been renamed
+     with every version bump: _v6, _v7, ...). Installing this served
+     over http(s) instead gives Chrome a real manifest.json with a
+     fixed start_url/scope, so the installed icon always resolves
+     correctly — cold launch or warm. Keep this filename (quickship.html)
+     stable going forward instead of bumping it per version, and
+     re-install after any filename/path change. */
   if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
     window.addEventListener("load", function () {
       navigator.serviceWorker.register("service-worker.js").catch(function () { /* non-fatal — app still works without it */ });
@@ -2395,6 +2441,17 @@ window.addEventListener("load", init);
      from a plain browser tab. */
 
   var pinPipWindow = null;
+
+  /* Read-only bridge so the main script (outside this closure) can
+     route dialogs (confirm/alert) to whichever window is actually
+     showing the UI right now. */
+  window.getPinnedWindow = function () { return pinPipWindow; };
+
+  /* Same routing this closure's own alert()/confirm() calls need —
+     a bare alert()/confirm() always targets *this* (the original,
+     often-backgrounded-once-pinned) window. */
+  function notify(msg) { (pinPipWindow || window).alert(msg); }
+  function confirmDialog(msg) { return (pinPipWindow || window).confirm(msg); }
 
   /* The original tab isn't actually broken while pinned — its content
      really did move into the PiP document, so an untouched <body> is
@@ -2426,26 +2483,21 @@ window.addEventListener("load", init);
     }
   };
 
-  /* Ideal PiP size is 990x1010, but that's taken from a 2K+ monitor —
-     on a 1920x1080 (FHD) screen, availHeight after the taskbar is
-     usually only ~1030-1040px, so hardcoding 1010 risks the window
-     hanging off the bottom edge or fighting the taskbar. So: try for
-     990x1010, but clamp down to whatever the CURRENT screen can
-     actually fit (with a safety margin for taskbar/window chrome).
-     On a big enough monitor this clamp never kicks in and you get
-     the full 990x1010; on FHD it quietly shrinks just enough to stay
-     fully on-screen. The floor/lock below tracks this same clamped
-     size, not the hardcoded ideal, so the lock is always achievable
-     on whatever screen the app happens to be running on. */
-  var PIP_IDEAL_W = 990;
-  var PIP_IDEAL_H = 1010;
-  var PIP_SCREEN_MARGIN = 80; // room for taskbar + window chrome
+  /* PiP window sizing — hugs the right edge of the screen and fills
+     the full available height (minus a small allowance for the PiP
+     window's own title bar, which requestWindow's height doesn't
+     account for). Width is the old ideal scaled up 1.5x, floored at
+     980px (the app's own CSS min-width) so it can never trigger the
+     column-collapse/stack layout, and clamped down only if the
+     screen itself is narrower than that. */
+  var PIP_IDEAL_W = Math.round(990 * 1.5); // 1485
+  var PIP_CHROME_ALLOWANCE = 40; // PiP window's own title bar
+  var APP_MIN_WIDTH = 980; // must match the CSS min-width floor
 
   function getPipTargetSize() {
-    return {
-      w: Math.min(PIP_IDEAL_W, screen.availWidth - PIP_SCREEN_MARGIN),
-      h: Math.min(PIP_IDEAL_H, screen.availHeight - PIP_SCREEN_MARGIN)
-    };
+    var w = Math.max(APP_MIN_WIDTH, Math.min(PIP_IDEAL_W, screen.availWidth));
+    var h = Math.max(1, screen.availHeight - PIP_CHROME_ALLOWANCE);
+    return { w: w, h: h };
   }
 
   function enterPinnedWindow() {
@@ -2481,15 +2533,16 @@ window.addEventListener("load", init);
       showPinPlaceholder();
 
       /* Force the exact target size (requestWindow's width/height
-         are only a request — some browsers adjust them) and center
-         the window on screen. Best-effort like setInitialWindowSize:
+         are only a request — some browsers adjust them) and hug the
+         right edge of the screen, top-aligned, so the window fills
+         the available height. Best-effort like setInitialWindowSize:
          wrapped in try/catch since not every browser honors
          resizeTo/moveTo on a PiP window. */
       try {
         pinPipWindow.resizeTo(pipW, pipH);
         pinPipWindow.moveTo(
-          Math.round((screen.availWidth - pipW) / 2),
-          Math.round((screen.availHeight - pipH) / 2)
+          Math.round((screen.availLeft || 0) + screen.availWidth - pipW),
+          Math.round(screen.availTop || 0)
         );
       } catch (e) {}
 
@@ -2534,7 +2587,7 @@ window.addEventListener("load", init);
       renderWorkingDir();
       saveState();
     }).catch(function (err) {
-      if (err && err.name !== "AbortError") alert("Could not get folder access: " + (err.message || err));
+      if (err && err.name !== "AbortError") notify("Could not get folder access: " + (err.message || err));
     });
   };
 
@@ -2634,14 +2687,14 @@ window.addEventListener("load", init);
 
   window.handleSortClickWeb = function () {
     if (!webWorkingDirHandle) {
-      alert("Choose a working folder first — that's where your source files live.");
+      notify("Choose a working folder first — that's where your source files live.");
       return;
     }
 
     var computedPickSlip = computePickSlip(getActivePickSlips());
     var folderName = buildFolderName(computedPickSlip, getActiveItems());
     if (!folderName) {
-      alert("Fill in Destination, PN, Qty and at least one Pick Slip before sorting.");
+      notify("Fill in Destination, PN, Qty and at least one Pick Slip before sorting.");
       return;
     }
 
@@ -2649,10 +2702,10 @@ window.addEventListener("load", init);
       if (perm === "granted") return perm;
       return webWorkingDirHandle.requestPermission({ mode: "readwrite" });
     }).then(function (perm) {
-      if (perm !== "granted") { alert("File access permission was not granted."); return; }
+      if (perm !== "granted") { notify("File access permission was not granted."); return; }
       return runWebSort(computedPickSlip, folderName);
     }).catch(function (err) {
-      alert("Could not access the working folder: " + (err.message || err));
+      notify("Could not access the working folder: " + (err.message || err));
     });
   };
 
@@ -2687,7 +2740,7 @@ window.addEventListener("load", init);
         (dupSlots ? "\n(" + dupSlots + " of these had multiple copies — most recently modified will be used)" : "") +
         (ediList.length ? "\nPlus: scan for any file containing " + ediList.length + " EDI/BOL number(s): " + ediList.join(", ") : "") +
         "\n\nContinue?";
-      if (!window.confirm(confirmMsg)) return null;
+      if (!confirmDialog(confirmMsg)) return null;
 
       clearLog();
 

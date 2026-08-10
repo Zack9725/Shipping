@@ -1,0 +1,5 @@
+-accept "*" input as "x" while entering dimensions
+-relaunch the html need to grant access but the directory form previous sesions was shown. This kinda misleading due to shown directory but when press sort file, warning popup.
+-PiP default launch window size is unpleasant now, need to scale by 1.5 both width and height. I suggest make PiP hug right screen edge and match windows height with minimum width of all default css without collapse or stack
+-fix issue in PiP where hawb, Generated dimension, generated edi and pick slip string cant be copied (toast didnt popup and also text didnt copied to clipboard but every unlisted input box with copy button can be copied like usual)
+-Entering PiP also bugged tab's blue line masking. when entering PiP, the tab loose its seamless tab looks due to blue line strike through.

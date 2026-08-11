@@ -1,0 +1,9 @@
+-chrome auto snap scroll to top on each input issue.
+-html right gap need to match left input column gap and make header right side end with right output column so that the pin button is parallel with clear button.
+-also move brand header to still align left but (parallel with input column) start at left input column.
+-it would be nice to be able to drag and reorder tab as smooth as chrome tab feelings.
+-issue with working folder directory, value is null/default on other tab even 1st tab already choose and grant access but on the second tab with default look still able to sort to chosen file even though it shows "No working folder selected"
+
+BIG STEPS
+-add data scrap from web spreadsheets (Google Sheets) for dimensions and weight when user input PN. So the system look for inputted PN value in sheets and auto fill dimensions, weight and unit.
+for PN with same name we have special prefix for example "002" got multiple variant so we usually input it as "SSR002" the SSR are indicated outside the PN in sheets as per image attached. when user inputted "002" but detected multiple variant, system should be expecting prefix and highlight PN input box with orange rim and exclamation mark on the side. if no PN match, just pass (let dimension and weight input highlighted orange also until user input value manually) so user knows their Sheets is lacking data and need to be updated as the Sheets is continuously updating

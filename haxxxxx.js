@@ -1,5 +1,5 @@
 function pushCsvToGithub() {
-  var TOKEN = "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";
+  var TOKEN = "TOKEN HERE";
   var OWNER = "Zack9725";
   var REPO = "Shipping";
   var PATH = "data.csv";

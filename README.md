@@ -1,4 +1,4 @@
-https://quickslip-webapp.netlify.app/
+https://docs.google.com/spreadsheets/d/e/2PACX-1vQp-PosFoYyHwQVgVNe8npVFKWHar3D1OhTZaQ9trzq0gU0xmnRMAWrbx-GJKvqtGZZeooVhocO2va5/pubhtml
 
 Suggestion for Small Usability Enhancement – List of Values Input
 

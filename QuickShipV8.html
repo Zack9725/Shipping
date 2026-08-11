@@ -390,11 +390,11 @@ input::-webkit-input-placeholder { color: #6a6a6a; }
 input:-ms-input-placeholder { color: #6a6a6a; }
 input::placeholder { color: #6a6a6a; }
 
-/* ============ PN -lookup warnings ============ */
+/* ============ PN sheet-lookup warnings ============ */
 /* Orange rim: shown on the PN box when a bare number (no prefix) matches
-   more than one row in the , and on Dimensions/Weight when the typed
-   PN has no match at all in the  (so the operator knows those two
-   values weren't auto-filled and the  may need updating). */
+   more than one row in the sheet, and on Dimensions/Weight when the typed
+   PN has no match at all in the sheet (so the operator knows those two
+   values weren't auto-filled and the sheet may need updating). */
 input.input-warn, input.input-warn:focus {
   border-color: #d9a441;
   box-shadow: 0 0 0 1px rgba(217, 164, 65, 0.55);
@@ -831,18 +831,18 @@ function defaultItem() {
 }
 
 /* ============================================================
-   PN  Lookup — auto-fills Dimensions / Weight / Unit from a
-   published Google  when the operator types a PN.
+   PN Sheet Lookup — auto-fills Dimensions / Weight / Unit from a
+   published Google Sheet when the operator types a PN.
 
-   SETUP: publish your  as CSV and paste the link below.
-     Google s -> File -> Share -> Publish to web -> choose the
-     correct /tab -> format "Comma-separated values (.csv)" ->
+   SETUP: publish your sheet as CSV and paste the link below.
+     Google Sheets -> File -> Share -> Publish to web -> choose the
+     correct sheet/tab -> format "Comma-separated values (.csv)" ->
      Publish, then copy the link it gives you (looks like
-     "https://docs.google.com/spreads/d/e/2PACX-.../pub?output=csv").
+     "https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?output=csv").
    Leave this blank to keep PN lookup off (nothing changes/breaks —
    Dimensions/Weight/Unit just stay fully manual like before).
 
-   Expected columns (A-E), matching the  in use:
+   Expected columns (A-E), matching the sheet in use:
      A = group prefix (e.g. "SSR", "HS", "C" — merged cells, one per
          group of rows)
      B = full PN, e.g. "853-220443-002-V-635" — the 3rd hyphen-
@@ -851,7 +851,7 @@ function defaultItem() {
      D = weight
      E = unit (merged cells: "CARTON" / "PALLET" / "CRATE")
 */
-var SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQp-PosFoYyHwQVgVNe8npVFKWHar3D1OhTZaQ9trzq0gU0xmnRMAWrbx-GJKvqtGZZeooVhocO2va5/pub?output=csv";
+var SHEET_CSV_URL = "https://raw.githubusercontent.com/Zack9725/Shipping/main/data.csv";
 var SHEET_REFRESH_MS = 5 * 60 * 1000; // re-fetch at most every 5 min, since the sheet keeps updating
 
 var sheetPnIndex = null;        // number ("002") -> [ {prefix, number, fullPn, dimensions, weight, unit}, ... ]

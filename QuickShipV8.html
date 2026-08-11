@@ -26,11 +26,7 @@ html, body {
   border-bottom: 1px solid #2b7b8a;
   background: #252526;
 }
-
-/* Constrains the header's actual content to the same centered
-   946px box as the tab bar and the columns below (see the
-   .app-header-inner rule further down), while .app-header itself
-   stays full-width so the background/border still span the page. */
+	
 .app-header-inner {
   display: flex;
   align-items: center;
@@ -45,8 +41,6 @@ html, body {
 .brand-text h1 { margin: 0; font-size: 16px; font-weight: 600; }
 .brand-text p { margin: 2px 0 0; font-size: 11.5px; color: #9d9d9d; }
 
-/* Pin-to-top toggle — sits flush against the header's right edge, as
-   tall as the header content itself (minimal padding), circular. */
 .pin-btn {
   flex-shrink: 0;
   width: 34px;
@@ -86,12 +80,6 @@ html, body {
   max-width: 100%;
 }
 
-/* min-width:0 (instead of a fixed floor) is what lets this shrink to
-   its actual content instead of forcing a gap before the add button
-   when there's only 1-2 tabs. Once tabs hit their own min-width and
-   still don't fit, this scrolls internally (overflow-x: auto) rather
-   than pushing .tab-bar-wrap — and the whole page — wider than the
-   viewport, which is what used to strand the add button off-screen. */
 .tab-bar {
   display: flex;
   align-items: flex-end;
@@ -140,19 +128,9 @@ html, body {
   border-color: #2b7b8a;
   color: #4fb2ff;
   font-weight: 600;
-  z-index: 8; /* stays visually above ordinary/dragging non-active tabs */
+  z-index: 8;
 }
 
-/* Chrome-style drag-to-reorder. The dragged tab tracks the pointer
-   directly (no transition, slight lift); the other tabs get a
-   transition so they slide smoothly out of the way when
-   onTabDragMove() shifts them via transform. Both are toggled inline
-   in JS — these rules just define what "dragging" looks like.
-   z-index layering (low to high): plain tab -> dragging non-active
-   tab -> active tab -> the active tab itself being dragged. So a
-   non-active tab being dragged always passes *behind* the active
-   tab; the active tab only ever gets covered when it's the one
-   being dragged. */
 .tab { cursor: grab; touch-action: none; z-index: 1; }
 .tab.dragging {
   cursor: grabbing;
@@ -230,13 +208,6 @@ html, body {
   border-top: 1px solid #2b7b8a;
 }
 
-/* Erases the segment of .layout's own top border that sits directly
-   under the active tab, painting it the same colour as the page
-   background — that's what makes the active tab read as fused into
-   the box below it instead of a separate piece sitting on top.
-   Positioned/sized by updateTabLayoutBridge() in JS since it has to
-   track wherever the active tab currently is (tab count/width/order
-   all change at runtime). */
 .tab-layout-bridge {
   position: absolute;
   top: -1px;
@@ -251,14 +222,6 @@ html, body {
 .column:first-child {width: 390px; flex: 0 0 390px; margin-right: 24px;}
 .column:last-child {width: 500px; flex: 0 0 500px;}
 
-/* Centered, capped-width content. The header, the tab bar (right
-   below the header's blue border line), and .layout (the
-   Inputs/Outputs columns) are all capped at the same max-width and
-   centered together, with matching 24px horizontal insets on both
-   sides — so the brand mark lines up with the left edge of the
-   Inputs column, the pin button lines up with the right edge of the
-   Output column (parallel with the Clear button), and the tab bar
-   lines up with both. */
 .app-header-inner,
 .tab-bar-wrap,
 .layout {
@@ -267,11 +230,6 @@ html, body {
   margin-right: auto;
 }
 
-/* Floor at 980px instead of stacking/squishing columns when the
-   window is narrower. There is no script API that can force a real
-   browser tab's window size (see setInitialWindowSize below), so
-   this is the practical substitute: the page just gets a horizontal
-   scrollbar rather than a broken layout. */
 html, body {
   min-width: 980px;
 }
@@ -366,8 +324,6 @@ html, body {
 .qty-step-down { border-radius: 0 0 5px 0; }
 .qty-step:hover { background: rgba(0, 122, 204, 0.12); color: #ffffff; }
 
-/* Paired fields (Dimensions / Weight) — no explicit width means the
-   fixed table layout splits the remaining space evenly, 50/50. */
 .field-half { }
 
 input[type="text"], input[type="number"] {
@@ -391,10 +347,6 @@ input:-ms-input-placeholder { color: #6a6a6a; }
 input::placeholder { color: #6a6a6a; }
 
 /* ============ PN sheet-lookup warnings ============ */
-/* Orange rim: shown on the PN box when a bare number (no prefix) matches
-   more than one row in the sheet, and on Dimensions/Weight when the typed
-   PN has no match at all in the sheet (so the operator knows those two
-   values weren't auto-filled and the sheet may need updating). */
 input.input-warn, input.input-warn:focus {
   border-color: #d9a441;
   box-shadow: 0 0 0 1px rgba(217, 164, 65, 0.55);
@@ -465,12 +417,6 @@ input.input-warn, input.input-warn:focus {
 }
 
 .pickslip-row input[type="text"]:focus { border-color: #007acc; }
-
-/* The color rule above matches the same CSS specificity as the global
-   placeholder rules, so it can win the tie and render the placeholder
-   in the input's regular (light) text color instead of the intended
-   grey. Scoping the placeholder color directly onto this selector
-   guarantees it always wins here. */
 .pickslip-row input[type="text"]::-webkit-input-placeholder { color: #6a6a6a; }
 .pickslip-row input[type="text"]::placeholder { color: #6a6a6a; }
 
@@ -595,9 +541,6 @@ input.input-warn, input.input-warn:focus {
 }
 .fs-note.show { display: block; }
 
-/* Informational (non-error) variant — used for the "grant access" and
-   "reconnect the folder" hints, as opposed to the red "unsupported
-   browser" state above. */
 .fs-note.fs-note-info {
   color: #7fc2cf;
   background: rgba(43, 123, 138, 0.12);
@@ -620,9 +563,6 @@ input.input-warn, input.input-warn:focus {
 }
 .workdir-path.is-set { color: #d4d4d4; }
 
-/* Shown when a folder name survived the reload but its live access
-   handle didn't (the browser sandbox never persists that) — a
-   distinct look from is-set so it can't be mistaken for "connected". */
 .workdir-path.is-stale { color: #d9a441; border-color: #6a5426; border-style: dashed; }
 
 .filesorter-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -829,30 +769,9 @@ var UNIT_PLURALS = { Carton: "Cartons", Pallet: "Pallets", Crate: "Crates" };
 function defaultItem() {
   return { pn: "", ediBol: "", dimensions: "", weight: "", qty: "1", unit: "" };
 }
-
-/* ============================================================
-   PN Sheet Lookup — auto-fills Dimensions / Weight / Unit from a
-   published Google Sheet when the operator types a PN.
-
-   SETUP: publish your sheet as CSV and paste the link below.
-     Google Sheets -> File -> Share -> Publish to web -> choose the
-     correct sheet/tab -> format "Comma-separated values (.csv)" ->
-     Publish, then copy the link it gives you (looks like
-     "https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?output=csv").
-   Leave this blank to keep PN lookup off (nothing changes/breaks —
-   Dimensions/Weight/Unit just stay fully manual like before).
-
-   Expected columns (A-E), matching the sheet in use:
-     A = group prefix (e.g. "SSR", "HS", "C" — merged cells, one per
-         group of rows)
-     B = full PN, e.g. "853-220443-002-V-635" — the 3rd hyphen-
-         separated segment ("002") is the number operators type
-     C = dimensions, e.g. "72 × 64 × 44"
-     D = weight
-     E = unit (merged cells: "CARTON" / "PALLET" / "CRATE")
-*/
+	
 var SHEET_CSV_URL = "https://raw.githubusercontent.com/Zack9725/Shipping/main/data.csv";
-var SHEET_REFRESH_MS = 5 * 60 * 1000; // re-fetch at most every 5 min, since the sheet keeps updating
+var SHEET_REFRESH_MS = 5 * 60 * 1000; //might not be necessary, just update when refresh page
 
 var sheetPnIndex = null;        // number ("002") -> [ {prefix, number, fullPn, dimensions, weight, unit}, ... ]
 var sheetPnIndexNumeric = null; // same, keyed by the number with leading zeros stripped, as a fallback
@@ -881,8 +800,6 @@ function ensureSheetDataLoaded() {
   return sheetLoadPromise;
 }
 
-/* Minimal CSV parser — handles quoted fields (incl. embedded commas
-   and escaped "" quotes) so it survives whatever Google Sheets exports. */
 function parseCsv(text) {
   var rows = [], row = [], field = "", inQuotes = false;
   for (var i = 0; i < text.length; i++) {
@@ -908,8 +825,6 @@ function parseCsv(text) {
   return rows;
 }
 
-/* The bold PN segment operators type ("002") is always the 3rd
-   hyphen-separated chunk of the full PN, e.g. "853-220443-002-V-635". */
 function extractPnNumber(fullPn) {
   var parts = trim(fullPn).split("-");
   return parts.length >= 3 ? trim(parts[2]) : "";
@@ -923,10 +838,6 @@ function normalizeSheetUnit(raw) {
   return "";
 }
 
-/* Column A (prefix) and column E (unit) only carry a value on the
-   first row of their merged block in the CSV export — every other row
-   in that block comes through blank. Carry both forward independently
-   as we walk the rows so every PN row ends up with its real group. */
 function buildSheetIndex(rows) {
   var entries = [];
   var lastPrefix = "";
@@ -974,9 +885,6 @@ function buildSheetIndex(rows) {
   sheetPnIndexNumeric = byNumeric;
 }
 
-/* Splits a typed PN into an optional leading letters prefix ("SSR")
-   and the trailing digits ("002"), e.g. "SSR002" -> {prefix:"SSR",
-   number:"002"}; "002" -> {prefix:"", number:"002"}. */
 function splitPrefixAndNumber(raw) {
   var clean = trim(raw).replace(/\s+/g, "").toUpperCase();
   var m = clean.match(/^([A-Z]*)(\d+)$/);
@@ -1013,15 +921,9 @@ function setPnWarnIcon(el, on, title) {
   el.title = title || "";
 }
 
-/* Looks up the item's typed PN against the loaded sheet and:
- *  - unique match (with or without prefix)      -> auto-fill Dimensions/Weight/Unit, clear all warnings
- *  - bare number, multiple variants, no prefix   -> orange rim + "!" on the PN box, waiting for a prefix
- *  - no match at all (incl. wrong/unknown prefix)-> orange rim on Dimensions + Weight, left for manual entry
- *  - empty PN                                     -> clear all warnings, leave Dimensions/Weight untouched
- */
 function applyPnLookupResult(idx, card) {
   var it = state.items[idx];
-  if (!it || !card || !card.parentNode) return; // item/card no longer exists
+  if (!it || !card || !card.parentNode) return;
 
   var pnEl = card.querySelector('[data-role="pn-input"]');
   var warnIcon = card.querySelector('[data-role="pn-warn-icon"]');
@@ -1075,16 +977,12 @@ function applyPnLookupResult(idx, card) {
     return;
   }
 
-  // No match in the sheet at all — leave PN box alone, flag Dimensions/Weight for manual entry.
   setInputWarn(pnEl, false);
   setPnWarnIcon(warnIcon, false, "");
   setInputWarn(dimEl, true);
   setInputWarn(weightEl, true);
 }
 
-/* Pushes an auto-filled item's Dimensions/Weight/Unit into that
-   card's live DOM without a full re-render, so the PN input the
-   operator is actively typing in never loses focus. */
 function refreshItemCardFromState(idx, card) {
   var it = state.items[idx];
   if (!it || !card) return;
@@ -1105,11 +1003,6 @@ var OUTPUT_LABELS = {
 };
 
 var SLOT_IDS = ["commercialInvoice", "serialProduct", "pickSlipFinal", "releaseForm"];
-
-/* ---- File Sorter: naming-convention codes used to auto-match each
-   expected file inside the working folder. Add more strings to a
-   slot's array if that document ever ships under more than one code
-   (e.g. Pick Slip Final "A" vs "B" revisions). ---- */
 var FILE_MATCH_PATTERNS = {
   commercialInvoice: ["R5542651"],
   serialProduct: ["R5542064"],
@@ -1152,29 +1045,12 @@ var dom = {
   sorterLog: document.getElementById("sorterLog")
 };
 
-/* ---- Application state ----
-   QuickSlip now supports multiple "shipment" tabs, Chrome-tab style,
-   so a user can work on several shipments without losing data. Each
-   tab owns its own full copy of what used to be the single global
-   `state` object (destination, pick slips, items, hawb, working
-   folder, last-sorted folder).
-
-   `state` itself is kept as a plain reference to whichever tab is
-   currently active — every existing function below that reads or
-   writes `state.xxx` keeps working unchanged; switching tabs just
-   repoints this reference and re-renders. */
-
 var tabIdSeq = 0;
 function newTabId() {
   return "tab-" + (++tabIdSeq) + "-" + new Date().getTime() + "-" + Math.floor(Math.random() * 10000);
 }
 
 function defaultShipment() {
-  /* A new tab shares the same global folder handle as every other
-     tab (see handleChooseFolderWeb) — if one's already connected
-     when this tab is created, label it as such immediately instead
-     of defaulting to "No working folder selected" until the next
-     unrelated re-render happens to catch it up. */
   var liveHandle = webWorkingDirHandleLive();
   return {
     id: newTabId(),
@@ -1192,10 +1068,6 @@ var state = null; // always points at appState.tabs[activeIndex]
 
 var pendingCloseTabId = null;
 
-/* ---- File Sorter capability detection ----
-   File System Access API support. Actual usage lives in the
-   browser-only <script> block below. This flag is just a plain
-   property check. */
 var FS_ACCESS_SUPPORTED = false;
 try { FS_ACCESS_SUPPORTED = (typeof window.showDirectoryPicker === "function"); } catch (fsErr) { FS_ACCESS_SUPPORTED = false; }
 
@@ -1211,12 +1083,9 @@ function saveState() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
   } catch (err) {
-    // Storage unavailable — app still works, just won't persist.
   }
 }
 
-/* Fill in every field of a saved (or legacy) shipment with safe
-   defaults, the same way the old single-shipment loadState used to. */
 function normalizeShipment(raw) {
     raw = raw || {};
 
@@ -1273,8 +1142,6 @@ function loadState() {
     }
 
     if (!loaded) {
-        // No v3 (multi-tab) save yet — migrate an older single-shipment
-        // save (v2, or v1's single-item/single-EDI shape) into tab 1.
         var migrated = migrateFromFlatState();
         appState.tabs = [migrated];
         appState.activeTabId = migrated.id;
@@ -1342,16 +1209,6 @@ function isRealArray(val) {
   return Object.prototype.toString.call(val) === "[object Array]";
 }
 
-/* ============================================================
-   Shipment tabs (Chrome-style)
-   ============================================================ */
-
-/* Default label is "Shipment N", where N is this tab's live position
-   among the currently open tabs (not a stored, ever-incrementing
-   counter) — so it renumbers naturally as tabs close/reorder and
-   never keeps climbing across a clear, a tab close, or a relaunch.
-   Once Destination is filled in, that takes over as the label, live,
-   and reverts back to the positional placeholder if cleared again. */
 function tabLabel(shipment) {
   var dest = trim(shipment.destination);
   if (dest) return dest;
@@ -1362,17 +1219,6 @@ function tabLabel(shipment) {
 var TAB_MAX_WIDTH = 200; // keep in sync with .tab's max-width in CSS
 var TAB_GAP = 2;         // keep in sync with .tab-bar's gap in CSS
 
-/* #tabBar's own auto/max-content sizing can't be trusted here: in a
-   nested flex row, when a flex container's children have
-   flex-shrink > 0 (our tabs do, so they can squeeze down once the
-   strip is full), some engines compute that container's own
-   intrinsic width from the children's shrink floor rather than their
-   preferred width — so with only 1-2 tabs open, the whole bar (and
-   every tab in it) would collapse toward min-width even with plenty
-   of free space to spare. Setting #tabBar's width explicitly here
-   sidesteps that miscalculation entirely; CSS flex-shrink on .tab
-   still does the actual squeezing once this computed width genuinely
-   can't fit every tab at TAB_MAX_WIDTH. */
 function sizeTabBar() {
   try {
     var bar = dom.tabBar;
@@ -1432,12 +1278,6 @@ function renderTabBar() {
   updateTabLayoutBridge();
 }
 
-/* ============ Tab drag-to-reorder (Chrome-style) ============ */
-
-// Single in-flight drag, or null. dragEl tracks the pointer directly;
-// the rest of `els` slide sideways via transform as the drag crosses
-// their midpoint, and the actual appState.tabs reorder only happens
-// once on pointerup — renderTabBar() then rebuilds cleanly from that.
 var tabDrag = null;
 
 function bindTabDrag(tabEl, id) {
@@ -1454,8 +1294,6 @@ function startTabDrag(id, e) {
   if (startIndex === -1) return;
 
   var rects = tabEls.map(function (el) { return el.getBoundingClientRect(); });
-  // Center-to-center distance between adjacent tabs — the unit a drag
-  // has to cross before it counts as passing another tab.
   var step = rects.length > 1 ? (rects[1].left - rects[0].left) : (rects[0].width + TAB_GAP);
 
   tabDrag = {
@@ -1487,7 +1325,6 @@ function onTabDragMove(e) {
   var dx = e.clientX - tabDrag.startClientX;
   if (Math.abs(dx) > 3) tabDrag.moved = true;
 
-  // Clamp so the dragged tab can't be pulled past either end of the bar.
   var minDx = -tabDrag.startIndex * tabDrag.step;
   var maxDx = (tabDrag.order.length - 1 - tabDrag.startIndex) * tabDrag.step;
   if (dx < minDx) dx = minDx;
@@ -1508,7 +1345,6 @@ function onTabDragMove(e) {
     tabDrag.currentIndex = newIndex;
   }
 
-  // Slide every other tab to its slot in the current (in-progress) order.
   tabDrag.els.forEach(function (el, origIndex) {
     var elId = el.getAttribute("data-id");
     if (elId === tabDrag.id) return;
@@ -1517,12 +1353,8 @@ function onTabDragMove(e) {
     el.style.transform = shift ? "translateX(" + shift + "px)" : "";
   });
 
-  // The active tab (whether it's the one being dragged, or just got
-  // shifted sideways to make room) may have moved on-screen — re-sync
-  // the seamless-join mask to wherever it actually is now.
   updateTabLayoutBridge();
 
-  // Auto-scroll the strip if dragging near its edge while it's overflowing.
   var barRect = dom.tabBar.getBoundingClientRect();
   var edge = 40;
   if (e.clientX < barRect.left + edge) dom.tabBar.scrollLeft -= 12;
@@ -1545,11 +1377,6 @@ function onTabDragEnd(e) {
   });
   drag.dragEl.classList.remove("dragging");
 
-  // Transforms just got cleared, so re-sync the mask to the active
-  // tab's real (post-clear) position. renderTabBar()/switchTab() below
-  // will call this again anyway when they run, so it's a no-op then —
-  // but it's what keeps things correct on a "moved then dropped back
-  // in its original spot" drag, where neither of those fires.
   updateTabLayoutBridge();
 
   if (drag.moved && drag.currentIndex !== drag.startIndex) {
@@ -1564,14 +1391,7 @@ function onTabDragEnd(e) {
     switchTab(drag.id);
   }
 }
-
-/* Lightweight label sync used while the user is typing (see
-   recalculate() below). renderTabBar() wipes and rebuilds every tab
-   node and then calls scrollIntoView({block:"nearest"}) — harmless on
-   an actual tab switch, but calling that on *every keystroke* was
-   what caused Chrome to snap the whole page back to the top while
-   typing in Destination. This just patches the active tab's text in
-   place instead, with no DOM rebuild and no scrollIntoView. */
+	
 function syncActiveTabLabel() {
   if (!state) return;
   var activeEl = dom.tabBar.querySelector(".tab.active");
@@ -1582,24 +1402,10 @@ function syncActiveTabLabel() {
   if (labelEl) labelEl.textContent = label;
 }
 
-/* Keeps the "seamless tab" illusion correct — measures the active
-   tab's real on-screen position/width and sizes the bridge (see the
-   .tab-layout-bridge CSS comment) to match exactly. Needs to re-run
-   any time the active tab, tab count, or tab widths could have
-   changed (every renderTabBar() call already does this) and any time
-   the window resizes, since .tab-bar-wrap and .layout are both
-   centered independently and could in theory drift apart on reflow. */
 function updateTabLayoutBridge() {
   try {
     if (!dom.tabLayoutBridge) return;
     var activeTab = dom.tabBar.querySelector(".tab.active");
-    /* dom.tabBar.ownerDocument (not the bare global `document`) so
-       this keeps finding .layout even after the whole app has been
-       moved into the PiP window's own document — a plain
-       `document.querySelector` here would silently miss and zero
-       out the bridge, which is what let the tab's blue top border
-       show through (no longer erased) every time the tab bar
-       re-rendered while pinned. */
     var layoutEl = dom.tabBar.ownerDocument.querySelector(".layout");
     if (!activeTab || !layoutEl) {
       dom.tabLayoutBridge.style.width = "0";
@@ -1607,18 +1413,11 @@ function updateTabLayoutBridge() {
     }
     var tabRect = activeTab.getBoundingClientRect();
     var layoutRect = layoutEl.getBoundingClientRect();
-    /* Inset 1px on each side — tabRect (from getBoundingClientRect)
-       runs slightly wider than the tab's actual visible border on
-       screen, so an exact-width bridge overshoots and eats into the
-       layout's top border just past each corner. Insetting by 1px
-       keeps the erase confined to under the tab itself. */
     dom.tabLayoutBridge.style.left = (tabRect.left - layoutRect.left + 1) + "px";
     dom.tabLayoutBridge.style.width = (tabRect.width - 2) + "px";
   } catch (e) {}
 }
 
-/* Full refresh of every panel from whichever shipment is now active —
-   used on load, tab switch, tab close and tab add. */
 function fullRerenderActiveTab() {
   renderTabBar();
   hydrateFieldsFromState();
@@ -1651,13 +1450,6 @@ function addTab() {
   focusSoon(dom.destination);
 }
 
-/* True if this shipment has anything a user actually typed in — used
-   to decide whether closing its tab needs a confirmation. Items start
-   out with qty "1" and no unit selected (see defaultItem()); that qty
-   is a stock/default value, not something the user entered, so it
-   doesn't count on its own. A tab that's still exactly as addTab()
-   created it (blank destination, blank pick slip, one untouched
-   default item) returns false and closes with no warning. */
 function shipmentHasValue(shipment) {
   if (trim(shipment.destination)) return true;
   if (trim(shipment.hawb)) return true;
@@ -1775,21 +1567,10 @@ function getActiveItems() {
   return out;
 }
 
-/**
- * Core rule engine for the hidden ComputedPickSlip value.
- *  0 values  -> ""
- *  1 value   -> that value
- *  2+, purely numeric & perfectly consecutive -> "min-max"
- *  otherwise -> comma separated list (no partial ranges, ever)
- */
 function computePickSlip(values) {
   if (values.length === 0) return "";
   if (values.length === 1) return values[0];
 
-  // Each value must be a common (non-numeric) prefix followed by a
-  // trailing integer — e.g. "p1", "p2" share prefix "p". This lets
-  // "p1".."p3" range like plain numbers do, instead of only bare
-  // digits qualifying for a range.
   var prefix = null;
   var asNumbers = [];
   var allMatch = true;
@@ -1834,24 +1615,12 @@ function pluralizedUnit(qty, unit) {
   return UNIT_PLURALS[base];
 }
 
-/**
- * Keep only digits, then strip leading zeros so "0" -> "" and
- * "01" -> "1" and "1a" -> "1". Qty must be a positive integer,
- * never zero — this makes zero collapse to empty automatically.
- */
 function sanitizeQty(raw) {
   var digits = raw.replace(/[^0-9]/g, "");
   digits = digits.replace(/^0+/, "");
   return digits;
 }
 
-/**
- * Trim a Dimensions input down to a bare "0x0x0" style token — digits
- * (with optional decimals) separated by lowercase "x", with every
- * space stripped out. Free typing like "10 x 20 x 30", "10 X20x 30",
- * or "10*20*30" (numpad "*" is a common stand-in for "x") all
- * collapse to "10x20x30".
- */
 function sanitizeDimensions(raw) {
   var cleaned = raw.replace(/\s+/g, "");
   cleaned = cleaned.replace(/[xX×*]+/g, "x");
@@ -1859,10 +1628,6 @@ function sanitizeDimensions(raw) {
   return cleaned;
 }
 
-/**
- * Trim + format a Weight input down to a bare numeric token like
- * "0.0" — digits and a single decimal point, no spaces or units.
- */
 function sanitizeWeight(raw) {
   var cleaned = raw.replace(/\s+/g, "");
   cleaned = cleaned.replace(/[^0-9.]/g, "");
@@ -1873,15 +1638,11 @@ function sanitizeWeight(raw) {
   return cleaned;
 }
 
-/* "10x20x30" -> "10 x 20 x 30" for display in the generated output. */
 function displayDimensions(dim) {
   if (!dim) return "0 x 0 x 0";
   return dim.split("x").join(" x ");
 }
 
-/* Format a raw weight string to a fixed "0.0" style token. Returns
-   "" for empty/invalid input — used to reformat the input box itself
-   on blur/Enter (e.g. "50" -> "50.0"). */
 function formatWeightValue(raw) {
   var trimmed = trim(raw);
   if (!trimmed) return "";
@@ -1902,34 +1663,15 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
-/* The live directory handle only exists inside the browser-only
-   <script> block below (webWorkingDirHandle is a closured var there,
-   not persisted across reloads). This is the read-only bridge the
-   main script uses to ask "is a folder actually connected right
-   now?" without duplicating that state. */
 function webWorkingDirHandleLive() {
   return (typeof window.getWebWorkingDirHandle === "function") ? window.getWebWorkingDirHandle() : null;
 }
 
-/* Native confirm()/alert() always run against the window they're
-   called on. When the app is pinned, its whole UI (and the user's
-   focus) has moved into the PiP window — calling plain window.confirm()
-   here would pop the dialog on the original (now background, often
-   not even visible) window, which is exactly why the Clear button
-   looked like it did nothing: the confirm dialog was opening
-   somewhere the user wasn't looking, silently blocking until it
-   auto-dismissed or just went unnoticed. Route through whichever
-   window is actually showing the UI right now. */
 function activeAppWindow() {
   var pip = (typeof window.getPinnedWindow === "function") ? window.getPinnedWindow() : null;
   return pip || window;
 }
 
-/* Deferring focus one tick with setTimeout lets the browser finish
-   settling the DOM rebuild (new tab, new item card) before the caret
-   lands, avoiding focus getting swallowed. Harmless (and
-   imperceptible), so it's used everywhere a field needs focus after
-   a rebuild. */
 function focusSoon(input) {
   if (!input) return;
   setTimeout(function () {
@@ -1937,10 +1679,6 @@ function focusSoon(input) {
   }, 0);
 }
 
-/**
- * Uppercase a value while preserving the caret position, since
- * setting .value mid-typing would otherwise jump the cursor.
- */
 function uppercaseInPlace(input) {
   var start = input.selectionStart;
   var end = input.selectionEnd;
@@ -2251,8 +1989,7 @@ function buildItemCard(item, index, isOnlyCard) {
     setInputWarn(e.target, false); // operator is filling this in manually now
     recalculate();
   });
-  // On leaving the field (blur — clicking another box — or Enter),
-  // lock the value into "0.0" style formatting, e.g. "50" -> "50.0".
+
   weightInput.addEventListener("blur", function (e) {
     var idx = Number(card.getAttribute("data-index"));
     var formatted = formatWeightValue(e.target.value);
@@ -2307,8 +2044,7 @@ function buildItemCard(item, index, isOnlyCard) {
     state.items[idx].qty = clean;
     recalculate();
   });
-  // On leaving the field, snap an emptied box back to the default of 1
-  // rather than allowing a blank/zero qty to persist.
+
   qtyInput.addEventListener("blur", function (e) {
     var idx = Number(card.getAttribute("data-index"));
     var clean = sanitizeQty(e.target.value) || "1";
@@ -2475,8 +2211,6 @@ function suffixed(label, computedPickSlip) {
   return label + " - " + computedPickSlip;
 }
 
-/* Destination, then every item's PN, then every item's "qty unit"
-   pair — e.g. "LMM 203 514 1 Pallet 2 Crates - p1,p2" */
 function buildFolderName(computedPickSlip, activeItems) {
   var destination = trim(state.destination);
 
@@ -2499,21 +2233,9 @@ function buildFolderName(computedPickSlip, activeItems) {
   return parts.join(" ") + " - " + computedPickSlip;
 }
 
-/**
- * "Generated Dimensions" (JDE Tracking) output.
- *  0 active items -> ""
- *  1 active item  -> "D Cm<br>Weight : W Kgs<br>Total : qty unit"
- *  2+ active items -> one dimension line per item (qty+unit noted per line),
- *                      then a single summed Weight line, then a Total line
- *                      that sums qty per distinct unit and joins distinct
- *                      units with " & ".
- */
 function buildGeneratedDimensions(activeItems) {
   if (activeItems.length === 0) return null;
 
-  // Unit is no longer defaulted (see defaultItem()) — don't generate
-  // dimensions until the user has explicitly picked a unit for every
-  // active item, so a forgotten unit never silently reports as Carton.
   for (var g = 0; g < activeItems.length; g++) {
     if (!activeItems[g].unit) return null;
   }
@@ -2523,7 +2245,6 @@ function buildGeneratedDimensions(activeItems) {
     var qty = trim(only.qty);
     var totalText = qty ? (qty + " " + pluralizedUnit(qty, only.unit)) : "";
 
-    // Weight input is per single unit — multiply by qty for the total.
     var qtyNum = parseFloat(qty);
     var effQty = (!isNaN(qtyNum) && qtyNum > 0) ? qtyNum : 1;
     var unitWeight = parseFloat(only.weight);
@@ -2547,8 +2268,6 @@ function buildGeneratedDimensions(activeItems) {
     var dimLine = displayDimensions(it.dimensions) + " Cm" + (qtyUnitLabel ? " (" + qtyUnitLabel + ")" : "");
     lines.push(i === 0 ? dimLine : dimLine);
 
-    // Weight input is per single unit — multiply by this card's qty
-    // before adding it to the running total.
     var qn = parseFloat(itQty);
     var effQty = (!isNaN(qn) && qn > 0) ? qn : 1;
     var w = parseFloat(it.weight);
@@ -2578,25 +2297,17 @@ function buildGeneratedDimensions(activeItems) {
   return { html: html, plain: htmlBrToPlain(html) };
 }
 
-/* Human-readable list joiner used for the "Total" line:
- *  1 part  -> "A"
- *  2 parts -> "A & B"
- *  3+ parts -> "A, B & C" (comma between all but the last, "&" before the last) */
 function joinWithAmpersand(parts) {
   if (parts.length <= 1) return parts.join("");
   if (parts.length === 2) return parts.join(" & ");
   return parts.slice(0, -1).join(", ") + " & " + parts[parts.length - 1];
 }
 
-/* Always formats to a fixed "0.0" style token, regardless of input. */
 function formatWeightSum(n) {
   if (isNaN(n)) return "0.0";
   return n.toFixed(1);
 }
 
-/* "Generated EDI" output — each Item card that has an EDI/BOL filled in
-   contributes one line, paired with that same card's own qty + unit:
-   "EDInumber - qty unit" */
 function buildGeneratedEDI(allItems) {
   var lines = [];
   for (var i = 0; i < allItems.length; i++) {
@@ -2632,8 +2343,6 @@ function setOutput(el, value) {
   }
 }
 
-/* Same as setOutput, but the value is a {html, plain} pair — html is
-   rendered (so <br> line breaks show), plain is what gets copied. */
 function setOutputHtml(el, value) {
   if (!el) return; // markup for this output isn't in the DOM — skip instead of crashing
   if (value && value.html) {
@@ -2668,16 +2377,6 @@ function bindSimpleFields() {
 function bindStandaloneCopyButtons() {
   var i, btn;
 
-  /* Both loops resolve their target element ONCE here, at bind time
-     (main document, before the app can ever be pinned), and close
-     over that reference. A live document.getElementById(targetId)
-     inside the click handler would break the moment the app is
-     moved into the PiP window's own document — the target node no
-     longer lives in the (global) `document` the handler would be
-     querying, so the lookup silently returns null and the click
-     does nothing: no toast, no clipboard write. Caching the node
-     itself sidesteps that; the reference stays valid no matter
-     which document currently contains it. */
   var copyInputs = document.querySelectorAll(".copy-btn[data-copy-target]");
   for (i = 0; i < copyInputs.length; i++) {
     btn = copyInputs[i];
@@ -2704,8 +2403,6 @@ function bindStandaloneCopyButtons() {
   }
 }
 
-/* Clears only the currently active shipment tab's fields — other
-   tabs are untouched. Working folder is kept, same as before. */
 function bindClearAll() {
   dom.clearAllBtn.addEventListener("click", function () {
     dom.clearAllModal.className = "modal-overlay show";
@@ -2726,7 +2423,6 @@ function confirmClearAll() {
   state.items = [defaultItem()];
   state.hawb = "";
   state.lastSortedFolder = "";
-  // state.id and state.workingDir are preserved.
 
   hydrateFieldsFromState();
   renderPickSlipRows();
@@ -2743,21 +2439,6 @@ function hydrateFieldsFromState() {
   renderWorkingDir();
 }
 
-/* ============================================================
-   FILE SORTER — File System Access API (browser only; folder access
-   is per-tab and is never retained across a reload — see
-   webWorkingDirHandle below)
-   ============================================================ */
-
-/* state.workingDir (the folder's display name) is saved to
-   localStorage and survives a reload, but the live directory handle
-   it names (webWorkingDirHandle) never does — the browser sandbox
-   requires re-granting access every session. So on a fresh load we
-   may have a *name* with no live handle behind it yet. Showing that
-   name as fully "connected" is what used to mislead: it looked ready,
-   but Sort would immediately fail. This renders that state as
-   "needs reconnect" instead, so the note and the button push the
-   person to the exact same permission grant that Sort would need. */
 function renderWorkingDir() {
   var connected = !!webWorkingDirHandleLive();
   if (state.workingDir && connected) {
@@ -2773,9 +2454,6 @@ function renderWorkingDir() {
   updateFsNote();
 }
 
-/* Shows the right note for the current state: unsupported browser,
-   needs a permission grant/reconnect, or nothing once a folder is
-   actually connected. */
 function updateFsNote() {
   if (!FS_ACCESS_SUPPORTED) {
     dom.fsNote.className = "fs-note show";
@@ -2805,9 +2483,6 @@ function initFileSorter() {
   dom.sortBtn.addEventListener("click", handleSortClick);
 }
 
-/* ---- Dispatchers to the File System Access API implementation,
-   which lives in the second <script> block. Typeof-checked so a
-   parse failure there can't take down the rest of the app. ---- */
 function handleChooseFolder() {
   if (typeof handleChooseFolderWeb === "function") handleChooseFolderWeb();
 }
@@ -2831,9 +2506,6 @@ function setPinVisual(isActive) {
   dom.pinBtn.className = "pin-btn" + (isActive ? " active" : "");
 }
 
-/* Document Picture-in-Picture implementation (always-on-top by the
-   OS) lives in the second <script> block and is reached only via
-   typeof-check, so a parse failure there can never affect this. */
 function togglePin() {
   if (typeof togglePinWeb === "function") { togglePinWeb(); return; }
   showToast("Pin isn't supported in this browser");
@@ -2866,18 +2538,11 @@ function logLine(text, kind) {
 }
 
 function setInitialWindowSize() {
-    /* Chrome/Edge only honor resizeTo/moveTo on windows the page
-       itself opened via window.open() — a normal tab, or a window
-       launched from a desktop shortcut/taskbar icon, silently ignores
-       this. It's kept as a harmless best-effort attempt (works in a
-       few edge cases, no-ops everywhere else); the real guarantee
-       against squishing is the universal min-width: 980px rule in
-       the CSS above, which forces a scrollbar instead of a broken
-       layout. */
+   
     try {
-        window.resizeTo(980, 1000);   // Width, Height
+        window.resizeTo(1200, 1000);   // Width, Height
         window.moveTo(
-            (screen.availWidth - 980) / 2,
+            (screen.availWidth - 1200) / 2,
             (screen.availHeight - 1000) / 2
         );
     } catch (e) {}
@@ -2887,9 +2552,6 @@ function setInitialWindowSize() {
    Init
    ============================================================ */
 
-/* Each step runs in its own try/catch so a failure in one card
-   (e.g. File Sorter) can never prevent the
-   others — like the Pick Slip list — from rendering. */
 function safeStep(fn, label) {
   try {
     fn();
@@ -2915,12 +2577,6 @@ function init() {
   safeStep(initTabLayoutBridgeResize, "initTabLayoutBridgeResize");
 }
 
-/* Re-size and re-measure the bridge on resize too, not just on tab
-   changes — sizeTabBar()'s available-width math depends on the
-   window's current size, and .tab-bar-wrap/.layout being
-   independently centered means a resize can shift them (very
-   slightly) out of sync with each other even when the active tab
-   itself hasn't changed. */
 function initTabLayoutBridgeResize() {
   function onResize() { sizeTabBar(); updateTabLayoutBridge(); }
   window.addEventListener("resize", onResize);
@@ -2929,67 +2585,23 @@ function initTabLayoutBridgeResize() {
 window.addEventListener("load", init);
 </script>
 
-<!-- ============================================================
-     Browser-only features: Pin-to-top (Document Picture-in-Picture)
-     and the File Sorter (File System Access API). Kept in its own
-     <script> tag, separate from the main app above, and written
-     with plain Promise .then() chains rather than async/await so
-     it parses cleanly across browsers.
-     ============================================================ -->
 <script>
 (function () {
   "use strict";
 
-  /* ---- PWA installability ----
-     Only fires when this page is actually served over http/https
-     (e.g. `python -m http.server` + http://localhost:8000/...) —
-     Chrome refuses to register a service worker on a plain file://
-     page, so double-clicking the .html directly will never trigger
-     a real install no matter what's here.
-
-     This matters for more than offline use: without a manifest +
-     service worker, "Install page as app" over file:// falls back
-     to a generic bookmark-app shortcut that just replays the exact
-     URL text Chrome captured at install time. That's what made
-     fresh desktop-icon launches show "page not found" while
-     launching via an already-open Chrome tab worked fine — the
-     shortcut's frozen URL and the file's actual current
-     path/filename had drifted apart (this file has been renamed
-     with every version bump: _v6, _v7, ...). Installing this served
-     over http(s) instead gives Chrome a real manifest.json with a
-     fixed start_url/scope, so the installed icon always resolves
-     correctly — cold launch or warm. Keep this filename (quickship.html)
-     stable going forward instead of bumping it per version, and
-     re-install after any filename/path change. */
   if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
     window.addEventListener("load", function () {
       navigator.serviceWorker.register("service-worker.js").catch(function () { /* non-fatal — app still works without it */ });
     });
   }
 
-  /* ---- Pin-to-top via Document Picture-in-Picture (Chrome/Edge) ----
-     A PiP window is always-on-top by the OS itself, which is exactly
-     the "stay on top for back-to-back data migration" behavior asked
-     for — there's no other way to get a real always-on-top window
-     from a plain browser tab. */
-
   var pinPipWindow = null;
 
-  /* Read-only bridge so the main script (outside this closure) can
-     route dialogs (confirm/alert) to whichever window is actually
-     showing the UI right now. */
   window.getPinnedWindow = function () { return pinPipWindow; };
 
-  /* Same routing this closure's own alert()/confirm() calls need —
-     a bare alert()/confirm() always targets *this* (the original,
-     often-backgrounded-once-pinned) window. */
   function notify(msg) { (pinPipWindow || window).alert(msg); }
   function confirmDialog(msg) { return (pinPipWindow || window).confirm(msg); }
 
-  /* The original tab isn't actually broken while pinned — its content
-     really did move into the PiP document, so an untouched <body> is
-     just empty/black. That's what reads as "blackout". Filling it
-     with a short explanation instead makes the behavior legible. */
   function showPinPlaceholder() {
     var ph = document.createElement("div");
     ph.id = "pinPlaceholder";
@@ -3016,16 +2628,9 @@ window.addEventListener("load", init);
     }
   };
 
-  /* PiP window sizing — hugs the right edge of the screen and fills
-     the full available height (minus a small allowance for the PiP
-     window's own title bar, which requestWindow's height doesn't
-     account for). Width is the old ideal scaled up 1.5x, floored at
-     980px (the app's own CSS min-width) so it can never trigger the
-     column-collapse/stack layout, and clamped down only if the
-     screen itself is narrower than that. */
   var PIP_IDEAL_W = Math.round(990 * 1.5); // 1485
   var PIP_CHROME_ALLOWANCE = 40; // PiP window's own title bar
-  var APP_MIN_WIDTH = 980; // must match the CSS min-width floor
+  var APP_MIN_WIDTH = 1200; // must match the CSS min-width floor
 
   function getPipTargetSize() {
     var w = Math.max(APP_MIN_WIDTH, Math.min(PIP_IDEAL_W, screen.availWidth));
@@ -3065,12 +2670,6 @@ window.addEventListener("load", init);
       pinPipWindow.document.body.appendChild(appRoot);
       showPinPlaceholder();
 
-      /* Force the exact target size (requestWindow's width/height
-         are only a request — some browsers adjust them) and hug the
-         right edge of the screen, top-aligned, so the window fills
-         the available height. Best-effort like setInitialWindowSize:
-         wrapped in try/catch since not every browser honors
-         resizeTo/moveTo on a PiP window. */
       try {
         pinPipWindow.resizeTo(pipW, pipH);
         pinPipWindow.moveTo(
@@ -3079,10 +2678,6 @@ window.addEventListener("load", init);
         );
       } catch (e) {}
 
-      /* Enforce the (screen-fitted) floor going forward — snap back
-         up the instant the user drags the PiP window smaller. Uses
-         pipW/pipH from this session's open, so it never asks a small
-         screen to hold a floor bigger than the screen itself. */
       function clampPipToMin() {
         try {
           var w = pinPipWindow.outerWidth, h = pinPipWindow.outerHeight;
@@ -3108,23 +2703,9 @@ window.addEventListener("load", init);
     });
   }
 
-  /* ---- File Sorter — via the File System Access API ----
-     There's no native "move" in this API, so each match is copied
-     into the target folder then removed from the source to get the
-     same net effect as a real move. */
-
   window.handleChooseFolderWeb = function () {
     window.showDirectoryPicker({ mode: "readwrite" }).then(function (handle) {
       webWorkingDirHandle = handle;
-      /* webWorkingDirHandle is a single handle shared by every
-         shipment tab (Sort always uses whichever folder was granted
-         last, regardless of which tab is active) — but workingDir
-         used to be written only onto the active shipment's own
-         record. That mismatch is what made a second tab show "No
-         working folder selected" while Sort quietly kept working off
-         the folder chosen on the first tab: the handle was genuinely
-         connected, the label just hadn't been told. Stamping the name
-         onto every tab keeps the display honest for all of them. */
       for (var i = 0; i < appState.tabs.length; i++) {
         appState.tabs[i].workingDir = handle.name; // browsers never expose a real filesystem path
       }
@@ -3137,9 +2718,6 @@ window.addEventListener("load", init);
 
   var webWorkingDirHandle = null; // not persisted across reloads — the browser sandbox requires re-granting access each session
 
-  /* Read-only bridge so the main script (outside this closure) can
-     check whether a folder handle is actually live right now, for
-     rendering the "connected" vs "needs reconnect" state. */
   window.getWebWorkingDirHandle = function () { return webWorkingDirHandle; };
 
   function listFileEntries(dirHandle) {
@@ -3212,9 +2790,6 @@ window.addEventListener("load", init);
     });
   }
 
-  /* No native "move" in this API — copy the bytes into the
-     destination under the new name, then remove the original from
-     the source folder, so the net effect is a real move. */
   function moveFileWeb(srcDirHandle, srcFileHandle, destDirHandle, destName) {
     return srcFileHandle.getFile().then(function (file) {
       return destDirHandle.getFileHandle(destName, { create: true }).then(function (destHandle) {

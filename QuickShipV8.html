@@ -390,6 +390,33 @@ input::-webkit-input-placeholder { color: #6a6a6a; }
 input:-ms-input-placeholder { color: #6a6a6a; }
 input::placeholder { color: #6a6a6a; }
 
+/* ============ PN sheet-lookup warnings ============ */
+/* Orange rim: shown on the PN box when a bare number (no prefix) matches
+   more than one row in the sheet, and on Dimensions/Weight when the typed
+   PN has no match at all in the sheet (so the operator knows those two
+   values weren't auto-filled and the sheet may need updating). */
+input.input-warn, input.input-warn:focus {
+  border-color: #d9a441;
+  box-shadow: 0 0 0 1px rgba(217, 164, 65, 0.55);
+}
+
+.pn-lookup-wrap { display: flex; align-items: center; gap: 6px; }
+.pn-lookup-wrap input[type="text"] { flex: 1 1 auto; min-width: 0; }
+
+.pn-warn-icon {
+  flex: 0 0 auto;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: #d9a441;
+  font-size: 15px;
+  line-height: 1;
+  cursor: default;
+}
+.pn-warn-icon.show { display: flex; }
+
 /* ============ Unit radio pills ============ */
 
 .radio-group { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -801,6 +828,273 @@ var UNIT_PLURALS = { Carton: "Cartons", Pallet: "Pallets", Crate: "Crates" };
 
 function defaultItem() {
   return { pn: "", ediBol: "", dimensions: "", weight: "", qty: "1", unit: "" };
+}
+
+/* ============================================================
+   PN Sheet Lookup — auto-fills Dimensions / Weight / Unit from a
+   published Google Sheet when the operator types a PN.
+
+   SETUP: publish your sheet as CSV and paste the link below.
+     Google Sheets -> File -> Share -> Publish to web -> choose the
+     correct sheet/tab -> format "Comma-separated values (.csv)" ->
+     Publish, then copy the link it gives you (looks like
+     "https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?output=csv").
+   Leave this blank to keep PN lookup off (nothing changes/breaks —
+   Dimensions/Weight/Unit just stay fully manual like before).
+
+   Expected columns (A-E), matching the sheet in use:
+     A = group prefix (e.g. "SSR", "HS", "C" — merged cells, one per
+         group of rows)
+     B = full PN, e.g. "853-220443-002-V-635" — the 3rd hyphen-
+         separated segment ("002") is the number operators type
+     C = dimensions, e.g. "72 × 64 × 44"
+     D = weight
+     E = unit (merged cells: "CARTON" / "PALLET" / "CRATE")
+*/
+var SHEET_CSV_URL = "";
+var SHEET_REFRESH_MS = 5 * 60 * 1000; // re-fetch at most every 5 min, since the sheet keeps updating
+
+var sheetPnIndex = null;        // number ("002") -> [ {prefix, number, fullPn, dimensions, weight, unit}, ... ]
+var sheetPnIndexNumeric = null; // same, keyed by the number with leading zeros stripped, as a fallback
+var sheetLoadPromise = null;
+var sheetLoadedAt = 0;
+var pnLookupTimers = {};
+
+function ensureSheetDataLoaded() {
+  if (!SHEET_CSV_URL) return Promise.resolve(null);
+  var stale = !sheetLoadPromise || (Date.now() - sheetLoadedAt) > SHEET_REFRESH_MS;
+  if (stale) {
+    sheetLoadPromise = fetch(SHEET_CSV_URL, { cache: "no-store" }).then(function (res) {
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return res.text();
+    }).then(function (csvText) {
+      buildSheetIndex(parseCsv(csvText));
+      sheetLoadedAt = Date.now();
+      return sheetPnIndex;
+    }).catch(function (err) {
+      console.warn("QuickShip: could not load PN sheet data - " + (err.message || err));
+      if (!sheetPnIndex) { sheetPnIndex = {}; sheetPnIndexNumeric = {}; }
+      sheetLoadedAt = Date.now(); // still throttle retries on failure
+      return null;
+    });
+  }
+  return sheetLoadPromise;
+}
+
+/* Minimal CSV parser — handles quoted fields (incl. embedded commas
+   and escaped "" quotes) so it survives whatever Google Sheets exports. */
+function parseCsv(text) {
+  var rows = [], row = [], field = "", inQuotes = false;
+  for (var i = 0; i < text.length; i++) {
+    var c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ",") {
+      row.push(field); field = "";
+    } else if (c === "\n") {
+      row.push(field); rows.push(row); row = []; field = "";
+    } else if (c === "\r") {
+      /* skip */
+    } else {
+      field += c;
+    }
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+/* The bold PN segment operators type ("002") is always the 3rd
+   hyphen-separated chunk of the full PN, e.g. "853-220443-002-V-635". */
+function extractPnNumber(fullPn) {
+  var parts = trim(fullPn).split("-");
+  return parts.length >= 3 ? trim(parts[2]) : "";
+}
+
+function normalizeSheetUnit(raw) {
+  var up = trim(raw).toUpperCase();
+  if (up.indexOf("CARTON") !== -1) return "Carton";
+  if (up.indexOf("PALLET") !== -1) return "Pallet";
+  if (up.indexOf("CRATE") !== -1) return "Crate";
+  return "";
+}
+
+/* Column A (prefix) and column E (unit) only carry a value on the
+   first row of their merged block in the CSV export — every other row
+   in that block comes through blank. Carry both forward independently
+   as we walk the rows so every PN row ends up with its real group. */
+function buildSheetIndex(rows) {
+  var entries = [];
+  var lastPrefix = "";
+  var lastUnit = "";
+
+  for (var r = 0; r < rows.length; r++) {
+    var row = rows[r];
+    var colA = trim(row[0] || "");
+    var colB = trim(row[1] || "");
+    var colC = trim(row[2] || "");
+    var colD = trim(row[3] || "");
+    var colE = trim(row[4] || "");
+
+    if (colA) lastPrefix = colA;
+    if (colE) lastUnit = colE;
+
+    if (!colB) continue;
+    var num = extractPnNumber(colB);
+    if (!num) continue;
+
+    entries.push({
+      prefix: lastPrefix,
+      number: num,
+      fullPn: colB,
+      dimensions: sanitizeDimensions(colC),
+      weight: sanitizeWeight(colD),
+      unit: normalizeSheetUnit(lastUnit)
+    });
+  }
+
+  var byNumber = {}, byNumeric = {};
+  for (var i = 0; i < entries.length; i++) {
+    var e = entries[i];
+    if (!byNumber[e.number]) byNumber[e.number] = [];
+    byNumber[e.number].push(e);
+
+    var n = parseInt(e.number, 10);
+    if (!isNaN(n)) {
+      var nk = String(n);
+      if (!byNumeric[nk]) byNumeric[nk] = [];
+      byNumeric[nk].push(e);
+    }
+  }
+  sheetPnIndex = byNumber;
+  sheetPnIndexNumeric = byNumeric;
+}
+
+/* Splits a typed PN into an optional leading letters prefix ("SSR")
+   and the trailing digits ("002"), e.g. "SSR002" -> {prefix:"SSR",
+   number:"002"}; "002" -> {prefix:"", number:"002"}. */
+function splitPrefixAndNumber(raw) {
+  var clean = trim(raw).replace(/\s+/g, "").toUpperCase();
+  var m = clean.match(/^([A-Z]*)(\d+)$/);
+  if (!m) return { prefix: "", number: clean };
+  return { prefix: m[1], number: m[2] };
+}
+
+function candidatesForNumber(number) {
+  if (sheetPnIndex[number]) return sheetPnIndex[number];
+  var n = parseInt(number, 10);
+  if (!isNaN(n) && sheetPnIndexNumeric[String(n)]) return sheetPnIndexNumeric[String(n)];
+  return [];
+}
+
+function schedulePnLookup(idx, card) {
+  clearTimeout(pnLookupTimers[idx]);
+  pnLookupTimers[idx] = setTimeout(function () { runPnLookup(idx, card); }, 300);
+}
+
+function runPnLookup(idx, card) {
+  ensureSheetDataLoaded().then(function () { applyPnLookupResult(idx, card); });
+}
+
+function setInputWarn(el, on) {
+  if (!el) return;
+  var has = el.className.indexOf("input-warn") !== -1;
+  if (on && !has) el.className += " input-warn";
+  else if (!on && has) el.className = trim(el.className.replace("input-warn", ""));
+}
+
+function setPnWarnIcon(el, on, title) {
+  if (!el) return;
+  el.className = "pn-warn-icon" + (on ? " show" : "");
+  el.title = title || "";
+}
+
+/* Looks up the item's typed PN against the loaded sheet and:
+ *  - unique match (with or without prefix)      -> auto-fill Dimensions/Weight/Unit, clear all warnings
+ *  - bare number, multiple variants, no prefix   -> orange rim + "!" on the PN box, waiting for a prefix
+ *  - no match at all (incl. wrong/unknown prefix)-> orange rim on Dimensions + Weight, left for manual entry
+ *  - empty PN                                     -> clear all warnings, leave Dimensions/Weight untouched
+ */
+function applyPnLookupResult(idx, card) {
+  var it = state.items[idx];
+  if (!it || !card || !card.parentNode) return; // item/card no longer exists
+
+  var pnEl = card.querySelector('[data-role="pn-input"]');
+  var warnIcon = card.querySelector('[data-role="pn-warn-icon"]');
+  var dimEl = card.querySelector('[data-role="dim-input"]');
+  var weightEl = card.querySelector('[data-role="weight-input"]');
+
+  var rawInput = trim(it.pn);
+  if (!rawInput) {
+    setInputWarn(pnEl, false);
+    setPnWarnIcon(warnIcon, false, "");
+    setInputWarn(dimEl, false);
+    setInputWarn(weightEl, false);
+    return;
+  }
+
+  if (!sheetPnIndex) return; // lookup not configured — leave everything manual, no warnings
+
+  var parsed = splitPrefixAndNumber(rawInput);
+  var candidates = candidatesForNumber(parsed.number);
+
+  var match = null;
+  if (parsed.prefix) {
+    for (var i = 0; i < candidates.length; i++) {
+      if (candidates[i].prefix.toUpperCase() === parsed.prefix) { match = candidates[i]; break; }
+    }
+  } else if (candidates.length === 1) {
+    match = candidates[0];
+  }
+
+  if (match) {
+    setInputWarn(pnEl, false);
+    setPnWarnIcon(warnIcon, false, "");
+    setInputWarn(dimEl, false);
+    setInputWarn(weightEl, false);
+    state.items[idx].dimensions = match.dimensions;
+    state.items[idx].weight = match.weight;
+    if (match.unit) state.items[idx].unit = match.unit;
+    refreshItemCardFromState(idx, card);
+    return;
+  }
+
+  if (!parsed.prefix && candidates.length > 1) {
+    var prefixes = [];
+    for (var p = 0; p < candidates.length; p++) {
+      if (prefixes.indexOf(candidates[p].prefix) === -1) prefixes.push(candidates[p].prefix);
+    }
+    setInputWarn(pnEl, true);
+    setPnWarnIcon(warnIcon, true, "Multiple variants for \"" + parsed.number + "\" — add a prefix: " + prefixes.join(", "));
+    setInputWarn(dimEl, false);
+    setInputWarn(weightEl, false);
+    return;
+  }
+
+  // No match in the sheet at all — leave PN box alone, flag Dimensions/Weight for manual entry.
+  setInputWarn(pnEl, false);
+  setPnWarnIcon(warnIcon, false, "");
+  setInputWarn(dimEl, true);
+  setInputWarn(weightEl, true);
+}
+
+/* Pushes an auto-filled item's Dimensions/Weight/Unit into that
+   card's live DOM without a full re-render, so the PN input the
+   operator is actively typing in never loses focus. */
+function refreshItemCardFromState(idx, card) {
+  var it = state.items[idx];
+  if (!it || !card) return;
+  var dimEl = card.querySelector('[data-role="dim-input"]');
+  var weightEl = card.querySelector('[data-role="weight-input"]');
+  if (dimEl) dimEl.value = it.dimensions;
+  if (weightEl) weightEl.value = it.weight;
+  var radios = card.querySelectorAll('input[type="radio"]');
+  for (var i = 0; i < radios.length; i++) radios[i].checked = (radios[i].value === it.unit);
+  recalculate();
 }
 
 var OUTPUT_LABELS = {
@@ -1560,7 +1854,7 @@ function sanitizeQty(raw) {
  */
 function sanitizeDimensions(raw) {
   var cleaned = raw.replace(/\s+/g, "");
-  cleaned = cleaned.replace(/[xX*]+/g, "x");
+  cleaned = cleaned.replace(/[xX×*]+/g, "x");
   cleaned = cleaned.replace(/[^0-9.x]/g, "");
   return cleaned;
 }
@@ -1799,6 +2093,7 @@ function renderItemCards() {
   for (var index = 0; index < state.items.length; index++) {
     var card = buildItemCard(state.items[index], index, state.items.length === 1);
     dom.itemCardsList.appendChild(card);
+    if (trim(state.items[index].pn)) schedulePnLookup(index, card);
   }
 }
 
@@ -1837,18 +2132,33 @@ function buildItemCard(item, index, isOnlyCard) {
   pnField.className = "field";
   var pnLabel = document.createElement("label");
   pnLabel.textContent = "PN :";
+  var pnWrap = document.createElement("div");
+  pnWrap.className = "pn-lookup-wrap";
   var pnInput = document.createElement("input");
   pnInput.type = "text";
   pnInput.placeholder = "Part Number";
   pnInput.autocomplete = "off";
   pnInput.value = item.pn;
+  pnInput.setAttribute("data-role", "pn-input");
   pnInput.addEventListener("input", function (e) {
     var idx = Number(card.getAttribute("data-index"));
     state.items[idx].pn = uppercaseInPlace(e.target);
     recalculate();
+    schedulePnLookup(idx, card);
   });
+  pnInput.addEventListener("blur", function (e) {
+    var idx = Number(card.getAttribute("data-index"));
+    clearTimeout(pnLookupTimers[idx]);
+    runPnLookup(idx, card);
+  });
+  var pnWarnIcon = document.createElement("span");
+  pnWarnIcon.className = "pn-warn-icon";
+  pnWarnIcon.setAttribute("data-role", "pn-warn-icon");
+  pnWarnIcon.innerHTML = "&#9888;";
+  pnWrap.appendChild(pnInput);
+  pnWrap.appendChild(pnWarnIcon);
   pnField.appendChild(pnLabel);
-  pnField.appendChild(pnInput);
+  pnField.appendChild(pnWrap);
   card.appendChild(pnField);
 
   var ediField = document.createElement("div");
@@ -1898,11 +2208,13 @@ function buildItemCard(item, index, isOnlyCard) {
   dimInput.style.textAlign = "center";
   dimInput.autocomplete = "off";
   dimInput.value = item.dimensions;
+  dimInput.setAttribute("data-role", "dim-input");
   dimInput.addEventListener("input", function (e) {
     var idx = Number(card.getAttribute("data-index"));
     var clean = sanitizeDimensions(e.target.value);
     e.target.value = clean;
     state.items[idx].dimensions = clean;
+    setInputWarn(e.target, false); // operator is filling this in manually now
     recalculate();
   });
   var dimCopyBtn = document.createElement("button");
@@ -1930,11 +2242,13 @@ function buildItemCard(item, index, isOnlyCard) {
   weightInput.style.textAlign = "center";
   weightInput.autocomplete = "off";
   weightInput.value = item.weight;
+  weightInput.setAttribute("data-role", "weight-input");
   weightInput.addEventListener("input", function (e) {
     var idx = Number(card.getAttribute("data-index"));
     var clean = sanitizeWeight(e.target.value);
     e.target.value = clean;
     state.items[idx].weight = clean;
+    setInputWarn(e.target, false); // operator is filling this in manually now
     recalculate();
   });
   // On leaving the field (blur — clicking another box — or Enter),

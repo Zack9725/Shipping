@@ -1,11 +1,13 @@
 function pushCsvToGithub() {
-  var TOKEN = "TOKEN HERE";
+  var TOKEN = "TOKEN_KAU_SINI";
   var OWNER = "Zack9725";
   var REPO = "Shipping";
   var PATH = "data.csv";
 
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sheet1");
-  var data = sheet.getDataRange().getValues();
+  var lastRow = sheet.getLastRow();
+  var data = sheet.getRange(1, 1, lastRow, 5).getValues(); // column A-E je, semua row
+
   var csv = data.map(function(row) {
     return row.map(function(cell) {
       var val = String(cell);
@@ -21,7 +23,6 @@ function pushCsvToGithub() {
 
   var sha = null;
   var getRes = UrlFetchApp.fetch(apiUrl, { headers: headers, muteHttpExceptions: true });
-  Logger.log("GET status: " + getRes.getResponseCode() + " | " + getRes.getContentText());
   if (getRes.getResponseCode() === 200) {
     sha = JSON.parse(getRes.getContentText()).sha;
   }

@@ -1,0 +1,3071 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QuickShip</title>
+<link rel="icon" type="image/x-icon" href="icon.ico">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1e1e1e">
+
+<style>
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+  line-height: 1.5;
+}
+
+/* ============ Header ============ */
+
+.app-header {
+  border-bottom: 1px solid #2b7b8a;
+  background: #252526;
+}
+
+/* Constrains the header's actual content to the same centered
+   946px box as the tab bar and the columns below (see the
+   .app-header-inner rule further down), while .app-header itself
+   stays full-width so the background/border still span the page. */
+.app-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 24px;
+}
+
+.brand-icon {width: 48px; height: 48px; margin-left:-6px; object-fit: contain; flex-shrink: 0;}
+
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand-mark { color: #007acc; font-size: 20px; }
+.brand-text h1 { margin: 0; font-size: 16px; font-weight: 600; }
+.brand-text p { margin: 2px 0 0; font-size: 11.5px; color: #9d9d9d; }
+
+/* Pin-to-top toggle — sits flush against the header's right edge, as
+   tall as the header content itself (minimal padding), circular. */
+.pin-btn {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1.5px solid #3c3c3c;
+  color: #6a6a6a;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 0;
+  transition: color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.pin-btn:hover { border-color: #6a6a6a; color: #9d9d9d; }
+.pin-btn.active {
+  color: #2b7b8a;
+  border-color: #2b7b8a;
+  background: rgba(43, 123, 138, 0.14);
+  box-shadow: 0 0 6px 1px rgba(43, 123, 138, 0.65), 0 0 0 1px rgba(43, 123, 138, 0.65);
+}
+.pin-btn.active:hover { color: #37a1b5; border-color: #37a1b5; }
+
+/* ============ Shipment tab bar (Chrome-style) ============ */
+
+.tab-bar-wrap {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  padding: 10px 24px 0;
+  background: #1e1e1e;
+  overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* min-width:0 (instead of a fixed floor) is what lets this shrink to
+   its actual content instead of forcing a gap before the add button
+   when there's only 1-2 tabs. Once tabs hit their own min-width and
+   still don't fit, this scrolls internally (overflow-x: auto) rather
+   than pushing .tab-bar-wrap — and the whole page — wider than the
+   viewport, which is what used to strand the add button off-screen. */
+.tab-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #3c3c3c transparent;
+}
+.tab-bar::-webkit-scrollbar { height: 5px; }
+.tab-bar::-webkit-scrollbar-track { background: transparent; }
+.tab-bar::-webkit-scrollbar-thumb { background: #3c3c3c; border-radius: 3px; }
+.tab-bar::-webkit-scrollbar-thumb:hover { background: #4a4a4a; }
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 1 200px;
+  max-width: 200px;
+  min-width: 84px;
+  padding: 6px 8px 6px 14px;
+  background: #2d2d2d;
+  border-style: solid;
+  border-width: 1px 1px 0 1px;
+  border-color: #3c3c3c;
+  border-radius: 8px 8px 0 0;
+  color: #c0c0c0;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  position: relative;
+  top: 1px;
+  white-space: nowrap;
+  transition: padding 0.12s ease, font-size 0.12s ease, background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.tab.active {
+  padding: 8px 8px 8px 14px;
+  font-size: 13px;
+  background: #1e1e1e;
+  border-width: 1px 1px 0 1px;
+  border-color: #2b7b8a;
+  color: #4fb2ff;
+  font-weight: 600;
+  z-index: 8; /* stays visually above ordinary/dragging non-active tabs */
+}
+
+/* Chrome-style drag-to-reorder. The dragged tab tracks the pointer
+   directly (no transition, slight lift); the other tabs get a
+   transition so they slide smoothly out of the way when
+   onTabDragMove() shifts them via transform. Both are toggled inline
+   in JS — these rules just define what "dragging" looks like.
+   z-index layering (low to high): plain tab -> dragging non-active
+   tab -> active tab -> the active tab itself being dragged. So a
+   non-active tab being dragged always passes *behind* the active
+   tab; the active tab only ever gets covered when it's the one
+   being dragged. */
+.tab { cursor: grab; touch-action: none; z-index: 1; }
+.tab.dragging {
+  cursor: grabbing;
+  opacity: 0.92;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4);
+  z-index: 6;
+}
+.tab.active.dragging { z-index: 10; }
+
+.tab-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; min-width: 0; }
+
+.tab-close {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  color: #9d9d9d;
+  border-radius: 4px;
+  padding: 2px 5px;
+  font-size: 0.9em;
+  cursor: pointer;
+}
+.tab-close:hover { background: rgba(241, 76, 76, 0.15); color: #f14c4c; }
+
+.tab-add-btn {
+  flex: 0 0 auto;
+  background: transparent;
+  border: 1px solid #3c3c3c;
+  color: #9d9d9d;
+  border-radius: 6px;
+  width: 24px;
+  height: 24px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+.tab-add-btn:hover { border-color: #007acc; color: #ffffff; background: rgba(0, 122, 204, 0.12); }
+
+/* ============ Close-tab confirmation modal ============ */
+
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+.modal-overlay.show { display: flex; }
+
+.modal-box {
+  background: #252526;
+  border: 1px solid #3c3c3c;
+  border-radius: 12px;
+  padding: 20px 22px;
+  width: 300px;
+}
+.modal-title { margin: 0 0 6px; font-size: 13px; font-weight: 600; color: #d4d4d4; }
+.modal-text { margin: 0 0 18px; font-size: 12px; color: #9d9d9d; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+.btn-danger-rim { background: transparent; border: 2px solid #de1818; color: #ed2424; }
+.btn-danger-rim:hover { background: rgba(235, 23, 23, 0.26); }
+
+/* ============ Layout ============ */
+
+.layout {
+  display: flex;
+  gap: 20px;
+  padding: 20px 24px 8px;
+  allign-items: flex-start;
+  justify-content: flex-start;
+  position: relative;
+  border-top: 1px solid #2b7b8a;
+}
+
+/* Erases the segment of .layout's own top border that sits directly
+   under the active tab, painting it the same colour as the page
+   background — that's what makes the active tab read as fused into
+   the box below it instead of a separate piece sitting on top.
+   Positioned/sized by updateTabLayoutBridge() in JS since it has to
+   track wherever the active tab currently is (tab count/width/order
+   all change at runtime). */
+.tab-layout-bridge {
+  position: absolute;
+  top: -1px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: #1e1e1e;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.column:first-child {width: 390px; flex: 0 0 390px; margin-right: 24px;}
+.column:last-child {width: 500px; flex: 0 0 500px;}
+
+/* Centered, capped-width content. The header, the tab bar (right
+   below the header's blue border line), and .layout (the
+   Inputs/Outputs columns) are all capped at the same max-width and
+   centered together, with matching 24px horizontal insets on both
+   sides — so the brand mark lines up with the left edge of the
+   Inputs column, the pin button lines up with the right edge of the
+   Output column (parallel with the Clear button), and the tab bar
+   lines up with both. */
+.app-header-inner,
+.tab-bar-wrap,
+.layout {
+  max-width: 946px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Floor at 980px instead of stacking/squishing columns when the
+   window is narrower. There is no script API that can force a real
+   browser tab's window size (see setInitialWindowSize below), so
+   this is the practical substitute: the page just gets a horizontal
+   scrollbar rather than a broken layout. */
+html, body {
+  min-width: 980px;
+}
+
+.column-title {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 1.1px;
+  color: #6a6a6a;
+  margin: 2px 0 12px;
+  font-weight: 600;
+}
+
+.column-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.column-title-row .column-title { margin: 2px 0 12px; }
+.btn-sm { padding: 5px 10px; font-size: 11px; position: relative; top: -3px; }
+
+/* ============ Card ============ */
+
+.card {
+  background: #252526;
+  border: 1px solid #3c3c3c;
+  border-radius: 14px;
+  padding: 16px 16px 12px;
+  margin-bottom: 16px;
+}
+
+.sorter-card {
+  border: 1px solid #1d7878;
+}
+
+.card-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #d4d4d4;
+}
+
+.card-hint { margin: -4px 0 10px; font-size: 11.5px; color: #6a6a6a; }
+
+/* ============ Fields ============ */
+
+.field { margin-bottom: 12px; }
+.field:last-child { margin-bottom: 4px; }
+.field label { display: block; font-size: 12px; color: #9d9d9d; margin-bottom: 5px; }
+
+.field-row {
+  display: table;
+  table-layout: fixed;
+  width: 100%;
+  margin-bottom: 12px;
+}
+.field-row > .field {
+  display: table-cell;
+  vertical-align: top;
+  margin-bottom: 0;
+  padding-right: 12px;
+}
+.field-row > .field:last-child { padding-right: 0; }
+
+.field-qty { width: 90px; }
+.field-unit { padding-left: 16px; }
+
+/* ============ Qty +/- steppers ============ */
+
+.qty-input-wrap { position: relative; }
+.qty-input-wrap input[type="text"] { padding-right: 26px; }
+.qty-steppers {
+  position: absolute;
+  top: 1px; right: 1px; bottom: 1px;
+  width: 22px;
+  display: flex;
+  flex-direction: column;
+}
+.qty-step {
+  flex: 1 1 50%;
+  background: #1e1e1e;
+  border: none;
+  border-left: 1px solid #3c3c3c;
+  color: #9d9d9d;
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+.qty-step-up { border-radius: 0 5px 0 0; border-bottom: 1px solid #3c3c3c; }
+.qty-step-down { border-radius: 0 0 5px 0; }
+.qty-step:hover { background: rgba(0, 122, 204, 0.12); color: #ffffff; }
+
+/* Paired fields (Dimensions / Weight) — no explicit width means the
+   fixed table layout splits the remaining space evenly, 50/50. */
+.field-half { }
+
+input[type="text"], input[type="number"] {
+  width: 100%;
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  color: #d4d4d4;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 13px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  outline: none;
+}
+
+input[type="text"]:focus, input[type="number"]:focus {
+  border-color: #007acc;
+}
+
+input::-webkit-input-placeholder { color: #6a6a6a; }
+input:-ms-input-placeholder { color: #6a6a6a; }
+input::placeholder { color: #6a6a6a; }
+
+/* ============ Unit radio pills ============ */
+
+.radio-group { display: flex; gap: 8px; flex-wrap: wrap; }
+.radio-pill { position: relative; display: inline-block; }
+.radio-pill input[type="radio"] { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; left: 0; top: 0; }
+.radio-pill span {
+  display: inline-block;
+  padding: 7px 13px;
+  border-radius: 999px;
+  border: 1px solid #3c3c3c;
+  background: #1e1e1e;
+  font-size: 12px;
+  color: #9d9d9d;
+}
+.radio-pill input[type="radio"]:checked + span {
+  background: rgba(0, 122, 204, 0.12);
+  border-color: #007acc;
+  color: #ffffff;
+}
+
+/* ============ Pick Slip list ============ */
+
+.pickslip-list { display: flex; flex-direction: column; gap: 6px; }
+
+.pickslip-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.pickslip-row input[type="text"] {
+  border: 1px solid #3c3c3c;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 13px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  outline: none;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+}
+
+.pickslip-row input[type="text"]:focus { border-color: #007acc; }
+
+/* The color rule above matches the same CSS specificity as the global
+   placeholder rules, so it can win the tie and render the placeholder
+   in the input's regular (light) text color instead of the intended
+   grey. Scoping the placeholder color directly onto this selector
+   guarantees it always wins here. */
+.pickslip-row input[type="text"]::-webkit-input-placeholder { color: #6a6a6a; }
+.pickslip-row input[type="text"]::placeholder { color: #6a6a6a; }
+
+.row-btn {
+  background: transparent;
+  border: none;
+  color: #9d9d9d;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 5px 6px;
+  border-radius: 6px;
+}
+
+.row-btn.delete-btn:hover { background: rgba(241, 76, 76, 0.1); color: #f14c4c; }
+
+/* ============ Item card ============ */
+
+.item-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.item-card-header .card-title { margin: 0; }
+
+.item-delete-btn {
+  background: transparent;
+  border: none;
+  color: #9d9d9d;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 4px 7px;
+  border-radius: 6px;
+}
+.item-delete-btn:hover { background: rgba(241, 76, 76, 0.1); color: #f14c4c; }
+
+/* ============ Copy buttons ============ */
+
+.copy-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #9d9d9d;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+.copy-btn:hover { background: rgba(0, 122, 204, 0.12); border-color: #007acc; color: #ffffff; }
+
+.input-with-copy { display: flex; gap: 6px; min-width: 0; }
+.input-with-copy input { flex: 1; min-width: 0; }
+
+/* ============ Output section ============ */
+
+.output-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 0;
+  border-bottom: 1px solid #333333;
+}
+.output-row:last-child { border-bottom: none; }
+
+.output-label { flex: 0 0 128px; font-size: 11.5px; color: #9d9d9d; }
+
+.output-value {
+  flex: 1;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 12.5px;
+  color: #4ec9b0;
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  border-radius: 6px;
+  padding: 7px 9px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.output-value.is-empty { color: #6a6a6a; }
+.output-value-folder { font-size: 13px; font-weight: 500; }
+
+/* ============ Buttons (general) ============ */
+
+.btn {
+  display: inline-block;
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
+  border: 1px solid #3c3c3c;
+  background: transparent;
+  color: #9d9d9d;
+}
+.btn-danger-ghost:hover { background: rgba(241, 76, 76, 0.1); border-color: #f14c4c; color: #f14c4c; }
+.btn-primary { background: #007acc; border-color: #007acc; color: #ffffff; }
+.btn-primary:hover { background: #1a8ad4; }
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-secondary { background: transparent; border: 1px solid #3c3c3c; color: #d4d4d4; }
+.btn-secondary:hover { border-color: #007acc; color: #ffffff; background: rgba(0, 122, 204, 0.12); }
+.btn-ghost { background: transparent; border: 1px solid #3c3c3c; color: #9d9d9d; }
+
+.badge-local {
+  font-size: 10px;
+  background: rgba(0, 122, 204, 0.12);
+  color: #ffffff;
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-left: 8px;
+  border: 1px solid #007acc;
+}
+
+.fs-note {
+  font-size: 11.5px;
+  color: #f14c4c;
+  background: rgba(241, 76, 76, 0.1);
+  border: 1px solid #f14c4c;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 14px;
+  display: none;
+}
+.fs-note.show { display: block; }
+
+/* Informational (non-error) variant — used for the "grant access" and
+   "reconnect the folder" hints, as opposed to the red "unsupported
+   browser" state above. */
+.fs-note.fs-note-info {
+  color: #7fc2cf;
+  background: rgba(43, 123, 138, 0.12);
+  border-color: #2b7b8a;
+}
+
+.workdir-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.workdir-path {
+  flex: 1;
+  min-width: 220px;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 12px;
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: #6a6a6a;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.workdir-path.is-set { color: #d4d4d4; }
+
+/* Shown when a folder name survived the reload but its live access
+   handle didn't (the browser sandbox never persists that) — a
+   distinct look from is-set so it can't be mistaken for "connected". */
+.workdir-path.is-stale { color: #d9a441; border-color: #6a5426; border-style: dashed; }
+
+.filesorter-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+
+.sorter-log {
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 11.5px;
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  border-radius: 6px;
+  padding: 10px 12px;
+  max-height: 160px;
+  overflow-y: auto;
+  color: #9d9d9d;
+  display: none;
+}
+.sorter-log.show { display: block; }
+.log-line { padding: 2px 0; }
+.log-line.ok { color: #4ec9b0; }
+.log-line.err { color: #ed3b3b; }
+.log-line.warn { color: #d6b172; }
+
+/* ============ Toast ============ */
+
+.toast {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  margin-top: 60px;
+  margin-left: -84px;
+  width: 168px;
+  text-align: center;
+  background: #0e639c;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 10.8px 14.4px;
+  border-radius: 12px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+  z-index: 100;
+}
+.toast.show { opacity: 1; }
+
+.input-placeholder::placeholder{text-align: center;}
+
+</style>
+</head>
+<body>
+
+  <div id="appRoot">
+
+  <!-- ============ HEADER ============ -->
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div class="brand">
+        <img src="logo.png" class="brand-icon" alt="" onerror="this.style.display='none';">
+        <span class="brand-mark">&#9657;</span>
+        <div class="brand-text">
+          <h1>QuickShip</h1>
+          <p>Made By - Zack</p>
+        </div>
+      </div>
+      <button id="pinBtn" class="pin-btn" type="button" title="Pin window on top">&#128204;</button>
+    </div>
+  </header>
+
+  <div class="tab-bar-wrap">
+    <div id="tabBar" class="tab-bar"></div>
+    <button id="addTabBtn" class="tab-add-btn" type="button" title="New shipment tab">+</button>
+  </div>
+
+  <main class="layout">
+    <div id="tabLayoutBridge" class="tab-layout-bridge"></div>
+
+    <!-- ============ INPUT COLUMN ============ -->
+    <section class="column">
+      <h2 class="column-title">Inputs</h2>
+
+      <div class="card">
+        <h3 class="card-title">Shipment</h3>
+
+        <div class="field">
+          <label for="destination">Destination :</label>
+          <input type="text" id="destination" placeholder="Simple Destination Name" autocomplete="off">
+        </div>
+
+        <div class="field">
+          <label for="hawb">HAWB :</label>
+          <div class="input-with-copy">
+            <input type="text" id="hawb" placeholder="( Optional )" class="input-placeholder autocomplete="off">
+            <button class="copy-btn" data-copy-target="hawb" title="Copy HAWB">&#128203;</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">Pick Slip</h3>
+        <p class="card-hint">Paste all pick slip numbers</p>
+        <div id="pickSlipList" class="pickslip-list"></div>
+      </div>
+
+      <div id="itemCardsList"></div>
+
+      <div class="btn btn-ghost" id="addItemBtn">+ Add Item</div>
+
+    </section>
+
+    <!-- ============ OUTPUT COLUMN ============ -->
+    <section class="column">
+      <div class="column-title-row">
+        <h2 class="column-title">OUTPUT</h2>
+        <button id="clearAllBtn" class="btn btn-danger-ghost btn-sm" type="button" title="Clear this shipment's fields">
+          <span class="icon">&#128465;</span> Clear
+        </button>
+      </div>
+      <div class="card output-card">
+        <h3 class="card-title">Generated Dimensions :</h3>
+
+        <div class="output-row">
+          <div class="output-value" id="generatedDimensions">&mdash;</div>
+          <button class="copy-btn" data-copy-target-out="generatedDimensions" title="Copy">&#128203;</button>
+        </div>
+      </div>
+
+	<div class="card output-card">
+        <h3 class="card-title">Generated EDI :</h3>
+	<div class="output-row">
+          <div class="output-value" id="generatedEDI">&mdash;</div>
+          <button class="copy-btn" data-copy-target-out="generatedEDI" title="Copy">&#128203;</button>
+        </div>
+       </div>
+
+	<div class="card output-card">
+        <h3 class="card-title">Pick Slip String :</h3>
+	<div class="output-row">
+          <div class="output-value" id="pickSlipString">&mdash;</div>
+          <button class="copy-btn" data-copy-target-out="pickSlipString" title="Copy">&#128203;</button>
+        </div>
+       </div>
+      <div class="column-title-row">
+        <h2 class="column-title">MISCELLANEOUS</h2>
+      </div>
+
+      <div class="card sorter-card">
+      <h3 class="card-title">&#128193; File Sorter <span class="badge-local">local files</span></h3>
+      <div class="fs-note" id="fsNote"></div>
+      <p class="card-hint">Select folder directory to work with</p>
+      <div class="workdir-row">
+        <div class="workdir-path" id="workDirPath">No working folder selected</div>
+        <button class="btn btn-secondary" id="chooseFolderBtn" type="button">Choose Folder&hellip;</button>
+      </div>
+
+      <h4 class="card-title">Folder Name Preview</h4>
+          <div class="output-value output-value-folder" id="out-folderName">&mdash;</div>
+          <p class="card-hint"></p><!--spacer -->
+      <div class="sorter-log" id="sorterLog"></div>
+      <p class="card-hint"></p><!--spacer -->
+
+      <div class="filesorter-actions">
+        <button class="btn btn-primary" id="sortBtn" type="button">&#128193; Sort into Folder</button>
+      </div>
+
+    </div>
+  </main>
+
+  <div id="toast" class="toast">Copied!</div>
+
+  <div id="closeTabModal" class="modal-overlay">
+    <div class="modal-box">
+      <p class="modal-title">Close this shipment tab?</p>
+      <p class="modal-text">All data in this tab will be discarded. This cannot be undone.</p>
+      <div class="modal-actions">
+        <button id="closeTabCancelBtn" class="btn btn-secondary" type="button">Cancel</button>
+        <button id="closeTabConfirmBtn" class="btn btn-danger-rim" type="button">Close Tab</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="clearAllModal" class="modal-overlay">
+    <div class="modal-box">
+      <p class="modal-title">Clear this shipment's fields?</p>
+      <p class="modal-text">All data in this tab will be discarded. This cannot be undone.</p>
+      <div class="modal-actions">
+        <button id="clearAllCancelBtn" class="btn btn-secondary" type="button">Cancel</button>
+        <button id="clearAllConfirmBtn" class="btn btn-danger-rim" type="button">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  </div><!-- #appRoot -->
+
+<script>
+/* ---- Constants ---- */
+
+var MAX_TABS = 6;
+var STORAGE_KEY = "quickslip_state_v3";
+var LEGACY_V2_KEY = "quickslip_state_v2";
+var LEGACY_V1_KEY = "quickslip_state_v1";
+
+var UNIT_PLURALS = { Carton: "Cartons", Pallet: "Pallets", Crate: "Crates" };
+
+function defaultItem() {
+  return { pn: "", ediBol: "", dimensions: "", weight: "", qty: "1", unit: "" };
+}
+
+var OUTPUT_LABELS = {
+  commercialInvoice: "Commercial Invoice",
+  serialProduct: "Serial Product",
+  pickSlipFinal: "Pick Slip Final",
+  releaseForm: "Rls"
+};
+
+var SLOT_IDS = ["commercialInvoice", "serialProduct", "pickSlipFinal", "releaseForm"];
+
+/* ---- File Sorter: naming-convention codes used to auto-match each
+   expected file inside the working folder. Add more strings to a
+   slot's array if that document ever ships under more than one code
+   (e.g. Pick Slip Final "A" vs "B" revisions). ---- */
+var FILE_MATCH_PATTERNS = {
+  commercialInvoice: ["R5542651"],
+  serialProduct: ["R5542064"],
+  pickSlipFinal: ["R5542050","R5542050A"],
+  releaseForm: ["R5542047"]
+};
+
+/* ---- DOM references ---- */
+
+var dom = {
+  destination: document.getElementById("destination"),
+  pickSlipList: document.getElementById("pickSlipList"),
+  itemCardsList: document.getElementById("itemCardsList"),
+  addItemBtn: document.getElementById("addItemBtn"),
+  hawb: document.getElementById("hawb"),
+  clearAllBtn: document.getElementById("clearAllBtn"),
+  toast: document.getElementById("toast"),
+  pinBtn: document.getElementById("pinBtn"),
+
+  tabBar: document.getElementById("tabBar"),
+  tabLayoutBridge: document.getElementById("tabLayoutBridge"),
+  addTabBtn: document.getElementById("addTabBtn"),
+  closeTabModal: document.getElementById("closeTabModal"),
+  closeTabCancelBtn: document.getElementById("closeTabCancelBtn"),
+  closeTabConfirmBtn: document.getElementById("closeTabConfirmBtn"),
+
+  clearAllModal: document.getElementById("clearAllModal"),
+  clearAllCancelBtn: document.getElementById("clearAllCancelBtn"),
+  clearAllConfirmBtn: document.getElementById("clearAllConfirmBtn"),
+
+  outFolderName: document.getElementById("out-folderName"),
+  generatedDimensions: document.getElementById("generatedDimensions"),
+  generatedEDI: document.getElementById("generatedEDI"),
+  pickSlipString: document.getElementById("pickSlipString"),
+
+  fsNote: document.getElementById("fsNote"),
+  workDirPath: document.getElementById("workDirPath"),
+  chooseFolderBtn: document.getElementById("chooseFolderBtn"),
+  sortBtn: document.getElementById("sortBtn"),
+  sorterLog: document.getElementById("sorterLog")
+};
+
+/* ---- Application state ----
+   QuickSlip now supports multiple "shipment" tabs, Chrome-tab style,
+   so a user can work on several shipments without losing data. Each
+   tab owns its own full copy of what used to be the single global
+   `state` object (destination, pick slips, items, hawb, working
+   folder, last-sorted folder).
+
+   `state` itself is kept as a plain reference to whichever tab is
+   currently active — every existing function below that reads or
+   writes `state.xxx` keeps working unchanged; switching tabs just
+   repoints this reference and re-renders. */
+
+var tabIdSeq = 0;
+function newTabId() {
+  return "tab-" + (++tabIdSeq) + "-" + new Date().getTime() + "-" + Math.floor(Math.random() * 10000);
+}
+
+function defaultShipment() {
+  /* A new tab shares the same global folder handle as every other
+     tab (see handleChooseFolderWeb) — if one's already connected
+     when this tab is created, label it as such immediately instead
+     of defaulting to "No working folder selected" until the next
+     unrelated re-render happens to catch it up. */
+  var liveHandle = webWorkingDirHandleLive();
+  return {
+    id: newTabId(),
+    destination: "",
+    pickSlips: [""],
+    items: [defaultItem()],
+    hawb: "",
+    workingDir: liveHandle ? liveHandle.name : getDefaultWorkingDir(),
+    lastSortedFolder: ""
+  };
+}
+
+var appState = { tabs: [], activeTabId: null };
+var state = null; // always points at appState.tabs[activeIndex]
+
+var pendingCloseTabId = null;
+
+/* ---- File Sorter capability detection ----
+   File System Access API support. Actual usage lives in the
+   browser-only <script> block below. This flag is just a plain
+   property check. */
+var FS_ACCESS_SUPPORTED = false;
+try { FS_ACCESS_SUPPORTED = (typeof window.showDirectoryPicker === "function"); } catch (fsErr) { FS_ACCESS_SUPPORTED = false; }
+
+function getDefaultWorkingDir() {
+  return "";
+}
+
+/* ============================================================
+   Persistence (localStorage)
+   ============================================================ */
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+  } catch (err) {
+    // Storage unavailable — app still works, just won't persist.
+  }
+}
+
+/* Fill in every field of a saved (or legacy) shipment with safe
+   defaults, the same way the old single-shipment loadState used to. */
+function normalizeShipment(raw) {
+    raw = raw || {};
+
+    var items;
+    if (isRealArray(raw.items) && raw.items.length) {
+        items = [];
+        for (var i = 0; i < raw.items.length; i++) {
+            var it = raw.items[i] || {};
+            items.push({
+                pn: it.pn || "",
+                ediBol: it.ediBol || "",
+                dimensions: it.dimensions || "",
+                weight: it.weight || "",
+                qty: it.qty || "1",
+                unit: it.unit || ""
+            });
+        }
+    } else {
+        items = [defaultItem()];
+    }
+
+    var pickSlips = (isRealArray(raw.pickSlips) && raw.pickSlips.length) ? raw.pickSlips : [""];
+
+    return {
+        id: raw.id || newTabId(),
+        destination: raw.destination || "",
+        pickSlips: pickSlips,
+        items: items,
+        hawb: raw.hawb || "",
+        workingDir: raw.workingDir || getDefaultWorkingDir(),
+        lastSortedFolder: raw.lastSortedFolder || ""
+    };
+}
+
+function loadState() {
+    var loaded = false;
+
+    try {
+        var raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+            var saved = JSON.parse(raw);
+            if (saved && isRealArray(saved.tabs) && saved.tabs.length) {
+                var tabs = [];
+                for (var i = 0; i < saved.tabs.length; i++) {
+                    tabs.push(normalizeShipment(saved.tabs[i]));
+                }
+                appState.tabs = tabs;
+                appState.activeTabId = saved.activeTabId;
+                loaded = true;
+            }
+        }
+    } catch (err) {
+        // ignore corrupted save
+    }
+
+    if (!loaded) {
+        // No v3 (multi-tab) save yet — migrate an older single-shipment
+        // save (v2, or v1's single-item/single-EDI shape) into tab 1.
+        var migrated = migrateFromFlatState();
+        appState.tabs = [migrated];
+        appState.activeTabId = migrated.id;
+    }
+
+    if (indexOfTab(appState.activeTabId) === -1) {
+        appState.activeTabId = appState.tabs[0].id;
+    }
+
+    state = getActiveShipment();
+}
+
+function migrateFromFlatState() {
+    var flat = null;
+
+    try {
+        var rawV2 = localStorage.getItem(LEGACY_V2_KEY);
+        if (rawV2) flat = JSON.parse(rawV2);
+    } catch (err) { /* ignore corrupted v2 save */ }
+
+    if (!flat) {
+        try {
+            var rawV1 = localStorage.getItem(LEGACY_V1_KEY);
+            if (rawV1) {
+                var legacy = JSON.parse(rawV1);
+                if (legacy) {
+                    flat = {
+                        destination: legacy.destination || "",
+                        hawb: legacy.hawb || "",
+                        workingDir: legacy.workingDir || "",
+                        pickSlips: isRealArray(legacy.pickSlips) ? legacy.pickSlips : [""]
+                    };
+                    if (legacy.pn || legacy.qty || legacy.dimensions || legacy.weight || legacy.ediBol) {
+                        flat.items = [{
+                            pn: legacy.pn || "",
+                            ediBol: legacy.ediBol || "",
+                            dimensions: legacy.dimensions || "",
+                            weight: legacy.weight || "",
+                            qty: legacy.qty || "1",
+                            unit: legacy.unit || "Carton"
+                        }];
+                    }
+                }
+            }
+        } catch (err) { /* ignore corrupted v1 save */ }
+    }
+
+    return normalizeShipment(flat || {});
+}
+
+function indexOfTab(id) {
+    for (var i = 0; i < appState.tabs.length; i++) {
+        if (appState.tabs[i].id === id) return i;
+    }
+    return -1;
+}
+
+function getActiveShipment() {
+    var idx = indexOfTab(appState.activeTabId);
+    if (idx === -1) idx = 0;
+    return appState.tabs[idx];
+}
+
+function isRealArray(val) {
+  return Object.prototype.toString.call(val) === "[object Array]";
+}
+
+/* ============================================================
+   Shipment tabs (Chrome-style)
+   ============================================================ */
+
+/* Default label is "Shipment N", where N is this tab's live position
+   among the currently open tabs (not a stored, ever-incrementing
+   counter) — so it renumbers naturally as tabs close/reorder and
+   never keeps climbing across a clear, a tab close, or a relaunch.
+   Once Destination is filled in, that takes over as the label, live,
+   and reverts back to the positional placeholder if cleared again. */
+function tabLabel(shipment) {
+  var dest = trim(shipment.destination);
+  if (dest) return dest;
+  var idx = indexOfTab(shipment.id);
+  return "Shipment " + (idx === -1 ? appState.tabs.length : idx + 1);
+}
+
+var TAB_MAX_WIDTH = 200; // keep in sync with .tab's max-width in CSS
+var TAB_GAP = 2;         // keep in sync with .tab-bar's gap in CSS
+
+/* #tabBar's own auto/max-content sizing can't be trusted here: in a
+   nested flex row, when a flex container's children have
+   flex-shrink > 0 (our tabs do, so they can squeeze down once the
+   strip is full), some engines compute that container's own
+   intrinsic width from the children's shrink floor rather than their
+   preferred width — so with only 1-2 tabs open, the whole bar (and
+   every tab in it) would collapse toward min-width even with plenty
+   of free space to spare. Setting #tabBar's width explicitly here
+   sidesteps that miscalculation entirely; CSS flex-shrink on .tab
+   still does the actual squeezing once this computed width genuinely
+   can't fit every tab at TAB_MAX_WIDTH. */
+function sizeTabBar() {
+  try {
+    var bar = dom.tabBar;
+    var wrap = bar.parentElement;
+    var addBtn = dom.addTabBtn;
+    var count = appState.tabs.length;
+    if (!wrap || count === 0) { bar.style.width = "0px"; return; }
+    var desired = TAB_MAX_WIDTH * count + TAB_GAP * (count - 1);
+    var wrapStyle = window.getComputedStyle(wrap);
+    var wrapPadding = (parseFloat(wrapStyle.paddingLeft) || 0) + (parseFloat(wrapStyle.paddingRight) || 0);
+    var wrapGap = parseFloat(wrapStyle.columnGap || wrapStyle.gap) || 0;
+    var addBtnWidth = addBtn ? addBtn.offsetWidth : 0;
+    var available = wrap.clientWidth - wrapPadding - wrapGap - addBtnWidth;
+    if (available < 0) available = 0;
+    bar.style.width = Math.min(desired, available) + "px";
+  } catch (e) {}
+}
+
+function renderTabBar() {
+  dom.tabBar.innerHTML = "";
+  for (var i = 0; i < appState.tabs.length; i++) {
+    var t = appState.tabs[i];
+    var tabEl = document.createElement("div");
+    tabEl.className = "tab" + (t.id === appState.activeTabId ? " active" : "");
+    tabEl.setAttribute("data-id", t.id);
+    tabEl.title = tabLabel(t);
+
+    var label = document.createElement("span");
+    label.className = "tab-label";
+    label.textContent = tabLabel(t);
+    tabEl.appendChild(label);
+
+    if (appState.tabs.length > 1) {
+      var closeBtn = document.createElement("button");
+      closeBtn.className = "tab-close";
+      closeBtn.type = "button";
+      closeBtn.innerHTML = "&#10005;";
+      closeBtn.title = "Close tab";
+      (function (id) {
+        closeBtn.addEventListener("click", function (e) {
+          if (e.stopPropagation) e.stopPropagation();
+          requestCloseTab(id);
+        });
+      })(t.id);
+      tabEl.appendChild(closeBtn);
+    }
+
+    bindTabDrag(tabEl, t.id);
+
+    dom.tabBar.appendChild(tabEl);
+  }
+  sizeTabBar();
+  var activeEl = dom.tabBar.querySelector(".tab.active");
+  if (activeEl && activeEl.scrollIntoView) {
+    activeEl.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+  updateTabLayoutBridge();
+}
+
+/* ============ Tab drag-to-reorder (Chrome-style) ============ */
+
+// Single in-flight drag, or null. dragEl tracks the pointer directly;
+// the rest of `els` slide sideways via transform as the drag crosses
+// their midpoint, and the actual appState.tabs reorder only happens
+// once on pointerup — renderTabBar() then rebuilds cleanly from that.
+var tabDrag = null;
+
+function bindTabDrag(tabEl, id) {
+  tabEl.addEventListener("pointerdown", function (e) {
+    if (e.button !== 0) return;
+    if (e.target.closest && e.target.closest(".tab-close")) return;
+    startTabDrag(id, e);
+  });
+}
+
+function startTabDrag(id, e) {
+  var tabEls = Array.prototype.slice.call(dom.tabBar.querySelectorAll(".tab"));
+  var startIndex = tabEls.findIndex(function (el) { return el.getAttribute("data-id") === id; });
+  if (startIndex === -1) return;
+
+  var rects = tabEls.map(function (el) { return el.getBoundingClientRect(); });
+  // Center-to-center distance between adjacent tabs — the unit a drag
+  // has to cross before it counts as passing another tab.
+  var step = rects.length > 1 ? (rects[1].left - rects[0].left) : (rects[0].width + TAB_GAP);
+
+  tabDrag = {
+    id: id,
+    pointerId: e.pointerId,
+    startIndex: startIndex,
+    currentIndex: startIndex,
+    startClientX: e.clientX,
+    step: step,
+    els: tabEls,
+    order: tabEls.map(function (el) { return el.getAttribute("data-id"); }),
+    dragEl: tabEls[startIndex],
+    moved: false
+  };
+
+  tabDrag.dragEl.classList.add("dragging");
+  tabDrag.dragEl.setPointerCapture && tabDrag.dragEl.setPointerCapture(e.pointerId);
+  tabEls.forEach(function (el) {
+    if (el !== tabDrag.dragEl) el.style.transition = "transform 0.15s ease";
+  });
+
+  tabDrag.dragEl.addEventListener("pointermove", onTabDragMove);
+  tabDrag.dragEl.addEventListener("pointerup", onTabDragEnd);
+  tabDrag.dragEl.addEventListener("pointercancel", onTabDragEnd);
+}
+
+function onTabDragMove(e) {
+  if (!tabDrag || e.pointerId !== tabDrag.pointerId) return;
+  var dx = e.clientX - tabDrag.startClientX;
+  if (Math.abs(dx) > 3) tabDrag.moved = true;
+
+  // Clamp so the dragged tab can't be pulled past either end of the bar.
+  var minDx = -tabDrag.startIndex * tabDrag.step;
+  var maxDx = (tabDrag.order.length - 1 - tabDrag.startIndex) * tabDrag.step;
+  if (dx < minDx) dx = minDx;
+  if (dx > maxDx) dx = maxDx;
+
+  tabDrag.dragEl.style.transition = "none";
+  tabDrag.dragEl.style.transform = "translateX(" + dx + "px)";
+
+  var newIndex = tabDrag.startIndex + Math.round(dx / tabDrag.step);
+  if (newIndex < 0) newIndex = 0;
+  if (newIndex > tabDrag.order.length - 1) newIndex = tabDrag.order.length - 1;
+
+  if (newIndex !== tabDrag.currentIndex) {
+    var order = tabDrag.order.slice();
+    order.splice(order.indexOf(tabDrag.id), 1);
+    order.splice(newIndex, 0, tabDrag.id);
+    tabDrag.order = order;
+    tabDrag.currentIndex = newIndex;
+  }
+
+  // Slide every other tab to its slot in the current (in-progress) order.
+  tabDrag.els.forEach(function (el, origIndex) {
+    var elId = el.getAttribute("data-id");
+    if (elId === tabDrag.id) return;
+    var newPos = tabDrag.order.indexOf(elId);
+    var shift = (newPos - origIndex) * tabDrag.step;
+    el.style.transform = shift ? "translateX(" + shift + "px)" : "";
+  });
+
+  // The active tab (whether it's the one being dragged, or just got
+  // shifted sideways to make room) may have moved on-screen — re-sync
+  // the seamless-join mask to wherever it actually is now.
+  updateTabLayoutBridge();
+
+  // Auto-scroll the strip if dragging near its edge while it's overflowing.
+  var barRect = dom.tabBar.getBoundingClientRect();
+  var edge = 40;
+  if (e.clientX < barRect.left + edge) dom.tabBar.scrollLeft -= 12;
+  else if (e.clientX > barRect.right - edge) dom.tabBar.scrollLeft += 12;
+}
+
+function onTabDragEnd(e) {
+  if (!tabDrag || (e && e.pointerId !== tabDrag.pointerId)) return;
+  var drag = tabDrag;
+  tabDrag = null;
+
+  drag.dragEl.removeEventListener("pointermove", onTabDragMove);
+  drag.dragEl.removeEventListener("pointerup", onTabDragEnd);
+  drag.dragEl.removeEventListener("pointercancel", onTabDragEnd);
+  drag.dragEl.releasePointerCapture && e && drag.dragEl.releasePointerCapture(e.pointerId);
+
+  drag.els.forEach(function (el) {
+    el.style.transition = "";
+    el.style.transform = "";
+  });
+  drag.dragEl.classList.remove("dragging");
+
+  // Transforms just got cleared, so re-sync the mask to the active
+  // tab's real (post-clear) position. renderTabBar()/switchTab() below
+  // will call this again anyway when they run, so it's a no-op then —
+  // but it's what keeps things correct on a "moved then dropped back
+  // in its original spot" drag, where neither of those fires.
+  updateTabLayoutBridge();
+
+  if (drag.moved && drag.currentIndex !== drag.startIndex) {
+    var idx = indexOfTab(drag.id);
+    if (idx !== -1) {
+      var moving = appState.tabs.splice(idx, 1)[0];
+      appState.tabs.splice(drag.currentIndex, 0, moving);
+      renderTabBar();
+      saveState();
+    }
+  } else if (!drag.moved) {
+    switchTab(drag.id);
+  }
+}
+
+/* Lightweight label sync used while the user is typing (see
+   recalculate() below). renderTabBar() wipes and rebuilds every tab
+   node and then calls scrollIntoView({block:"nearest"}) — harmless on
+   an actual tab switch, but calling that on *every keystroke* was
+   what caused Chrome to snap the whole page back to the top while
+   typing in Destination. This just patches the active tab's text in
+   place instead, with no DOM rebuild and no scrollIntoView. */
+function syncActiveTabLabel() {
+  if (!state) return;
+  var activeEl = dom.tabBar.querySelector(".tab.active");
+  if (!activeEl) return;
+  var label = tabLabel(state);
+  activeEl.title = label;
+  var labelEl = activeEl.querySelector(".tab-label");
+  if (labelEl) labelEl.textContent = label;
+}
+
+/* Keeps the "seamless tab" illusion correct — measures the active
+   tab's real on-screen position/width and sizes the bridge (see the
+   .tab-layout-bridge CSS comment) to match exactly. Needs to re-run
+   any time the active tab, tab count, or tab widths could have
+   changed (every renderTabBar() call already does this) and any time
+   the window resizes, since .tab-bar-wrap and .layout are both
+   centered independently and could in theory drift apart on reflow. */
+function updateTabLayoutBridge() {
+  try {
+    if (!dom.tabLayoutBridge) return;
+    var activeTab = dom.tabBar.querySelector(".tab.active");
+    /* dom.tabBar.ownerDocument (not the bare global `document`) so
+       this keeps finding .layout even after the whole app has been
+       moved into the PiP window's own document — a plain
+       `document.querySelector` here would silently miss and zero
+       out the bridge, which is what let the tab's blue top border
+       show through (no longer erased) every time the tab bar
+       re-rendered while pinned. */
+    var layoutEl = dom.tabBar.ownerDocument.querySelector(".layout");
+    if (!activeTab || !layoutEl) {
+      dom.tabLayoutBridge.style.width = "0";
+      return;
+    }
+    var tabRect = activeTab.getBoundingClientRect();
+    var layoutRect = layoutEl.getBoundingClientRect();
+    /* Inset 1px on each side — tabRect (from getBoundingClientRect)
+       runs slightly wider than the tab's actual visible border on
+       screen, so an exact-width bridge overshoots and eats into the
+       layout's top border just past each corner. Insetting by 1px
+       keeps the erase confined to under the tab itself. */
+    dom.tabLayoutBridge.style.left = (tabRect.left - layoutRect.left + 1) + "px";
+    dom.tabLayoutBridge.style.width = (tabRect.width - 2) + "px";
+  } catch (e) {}
+}
+
+/* Full refresh of every panel from whichever shipment is now active —
+   used on load, tab switch, tab close and tab add. */
+function fullRerenderActiveTab() {
+  renderTabBar();
+  hydrateFieldsFromState();
+  renderPickSlipRows();
+  renderItemCards();
+  clearLog();
+  recalculate();
+}
+
+function switchTab(id) {
+  if (id === appState.activeTabId) return;
+  if (indexOfTab(id) === -1) return;
+  appState.activeTabId = id;
+  state = getActiveShipment();
+  fullRerenderActiveTab();
+  saveState();
+}
+
+function addTab() {
+  if (appState.tabs.length >= MAX_TABS) {
+    showToast("Max " + MAX_TABS + " shipment tabs open — close one first.");
+    return;
+  }
+  var fresh = defaultShipment();
+  appState.tabs.push(fresh);
+  appState.activeTabId = fresh.id;
+  state = fresh;
+  fullRerenderActiveTab();
+  saveState();
+  focusSoon(dom.destination);
+}
+
+/* True if this shipment has anything a user actually typed in — used
+   to decide whether closing its tab needs a confirmation. Items start
+   out with qty "1" and no unit selected (see defaultItem()); that qty
+   is a stock/default value, not something the user entered, so it
+   doesn't count on its own. A tab that's still exactly as addTab()
+   created it (blank destination, blank pick slip, one untouched
+   default item) returns false and closes with no warning. */
+function shipmentHasValue(shipment) {
+  if (trim(shipment.destination)) return true;
+  if (trim(shipment.hawb)) return true;
+  for (var i = 0; i < shipment.pickSlips.length; i++) {
+    if (trim(shipment.pickSlips[i])) return true;
+  }
+  for (var i = 0; i < shipment.items.length; i++) {
+    var it = shipment.items[i];
+    if (trim(it.pn) || trim(it.ediBol) || trim(it.dimensions) || trim(it.weight)) return true;
+    if (trim(it.qty) !== "1") return true;
+    if (it.unit !== "") return true;
+  }
+  return false;
+}
+
+function requestCloseTab(id) {
+  if (appState.tabs.length <= 1) return; // close button is hidden in this case anyway
+  var idx = indexOfTab(id);
+  if (idx !== -1 && !shipmentHasValue(appState.tabs[idx])) {
+    closeTabById(id);
+    return;
+  }
+  pendingCloseTabId = id;
+  dom.closeTabModal.className = "modal-overlay show";
+}
+
+function cancelCloseTab() {
+  pendingCloseTabId = null;
+  dom.closeTabModal.className = "modal-overlay";
+}
+
+function confirmCloseTab() {
+  var id = pendingCloseTabId;
+  dom.closeTabModal.className = "modal-overlay";
+  pendingCloseTabId = null;
+  if (!id) return;
+  closeTabById(id);
+}
+
+function closeTabById(id) {
+  var idx = indexOfTab(id);
+  if (idx === -1) return;
+  var wasActive = appState.activeTabId === id;
+
+  appState.tabs.splice(idx, 1);
+
+  if (appState.tabs.length === 0) {
+    // Always keep at least one tab open.
+    var fresh = defaultShipment();
+    appState.tabs.push(fresh);
+    appState.activeTabId = fresh.id;
+  } else if (wasActive) {
+    var newIdx = idx > 0 ? idx - 1 : 0;
+    appState.activeTabId = appState.tabs[newIdx].id;
+  }
+
+  state = getActiveShipment();
+  fullRerenderActiveTab();
+  saveState();
+}
+
+function bindTabBar() {
+  dom.tabBar.addEventListener("wheel", function (e) {
+    if (dom.tabBar.scrollWidth <= dom.tabBar.clientWidth) return;
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // already horizontal, let it be
+    e.preventDefault();
+    dom.tabBar.scrollLeft += e.deltaY;
+  }, { passive: false });
+  dom.addTabBtn.addEventListener("click", addTab);
+  dom.closeTabCancelBtn.addEventListener("click", cancelCloseTab);
+  dom.closeTabConfirmBtn.addEventListener("click", confirmCloseTab);
+}
+
+/* ============================================================
+   Helpers — parsing & formatting
+   ============================================================ */
+
+function splitPastedTokens(text) {
+  var raw = text.split(/[\n\r,]+|\s+/);
+  var out = [];
+  for (var i = 0; i < raw.length; i++) {
+    var t = raw[i].replace(/^\s+|\s+$/g, "");
+    if (t) out.push(t);
+  }
+  return out;
+}
+
+function getActivePickSlips() {
+  var out = [];
+  for (var i = 0; i < state.pickSlips.length; i++) {
+    var v = state.pickSlips[i].replace(/^\s+|\s+$/g, "");
+    if (v) out.push(v);
+  }
+  return out;
+}
+
+function getActiveEdiBols() {
+  var out = [];
+  for (var i = 0; i < state.items.length; i++) {
+    var v = trim(state.items[i].ediBol);
+    if (v) out.push(v);
+  }
+  return out;
+}
+
+/* Items that actually contributed something (PN, dimensions, weight or qty). */
+function getActiveItems() {
+  var out = [];
+  for (var i = 0; i < state.items.length; i++) {
+    var it = state.items[i];
+    if (trim(it.pn) || trim(it.ediBol) || trim(it.dimensions) || trim(it.weight) || trim(it.qty)) {
+      out.push(it);
+    }
+  }
+  return out;
+}
+
+/**
+ * Core rule engine for the hidden ComputedPickSlip value.
+ *  0 values  -> ""
+ *  1 value   -> that value
+ *  2+, purely numeric & perfectly consecutive -> "min-max"
+ *  otherwise -> comma separated list (no partial ranges, ever)
+ */
+function computePickSlip(values) {
+  if (values.length === 0) return "";
+  if (values.length === 1) return values[0];
+
+  // Each value must be a common (non-numeric) prefix followed by a
+  // trailing integer — e.g. "p1", "p2" share prefix "p". This lets
+  // "p1".."p3" range like plain numbers do, instead of only bare
+  // digits qualifying for a range.
+  var prefix = null;
+  var asNumbers = [];
+  var allMatch = true;
+  var re = /^(\D*)(\d+)$/;
+  var i;
+  for (i = 0; i < values.length; i++) {
+    var m = re.exec(values[i]);
+    if (!m) { allMatch = false; break; }
+    if (prefix === null) {
+      prefix = m[1];
+    } else if (m[1] !== prefix) {
+      allMatch = false;
+      break;
+    }
+    asNumbers.push(parseInt(m[2], 10));
+  }
+
+  if (!allMatch) return values.join(",");
+
+  var sorted = asNumbers.slice().sort(function (a, b) { return a - b; });
+  var isConsecutive = true;
+  for (i = 1; i < sorted.length; i++) {
+    if (sorted[i] !== sorted[i - 1] + 1) { isConsecutive = false; break; }
+  }
+
+  if (!isConsecutive) return values.join(",");
+
+  var minIndex = indexOfNum(asNumbers, sorted[0]);
+  var maxIndex = indexOfNum(asNumbers, sorted[sorted.length - 1]);
+  return values[minIndex] + "-" + values[maxIndex];
+}
+
+function indexOfNum(arr, val) {
+  for (var i = 0; i < arr.length; i++) { if (arr[i] === val) return i; }
+  return -1;
+}
+
+function pluralizedUnit(qty, unit) {
+  var base = UNIT_PLURALS[unit] ? unit : "Carton";
+  var n = parseInt(qty, 10);
+  if (isNaN(n) || n === 1) return base;
+  return UNIT_PLURALS[base];
+}
+
+/**
+ * Keep only digits, then strip leading zeros so "0" -> "" and
+ * "01" -> "1" and "1a" -> "1". Qty must be a positive integer,
+ * never zero — this makes zero collapse to empty automatically.
+ */
+function sanitizeQty(raw) {
+  var digits = raw.replace(/[^0-9]/g, "");
+  digits = digits.replace(/^0+/, "");
+  return digits;
+}
+
+/**
+ * Trim a Dimensions input down to a bare "0x0x0" style token — digits
+ * (with optional decimals) separated by lowercase "x", with every
+ * space stripped out. Free typing like "10 x 20 x 30", "10 X20x 30",
+ * or "10*20*30" (numpad "*" is a common stand-in for "x") all
+ * collapse to "10x20x30".
+ */
+function sanitizeDimensions(raw) {
+  var cleaned = raw.replace(/\s+/g, "");
+  cleaned = cleaned.replace(/[xX*]+/g, "x");
+  cleaned = cleaned.replace(/[^0-9.x]/g, "");
+  return cleaned;
+}
+
+/**
+ * Trim + format a Weight input down to a bare numeric token like
+ * "0.0" — digits and a single decimal point, no spaces or units.
+ */
+function sanitizeWeight(raw) {
+  var cleaned = raw.replace(/\s+/g, "");
+  cleaned = cleaned.replace(/[^0-9.]/g, "");
+  var firstDot = cleaned.indexOf(".");
+  if (firstDot !== -1) {
+    cleaned = cleaned.substring(0, firstDot + 1) + cleaned.substring(firstDot + 1).replace(/\./g, "");
+  }
+  return cleaned;
+}
+
+/* "10x20x30" -> "10 x 20 x 30" for display in the generated output. */
+function displayDimensions(dim) {
+  if (!dim) return "0 x 0 x 0";
+  return dim.split("x").join(" x ");
+}
+
+/* Format a raw weight string to a fixed "0.0" style token. Returns
+   "" for empty/invalid input — used to reformat the input box itself
+   on blur/Enter (e.g. "50" -> "50.0"). */
+function formatWeightValue(raw) {
+  var trimmed = trim(raw);
+  if (!trimmed) return "";
+  var n = parseFloat(trimmed);
+  if (isNaN(n)) return "";
+  return n.toFixed(1);
+}
+
+function trim(str) {
+  return String(str || "").replace(/^\s+|\s+$/g, "");
+}
+
+function escapeHtml(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/* The live directory handle only exists inside the browser-only
+   <script> block below (webWorkingDirHandle is a closured var there,
+   not persisted across reloads). This is the read-only bridge the
+   main script uses to ask "is a folder actually connected right
+   now?" without duplicating that state. */
+function webWorkingDirHandleLive() {
+  return (typeof window.getWebWorkingDirHandle === "function") ? window.getWebWorkingDirHandle() : null;
+}
+
+/* Native confirm()/alert() always run against the window they're
+   called on. When the app is pinned, its whole UI (and the user's
+   focus) has moved into the PiP window — calling plain window.confirm()
+   here would pop the dialog on the original (now background, often
+   not even visible) window, which is exactly why the Clear button
+   looked like it did nothing: the confirm dialog was opening
+   somewhere the user wasn't looking, silently blocking until it
+   auto-dismissed or just went unnoticed. Route through whichever
+   window is actually showing the UI right now. */
+function activeAppWindow() {
+  var pip = (typeof window.getPinnedWindow === "function") ? window.getPinnedWindow() : null;
+  return pip || window;
+}
+
+/* Deferring focus one tick with setTimeout lets the browser finish
+   settling the DOM rebuild (new tab, new item card) before the caret
+   lands, avoiding focus getting swallowed. Harmless (and
+   imperceptible), so it's used everywhere a field needs focus after
+   a rebuild. */
+function focusSoon(input) {
+  if (!input) return;
+  setTimeout(function () {
+    try { input.focus(); } catch (e) { /* ignore */ }
+  }, 0);
+}
+
+/**
+ * Uppercase a value while preserving the caret position, since
+ * setting .value mid-typing would otherwise jump the cursor.
+ */
+function uppercaseInPlace(input) {
+  var start = input.selectionStart;
+  var end = input.selectionEnd;
+  input.value = input.value.toUpperCase();
+  if (typeof start === "number") {
+    try { input.setSelectionRange(start, end); } catch (e) { /* IE quirk, ignore */ }
+  }
+  return input.value;
+}
+
+/* ============================================================
+   Rendering — Pick Slip rows
+   ============================================================ */
+
+function renderPickSlipRows() {
+  dom.pickSlipList.innerHTML = "";
+  for (var index = 0; index < state.pickSlips.length; index++) {
+    var isLastRow = index === state.pickSlips.length - 1;
+    var row = buildPickSlipRow(state.pickSlips[index], index, isLastRow);
+    dom.pickSlipList.appendChild(row);
+  }
+}
+
+function buildPickSlipRow(value, index, isLastRow) {
+  var row = document.createElement("div");
+  row.className = "pickslip-row";
+  row.setAttribute("data-index", String(index));
+
+  var input = document.createElement("input");
+  input.type = "text";
+  input.value = value;
+  input.placeholder = isLastRow ? "+ pick slip  " : "";
+  input.className = "input-placeholder"
+  input.setAttribute("data-index", String(index));
+  input.autocomplete = "off";
+  row.appendChild(input);
+
+  var copyBtn = document.createElement("button");
+  copyBtn.className = "row-btn copy-btn";
+  copyBtn.innerHTML = "&#128203;";
+  copyBtn.title = "Copy this pick slip";
+  copyBtn.setAttribute("type", "button");
+  row.appendChild(copyBtn);
+
+  if (!isLastRow) {
+    var delBtn = document.createElement("button");
+    delBtn.className = "row-btn delete-btn";
+    delBtn.innerHTML = "&#10005;";
+    delBtn.title = "Remove this row";
+    delBtn.setAttribute("type", "button");
+    row.appendChild(delBtn);
+  }
+
+  attachRowEvents(row, input, copyBtn);
+  return row;
+}
+
+function attachRowEvents(row, input, copyBtn) {
+  input.addEventListener("input", handlePickSlipInput);
+  input.addEventListener("paste", handlePickSlipPaste);
+
+  copyBtn.addEventListener("click", function () {
+    var val = input.value.replace(/^\s+|\s+$/g, "");
+    if (val) copyToClipboard(val);
+  });
+
+  var delBtn = row.querySelector(".delete-btn");
+  if (delBtn) {
+    delBtn.addEventListener("click", function () {
+      var idx = Number(row.getAttribute("data-index"));
+      state.pickSlips.splice(idx, 1);
+      ensureTrailingEmptyRow();
+      renderPickSlipRows();
+      recalculate();
+    });
+  }
+}
+
+function reorderPickSlips(fromIndex, toIndex) {
+  if (fromIndex === null || toIndex === null || fromIndex === toIndex ||
+      isNaN(fromIndex) || isNaN(toIndex)) {
+    return;
+  }
+  var removed = state.pickSlips.splice(fromIndex, 1);
+  var moved = removed[0];
+  state.pickSlips.splice(toIndex, 0, moved);
+  ensureTrailingEmptyRow();
+  renderPickSlipRows();
+  recalculate();
+}
+
+/* ============================================================
+   Pick Slip input handling
+   ============================================================ */
+
+function handlePickSlipInput(e) {
+  var idx = Number(e.target.getAttribute("data-index"));
+  state.pickSlips[idx] = e.target.value;
+
+  var isLastRow = idx === state.pickSlips.length - 1;
+  var hasValue = e.target.value.replace(/^\s+|\s+$/g, "").length > 0;
+
+  if (isLastRow && hasValue) {
+    state.pickSlips.push("");
+    renderPickSlipRows();
+    focusRowInput(idx);
+  }
+
+  recalculate();
+}
+
+function handlePickSlipPaste(e) {
+  var cd = e.clipboardData;
+  var clipboardText = cd ? cd.getData("Text") : "";
+  var tokens = splitPastedTokens(clipboardText);
+
+  if (tokens.length <= 1) return; // let native paste happen for a single token
+
+  e.preventDefault();
+  var idx = Number(e.target.getAttribute("data-index"));
+
+  var args = [idx, 1].concat(tokens);
+  state.pickSlips.splice.apply(state.pickSlips, args);
+  ensureTrailingEmptyRow();
+  renderPickSlipRows();
+  recalculate();
+}
+
+function ensureTrailingEmptyRow() {
+  if (state.pickSlips.length === 0) { state.pickSlips.push(""); return; }
+  var last = state.pickSlips[state.pickSlips.length - 1];
+  if (last.replace(/^\s+|\s+$/g, "") !== "") state.pickSlips.push("");
+}
+
+function focusRowInput(index) {
+  var input = dom.pickSlipList.querySelector('input[data-index="' + index + '"]');
+  if (input) {
+    input.focus();
+    var len = input.value.length;
+    try { input.setSelectionRange(len, len); } catch (e) { /* ignore */ }
+  }
+}
+
+/* ============================================================
+   Rendering — Item cards (appendable)
+   ============================================================ */
+
+function renderItemCards() {
+  dom.itemCardsList.innerHTML = "";
+  for (var index = 0; index < state.items.length; index++) {
+    var card = buildItemCard(state.items[index], index, state.items.length === 1);
+    dom.itemCardsList.appendChild(card);
+  }
+}
+
+function buildItemCard(item, index, isOnlyCard) {
+  var card = document.createElement("div");
+  card.className = "card item-card";
+  card.setAttribute("data-index", String(index));
+
+  var header = document.createElement("div");
+  header.className = "item-card-header";
+
+  var title = document.createElement("h3");
+  title.className = "card-title";
+  title.textContent = state.items.length > 1 ? ("Item " + (index + 1)) : "Item";
+  header.appendChild(title);
+
+  if (!isOnlyCard) {
+    var closeBtn = document.createElement("button");
+    closeBtn.className = "item-delete-btn";
+    closeBtn.innerHTML = "&#10005;";
+    closeBtn.title = "Remove this item";
+    closeBtn.setAttribute("type", "button");
+    closeBtn.addEventListener("click", function () {
+      var idx = Number(card.getAttribute("data-index"));
+      if (state.items.length <= 1) return;
+      state.items.splice(idx, 1);
+      renderItemCards();
+      recalculate();
+    });
+    header.appendChild(closeBtn);
+  }
+
+  card.appendChild(header);
+
+  var pnField = document.createElement("div");
+  pnField.className = "field";
+  var pnLabel = document.createElement("label");
+  pnLabel.textContent = "PN :";
+  var pnInput = document.createElement("input");
+  pnInput.type = "text";
+  pnInput.placeholder = "Part Number";
+  pnInput.autocomplete = "off";
+  pnInput.value = item.pn;
+  pnInput.addEventListener("input", function (e) {
+    var idx = Number(card.getAttribute("data-index"));
+    state.items[idx].pn = uppercaseInPlace(e.target);
+    recalculate();
+  });
+  pnField.appendChild(pnLabel);
+  pnField.appendChild(pnInput);
+  card.appendChild(pnField);
+
+  var ediField = document.createElement("div");
+  ediField.className = "field";
+  var ediLabel = document.createElement("label");
+  ediLabel.innerHTML = 'EDI / BOL :';
+  var ediWrap = document.createElement("div");
+  ediWrap.className = "input-with-copy";
+  var ediInput = document.createElement("input");
+  ediInput.type = "text";
+  ediInput.placeholder = "( If Available )";
+  ediInput.className = "input-placeholder"
+  ediInput.autocomplete = "off";
+  ediInput.value = item.ediBol;
+  ediInput.addEventListener("input", function (e) {
+    var idx = Number(card.getAttribute("data-index"));
+    state.items[idx].ediBol = e.target.value;
+    recalculate();
+  });
+  var ediCopyBtn = document.createElement("button");
+  ediCopyBtn.className = "copy-btn";
+  ediCopyBtn.type = "button";
+  ediCopyBtn.title = "Copy EDI / BOL";
+  ediCopyBtn.innerHTML = "&#128203;";
+  ediCopyBtn.addEventListener("click", function () {
+    var val = trim(ediInput.value);
+    if (val) copyToClipboard(val);
+  });
+  ediWrap.appendChild(ediInput);
+  ediWrap.appendChild(ediCopyBtn);
+  ediField.appendChild(ediLabel);
+  ediField.appendChild(ediWrap);
+  card.appendChild(ediField);
+
+  var dimWeightRow = document.createElement("div");
+  dimWeightRow.className = "field-row";
+
+  var dimField = document.createElement("div");
+  dimField.className = "field field-half";
+  var dimLabel = document.createElement("label");
+  dimLabel.textContent = "Dimensions :";
+  var dimWrap = document.createElement("div");
+  dimWrap.className = "input-with-copy";
+  var dimInput = document.createElement("input");
+  dimInput.type = "text";
+  dimInput.placeholder = "0x0x0";
+  dimInput.style.textAlign = "center";
+  dimInput.autocomplete = "off";
+  dimInput.value = item.dimensions;
+  dimInput.addEventListener("input", function (e) {
+    var idx = Number(card.getAttribute("data-index"));
+    var clean = sanitizeDimensions(e.target.value);
+    e.target.value = clean;
+    state.items[idx].dimensions = clean;
+    recalculate();
+  });
+  var dimCopyBtn = document.createElement("button");
+  dimCopyBtn.className = "copy-btn";
+  dimCopyBtn.type = "button";
+  dimCopyBtn.title = "Copy Dimensions";
+  dimCopyBtn.innerHTML = "&#128203;";
+  dimCopyBtn.addEventListener("click", function () {
+    if (dimInput.value) copyToClipboard(dimInput.value);
+  });
+  dimWrap.appendChild(dimInput);
+  dimWrap.appendChild(dimCopyBtn);
+  dimField.appendChild(dimLabel);
+  dimField.appendChild(dimWrap);
+
+  var weightField = document.createElement("div");
+  weightField.className = "field field-half";
+  var weightLabel = document.createElement("label");
+  weightLabel.textContent = "Weight :";
+  var weightWrap = document.createElement("div");
+  weightWrap.className = "input-with-copy";
+  var weightInput = document.createElement("input");
+  weightInput.type = "text";
+  weightInput.placeholder = "0.0";
+  weightInput.style.textAlign = "center";
+  weightInput.autocomplete = "off";
+  weightInput.value = item.weight;
+  weightInput.addEventListener("input", function (e) {
+    var idx = Number(card.getAttribute("data-index"));
+    var clean = sanitizeWeight(e.target.value);
+    e.target.value = clean;
+    state.items[idx].weight = clean;
+    recalculate();
+  });
+  // On leaving the field (blur — clicking another box — or Enter),
+  // lock the value into "0.0" style formatting, e.g. "50" -> "50.0".
+  weightInput.addEventListener("blur", function (e) {
+    var idx = Number(card.getAttribute("data-index"));
+    var formatted = formatWeightValue(e.target.value);
+    e.target.value = formatted;
+    state.items[idx].weight = formatted;
+    recalculate();
+  });
+  weightInput.addEventListener("keydown", function (e) {
+    if (e.keyCode === 13 || e.key === "Enter") {
+      e.target.blur();
+    }
+  });
+  var weightCopyBtn = document.createElement("button");
+  weightCopyBtn.className = "copy-btn";
+  weightCopyBtn.type = "button";
+  weightCopyBtn.title = "Copy Weight";
+  weightCopyBtn.innerHTML = "&#128203;";
+  weightCopyBtn.addEventListener("click", function () {
+    if (weightInput.value) copyToClipboard(weightInput.value);
+  });
+  weightWrap.appendChild(weightInput);
+  weightWrap.appendChild(weightCopyBtn);
+  weightField.appendChild(weightLabel);
+  weightField.appendChild(weightWrap);
+
+  dimWeightRow.appendChild(dimField);
+  dimWeightRow.appendChild(weightField);
+  card.appendChild(dimWeightRow);
+
+  var qtyUnitRow = document.createElement("div");
+  qtyUnitRow.className = "field-row";
+
+  var qtyField = document.createElement("div");
+  qtyField.className = "field field-qty";
+  var qtyLabel = document.createElement("label");
+  qtyLabel.textContent = "Qty :";
+  var qtyInputWrap = document.createElement("div");
+  qtyInputWrap.className = "qty-input-wrap";
+
+  var qtyInput = document.createElement("input");
+  qtyInput.type = "text";
+  qtyInput.setAttribute("inputmode", "numeric");
+  qtyInput.setAttribute("pattern", "[0-9]*");
+  qtyInput.placeholder = "1";
+  qtyInput.style.textAlign = "center";
+  qtyInput.autocomplete = "off";
+  qtyInput.value = item.qty;
+  qtyInput.addEventListener("input", function (e) {
+    var idx = Number(card.getAttribute("data-index"));
+    var clean = sanitizeQty(e.target.value);
+    e.target.value = clean;
+    state.items[idx].qty = clean;
+    recalculate();
+  });
+  // On leaving the field, snap an emptied box back to the default of 1
+  // rather than allowing a blank/zero qty to persist.
+  qtyInput.addEventListener("blur", function (e) {
+    var idx = Number(card.getAttribute("data-index"));
+    var clean = sanitizeQty(e.target.value) || "1";
+    e.target.value = clean;
+    state.items[idx].qty = clean;
+    recalculate();
+  });
+  qtyInput.addEventListener("keydown", function (e) {
+    if (e.keyCode === 13 || e.key === "Enter") {
+      e.target.blur();
+    }
+  });
+
+  function stepQty(delta) {
+    var idx = Number(card.getAttribute("data-index"));
+    var current = parseInt(sanitizeQty(state.items[idx].qty), 10);
+    if (isNaN(current) || current < 1) current = 1;
+    var next = current + delta;
+    if (next < 1) next = 1;
+    var val = String(next);
+    qtyInput.value = val;
+    state.items[idx].qty = val;
+    recalculate();
+  }
+
+  var qtySteppers = document.createElement("div");
+  qtySteppers.className = "qty-steppers";
+
+  var qtyUpBtn = document.createElement("button");
+  qtyUpBtn.type = "button";
+  qtyUpBtn.className = "qty-step qty-step-up";
+  qtyUpBtn.innerHTML = "&#9650;";
+  qtyUpBtn.title = "Increase qty";
+  qtyUpBtn.addEventListener("click", function () { stepQty(1); });
+
+  var qtyDownBtn = document.createElement("button");
+  qtyDownBtn.type = "button";
+  qtyDownBtn.className = "qty-step qty-step-down";
+  qtyDownBtn.innerHTML = "&#9660;";
+  qtyDownBtn.title = "Decrease qty";
+  qtyDownBtn.addEventListener("click", function () { stepQty(-1); });
+
+  qtySteppers.appendChild(qtyUpBtn);
+  qtySteppers.appendChild(qtyDownBtn);
+
+  qtyInputWrap.appendChild(qtyInput);
+  qtyInputWrap.appendChild(qtySteppers);
+
+  qtyField.appendChild(qtyLabel);
+  qtyField.appendChild(qtyInputWrap);
+
+  var unitField = document.createElement("div");
+  unitField.className = "field field-unit";
+  var unitLabel = document.createElement("label");
+  unitLabel.textContent = " Unit :";
+  var unitGroup = document.createElement("div");
+  unitGroup.className = "radio-group";
+
+  var unitOptions = [
+    { value: "Carton", text: "Carton" },
+    { value: "Pallet", text: "Pallet" },
+    { value: "Crate", text: "Crate" }
+  ];
+  for (var u = 0; u < unitOptions.length; u++) {
+    var pill = document.createElement("label");
+    pill.className = "radio-pill";
+    var radio = document.createElement("input");
+    radio.type = "radio";
+    radio.name = "unit-" + index;
+    radio.value = unitOptions[u].value;
+    if (item.unit === unitOptions[u].value) radio.checked = true;
+    radio.addEventListener("change", function (e) {
+      var idx = Number(card.getAttribute("data-index"));
+      if (e.target.checked) {
+        state.items[idx].unit = e.target.value;
+        recalculate();
+      }
+    });
+    var span = document.createElement("span");
+    span.textContent = unitOptions[u].text;
+    pill.appendChild(radio);
+    pill.appendChild(span);
+    unitGroup.appendChild(pill);
+  }
+
+  unitField.appendChild(unitLabel);
+  unitField.appendChild(unitGroup);
+
+  qtyUnitRow.appendChild(qtyField);
+  qtyUnitRow.appendChild(unitField);
+  card.appendChild(qtyUnitRow);
+
+  return card;
+}
+
+function handleAddItem() {
+  state.items.push(defaultItem());
+  renderItemCards();
+  recalculate();
+  var newIndex = state.items.length - 1;
+  var newCard = dom.itemCardsList.querySelector('.item-card[data-index="' + newIndex + '"]');
+  if (newCard) {
+    var firstInput = newCard.querySelector("input[type=text]");
+    focusSoon(firstInput);
+  }
+}
+
+/* ============================================================
+   Clipboard + toast
+   ============================================================ */
+
+var toastTimer = null;
+
+function showToast(message) {
+  if (typeof message === "undefined" || !message) message = "Copied!";
+  dom.toast.textContent = message;
+  dom.toast.className = "toast show";
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { dom.toast.className = "toast"; }, 4000);
+}
+
+function copyToClipboard(text) {
+  if (!text) return;
+  fallbackCopy(text);
+}
+
+function fallbackCopy(text) {
+  var temp = document.createElement("textarea");
+  temp.value = text;
+  temp.style.position = "fixed";
+  temp.style.opacity = "0";
+  document.body.appendChild(temp);
+  temp.select();
+  try {
+    document.execCommand("copy");
+    showToast("Copied!");
+  } catch (err) {
+    // Clipboard unreachable in this context — nothing more we can do.
+  } finally {
+    document.body.removeChild(temp);
+  }
+}
+
+/* ============================================================
+   Recalculate — single source of truth for every output
+   ============================================================ */
+
+function recalculate() {
+  var computedPickSlip = computePickSlip(getActivePickSlips());
+  var activeItems = getActiveItems();
+
+  setOutput(dom.outFolderName, buildFolderName(computedPickSlip, activeItems));
+
+  setOutputHtml(dom.generatedDimensions, buildGeneratedDimensions(activeItems));
+  setOutputHtml(dom.generatedEDI, buildGeneratedEDI(state.items));
+  setOutput(dom.pickSlipString, getActivePickSlips().join(","));
+
+  syncActiveTabLabel(); // keeps the active tab's label in sync with Destination live
+  saveState();
+}
+
+function suffixed(label, computedPickSlip) {
+  if (!computedPickSlip) return "";
+  return label + " - " + computedPickSlip;
+}
+
+/* Destination, then every item's PN, then every item's "qty unit"
+   pair — e.g. "LMM 203 514 1 Pallet 2 Crates - p1,p2" */
+function buildFolderName(computedPickSlip, activeItems) {
+  var destination = trim(state.destination);
+
+  var pnParts = [];
+  var qtyParts = [];
+  for (var i = 0; i < activeItems.length; i++) {
+    var it = activeItems[i];
+    var pn = trim(it.pn);
+    var qty = trim(it.qty);
+    if (pn) pnParts.push(pn);
+    if (qty) qtyParts.push(qty + " " + pluralizedUnit(qty, it.unit));
+  }
+
+  var parts = [];
+  if (destination) parts.push(destination);
+  parts = parts.concat(pnParts);
+  parts = parts.concat(qtyParts);
+
+  if (parts.length === 0 || !computedPickSlip) return "";
+  return parts.join(" ") + " - " + computedPickSlip;
+}
+
+/**
+ * "Generated Dimensions" (JDE Tracking) output.
+ *  0 active items -> ""
+ *  1 active item  -> "D Cm<br>Weight : W Kgs<br>Total : qty unit"
+ *  2+ active items -> one dimension line per item (qty+unit noted per line),
+ *                      then a single summed Weight line, then a Total line
+ *                      that sums qty per distinct unit and joins distinct
+ *                      units with " & ".
+ */
+function buildGeneratedDimensions(activeItems) {
+  if (activeItems.length === 0) return null;
+
+  // Unit is no longer defaulted (see defaultItem()) — don't generate
+  // dimensions until the user has explicitly picked a unit for every
+  // active item, so a forgotten unit never silently reports as Carton.
+  for (var g = 0; g < activeItems.length; g++) {
+    if (!activeItems[g].unit) return null;
+  }
+
+  if (activeItems.length === 1) {
+    var only = activeItems[0];
+    var qty = trim(only.qty);
+    var totalText = qty ? (qty + " " + pluralizedUnit(qty, only.unit)) : "";
+
+    // Weight input is per single unit — multiply by qty for the total.
+    var qtyNum = parseFloat(qty);
+    var effQty = (!isNaN(qtyNum) && qtyNum > 0) ? qtyNum : 1;
+    var unitWeight = parseFloat(only.weight);
+    var totalWeight = isNaN(unitWeight) ? 0 : unitWeight * effQty;
+
+    var text = displayDimensions(only.dimensions) + " Cm<br>" +
+      "Weight : " + formatWeightSum(totalWeight) + " Kgs<br>" +
+      "Total : " + totalText;
+    return { html: text, plain: htmlBrToPlain(text) };
+  }
+
+  var lines = [];
+  var weightSum = 0;
+  var unitOrder = [];
+  var unitSums = {};
+
+  for (var i = 0; i < activeItems.length; i++) {
+    var it = activeItems[i];
+    var itQty = trim(it.qty);
+    var qtyUnitLabel = itQty ? (itQty + " " + pluralizedUnit(itQty, it.unit)) : "";
+    var dimLine = displayDimensions(it.dimensions) + " Cm" + (qtyUnitLabel ? " (" + qtyUnitLabel + ")" : "");
+    lines.push(i === 0 ? dimLine : dimLine);
+
+    // Weight input is per single unit — multiply by this card's qty
+    // before adding it to the running total.
+    var qn = parseFloat(itQty);
+    var effQty = (!isNaN(qn) && qn > 0) ? qn : 1;
+    var w = parseFloat(it.weight);
+    if (!isNaN(w)) weightSum += w * effQty;
+
+    if (!isNaN(qn) && qn > 0) {
+      if (!unitSums.hasOwnProperty(it.unit)) {
+        unitSums[it.unit] = 0;
+        unitOrder.push(it.unit);
+      }
+      unitSums[it.unit] += qn;
+    }
+  }
+
+  var totalParts = [];
+  for (var u = 0; u < unitOrder.length; u++) {
+    var unitKey = unitOrder[u];
+    var sum = unitSums[unitKey];
+    totalParts.push(sum + " " + pluralizedUnit(sum, unitKey));
+  }
+
+  var outLines = lines.slice();
+  outLines.push("Weight : " + formatWeightSum(weightSum) + " Kgs");
+  outLines.push("Total : " + joinWithAmpersand(totalParts));
+
+  var html = outLines.join("<br>");
+  return { html: html, plain: htmlBrToPlain(html) };
+}
+
+/* Human-readable list joiner used for the "Total" line:
+ *  1 part  -> "A"
+ *  2 parts -> "A & B"
+ *  3+ parts -> "A, B & C" (comma between all but the last, "&" before the last) */
+function joinWithAmpersand(parts) {
+  if (parts.length <= 1) return parts.join("");
+  if (parts.length === 2) return parts.join(" & ");
+  return parts.slice(0, -1).join(", ") + " & " + parts[parts.length - 1];
+}
+
+/* Always formats to a fixed "0.0" style token, regardless of input. */
+function formatWeightSum(n) {
+  if (isNaN(n)) return "0.0";
+  return n.toFixed(1);
+}
+
+/* "Generated EDI" output — each Item card that has an EDI/BOL filled in
+   contributes one line, paired with that same card's own qty + unit:
+   "EDInumber - qty unit" */
+function buildGeneratedEDI(allItems) {
+  var lines = [];
+  for (var i = 0; i < allItems.length; i++) {
+    var it = allItems[i];
+    var edi = trim(it.ediBol);
+    if (!edi) continue;
+
+    var qty = trim(it.qty);
+    var qtyUnit = qty ? (qty + " " + pluralizedUnit(qty, it.unit)) : "";
+    lines.push(edi + (qtyUnit ? " - " + qtyUnit : ""));
+  }
+
+  if (lines.length === 0) return null;
+
+  var html = lines.join("<br>");
+  return { html: html, plain: htmlBrToPlain(html) };
+}
+
+function htmlBrToPlain(html) {
+  return html.replace(/<br>/g, "\n");
+}
+
+function setOutput(el, value) {
+  if (!el) return; // markup for this output isn't in the DOM — skip instead of crashing
+  if (value) {
+    el.textContent = value;
+    el.removeAttribute("data-copy-value");
+    el.className = el.className.replace(/\s*is-empty/, "");
+  } else {
+    el.textContent = "\u2014";
+    el.removeAttribute("data-copy-value");
+    if (el.className.indexOf("is-empty") === -1) el.className += " is-empty";
+  }
+}
+
+/* Same as setOutput, but the value is a {html, plain} pair — html is
+   rendered (so <br> line breaks show), plain is what gets copied. */
+function setOutputHtml(el, value) {
+  if (!el) return; // markup for this output isn't in the DOM — skip instead of crashing
+  if (value && value.html) {
+    el.innerHTML = value.html;
+    el.setAttribute("data-copy-value", value.plain);
+    el.className = el.className.replace(/\s*is-empty/, "");
+  } else {
+    el.textContent = "\u2014";
+    el.removeAttribute("data-copy-value");
+    if (el.className.indexOf("is-empty") === -1) el.className += " is-empty";
+  }
+}
+
+/* ============================================================
+   Wiring — simple fields
+   ============================================================ */
+
+function bindSimpleFields() {
+  dom.destination.addEventListener("input", function (e) {
+    state.destination = uppercaseInPlace(e.target);
+    recalculate();
+  });
+
+  dom.hawb.addEventListener("input", function (e) {
+    state.hawb = e.target.value;
+    recalculate();
+  });
+
+  dom.addItemBtn.addEventListener("click", handleAddItem);
+}
+
+function bindStandaloneCopyButtons() {
+  var i, btn;
+
+  /* Both loops resolve their target element ONCE here, at bind time
+     (main document, before the app can ever be pinned), and close
+     over that reference. A live document.getElementById(targetId)
+     inside the click handler would break the moment the app is
+     moved into the PiP window's own document — the target node no
+     longer lives in the (global) `document` the handler would be
+     querying, so the lookup silently returns null and the click
+     does nothing: no toast, no clipboard write. Caching the node
+     itself sidesteps that; the reference stays valid no matter
+     which document currently contains it. */
+  var copyInputs = document.querySelectorAll(".copy-btn[data-copy-target]");
+  for (i = 0; i < copyInputs.length; i++) {
+    btn = copyInputs[i];
+    (function (b) {
+      var input = document.getElementById(b.getAttribute("data-copy-target"));
+      b.addEventListener("click", function () {
+        if (input) copyToClipboard(input.value.replace(/^\s+|\s+$/g, ""));
+      });
+    })(btn);
+  }
+
+  var copyOutputs = document.querySelectorAll(".copy-btn[data-copy-target-out]");
+  for (i = 0; i < copyOutputs.length; i++) {
+    btn = copyOutputs[i];
+    (function (b) {
+      var el = document.getElementById(b.getAttribute("data-copy-target-out"));
+      b.addEventListener("click", function () {
+        if (el && el.className.indexOf("is-empty") === -1) {
+          var copyVal = el.getAttribute("data-copy-value");
+          copyToClipboard(copyVal !== null ? copyVal : el.textContent);
+        }
+      });
+    })(btn);
+  }
+}
+
+/* Clears only the currently active shipment tab's fields — other
+   tabs are untouched. Working folder is kept, same as before. */
+function bindClearAll() {
+  dom.clearAllBtn.addEventListener("click", function () {
+    dom.clearAllModal.className = "modal-overlay show";
+  });
+  dom.clearAllCancelBtn.addEventListener("click", cancelClearAll);
+  dom.clearAllConfirmBtn.addEventListener("click", confirmClearAll);
+}
+
+function cancelClearAll() {
+  dom.clearAllModal.className = "modal-overlay";
+}
+
+function confirmClearAll() {
+  dom.clearAllModal.className = "modal-overlay";
+
+  state.destination = "";
+  state.pickSlips = [""];
+  state.items = [defaultItem()];
+  state.hawb = "";
+  state.lastSortedFolder = "";
+  // state.id and state.workingDir are preserved.
+
+  hydrateFieldsFromState();
+  renderPickSlipRows();
+  renderItemCards();
+  recalculate();
+
+  clearLog();
+}
+
+function hydrateFieldsFromState() {
+  dom.destination.value = state.destination;
+  dom.hawb.value = state.hawb;
+
+  renderWorkingDir();
+}
+
+/* ============================================================
+   FILE SORTER — File System Access API (browser only; folder access
+   is per-tab and is never retained across a reload — see
+   webWorkingDirHandle below)
+   ============================================================ */
+
+/* state.workingDir (the folder's display name) is saved to
+   localStorage and survives a reload, but the live directory handle
+   it names (webWorkingDirHandle) never does — the browser sandbox
+   requires re-granting access every session. So on a fresh load we
+   may have a *name* with no live handle behind it yet. Showing that
+   name as fully "connected" is what used to mislead: it looked ready,
+   but Sort would immediately fail. This renders that state as
+   "needs reconnect" instead, so the note and the button push the
+   person to the exact same permission grant that Sort would need. */
+function renderWorkingDir() {
+  var connected = !!webWorkingDirHandleLive();
+  if (state.workingDir && connected) {
+    dom.workDirPath.textContent = state.workingDir;
+    dom.workDirPath.className = "workdir-path is-set";
+  } else if (state.workingDir) {
+    dom.workDirPath.textContent = state.workingDir + " — not connected, click Choose Folder";
+    dom.workDirPath.className = "workdir-path is-stale";
+  } else {
+    dom.workDirPath.textContent = "No working folder selected";
+    dom.workDirPath.className = "workdir-path";
+  }
+  updateFsNote();
+}
+
+/* Shows the right note for the current state: unsupported browser,
+   needs a permission grant/reconnect, or nothing once a folder is
+   actually connected. */
+function updateFsNote() {
+  if (!FS_ACCESS_SUPPORTED) {
+    dom.fsNote.className = "fs-note show";
+    dom.fsNote.innerHTML = "This browser doesn't support local file access (File System Access API). Use Chrome or Edge for the File Sorter.";
+    return;
+  }
+  var connected = !!webWorkingDirHandleLive();
+  if (!connected) {
+    dom.fsNote.className = "fs-note fs-note-info show";
+    dom.fsNote.innerHTML = state.workingDir ?
+      "Folder access isn't kept between sessions. Click <b>Choose Folder&hellip;</b> to reconnect to <b>" + escapeHtml(state.workingDir) + "</b> (or pick a different one)." :
+      "Click <b>Choose Folder&hellip;</b> to grant this tab access to a folder on your computer (you'll be asked again next time you open the page).";
+    return;
+  }
+  dom.fsNote.className = "fs-note";
+  dom.fsNote.innerHTML = "";
+}
+
+function initFileSorter() {
+  if (!FS_ACCESS_SUPPORTED) {
+    dom.chooseFolderBtn.disabled = true;
+    dom.sortBtn.disabled = true;
+  }
+  updateFsNote();
+
+  dom.chooseFolderBtn.addEventListener("click", handleChooseFolder);
+  dom.sortBtn.addEventListener("click", handleSortClick);
+}
+
+/* ---- Dispatchers to the File System Access API implementation,
+   which lives in the second <script> block. Typeof-checked so a
+   parse failure there can't take down the rest of the app. ---- */
+function handleChooseFolder() {
+  if (typeof handleChooseFolderWeb === "function") handleChooseFolderWeb();
+}
+function handleSortClick() {
+  if (typeof handleSortClickWeb === "function") handleSortClickWeb();
+}
+
+/* ============================================================
+   PIN-TO-TOP — toggle button in the header
+   ============================================================ */
+
+var pinActive = false;
+
+function initPinButton() {
+  if (!dom.pinBtn) return;
+  dom.pinBtn.addEventListener("click", togglePin);
+}
+
+function setPinVisual(isActive) {
+  if (!dom.pinBtn) return;
+  dom.pinBtn.className = "pin-btn" + (isActive ? " active" : "");
+}
+
+/* Document Picture-in-Picture implementation (always-on-top by the
+   OS) lives in the second <script> block and is reached only via
+   typeof-check, so a parse failure there can never affect this. */
+function togglePin() {
+  if (typeof togglePinWeb === "function") { togglePinWeb(); return; }
+  showToast("Pin isn't supported in this browser");
+}
+
+/* ---- Path helpers ---- */
+
+function toSafeFsName(str) {
+  var cleaned = str.replace(/[\\\/:\*\?"<>\|]/g, "-");
+  cleaned = cleaned.replace(/\s{2,}/g, " ");
+  cleaned = cleaned.replace(/^\s+|\s+$/g, "");
+  cleaned = cleaned.replace(/[\s.]+$/g, ""); // Windows disallows trailing space/dot
+  return cleaned;
+}
+
+/* ---- Log panel ---- */
+
+function clearLog() {
+  dom.sorterLog.innerHTML = "";
+  dom.sorterLog.className = "sorter-log";
+}
+
+function logLine(text, kind) {
+  var line = document.createElement("div");
+  line.className = "log-line" + (kind ? " " + kind : "");
+  line.textContent = text;
+  dom.sorterLog.appendChild(line);
+  dom.sorterLog.className = "sorter-log show";
+  dom.sorterLog.scrollTop = dom.sorterLog.scrollHeight;
+}
+
+function setInitialWindowSize() {
+    /* Chrome/Edge only honor resizeTo/moveTo on windows the page
+       itself opened via window.open() — a normal tab, or a window
+       launched from a desktop shortcut/taskbar icon, silently ignores
+       this. It's kept as a harmless best-effort attempt (works in a
+       few edge cases, no-ops everywhere else); the real guarantee
+       against squishing is the universal min-width: 980px rule in
+       the CSS above, which forces a scrollbar instead of a broken
+       layout. */
+    try {
+        window.resizeTo(980, 1000);   // Width, Height
+        window.moveTo(
+            (screen.availWidth - 980) / 2,
+            (screen.availHeight - 1000) / 2
+        );
+    } catch (e) {}
+}
+
+/* ============================================================
+   Init
+   ============================================================ */
+
+/* Each step runs in its own try/catch so a failure in one card
+   (e.g. File Sorter) can never prevent the
+   others — like the Pick Slip list — from rendering. */
+function safeStep(fn, label) {
+  try {
+    fn();
+  } catch (err) {
+    if (window.console && console.error) console.error("QuickSlip init step failed: " + label, err);
+  }
+}
+
+function init() {
+  safeStep(loadState, "loadState");
+  safeStep(bindTabBar, "bindTabBar");
+  safeStep(renderTabBar, "renderTabBar");
+  safeStep(renderPickSlipRows, "renderPickSlipRows");
+  safeStep(renderItemCards, "renderItemCards");
+  safeStep(hydrateFieldsFromState, "hydrateFieldsFromState");
+  safeStep(bindSimpleFields, "bindSimpleFields");
+  safeStep(bindStandaloneCopyButtons, "bindStandaloneCopyButtons");
+  safeStep(bindClearAll, "bindClearAll");
+  safeStep(initFileSorter, "initFileSorter");
+  safeStep(initPinButton, "initPinButton");
+  safeStep(recalculate, "recalculate");
+  safeStep(setInitialWindowSize, "setInitialWindowSize");
+  safeStep(initTabLayoutBridgeResize, "initTabLayoutBridgeResize");
+}
+
+/* Re-size and re-measure the bridge on resize too, not just on tab
+   changes — sizeTabBar()'s available-width math depends on the
+   window's current size, and .tab-bar-wrap/.layout being
+   independently centered means a resize can shift them (very
+   slightly) out of sync with each other even when the active tab
+   itself hasn't changed. */
+function initTabLayoutBridgeResize() {
+  function onResize() { sizeTabBar(); updateTabLayoutBridge(); }
+  window.addEventListener("resize", onResize);
+}
+
+window.addEventListener("load", init);
+</script>
+
+<!-- ============================================================
+     Browser-only features: Pin-to-top (Document Picture-in-Picture)
+     and the File Sorter (File System Access API). Kept in its own
+     <script> tag, separate from the main app above, and written
+     with plain Promise .then() chains rather than async/await so
+     it parses cleanly across browsers.
+     ============================================================ -->
+<script>
+(function () {
+  "use strict";
+
+  /* ---- PWA installability ----
+     Only fires when this page is actually served over http/https
+     (e.g. `python -m http.server` + http://localhost:8000/...) —
+     Chrome refuses to register a service worker on a plain file://
+     page, so double-clicking the .html directly will never trigger
+     a real install no matter what's here.
+
+     This matters for more than offline use: without a manifest +
+     service worker, "Install page as app" over file:// falls back
+     to a generic bookmark-app shortcut that just replays the exact
+     URL text Chrome captured at install time. That's what made
+     fresh desktop-icon launches show "page not found" while
+     launching via an already-open Chrome tab worked fine — the
+     shortcut's frozen URL and the file's actual current
+     path/filename had drifted apart (this file has been renamed
+     with every version bump: _v6, _v7, ...). Installing this served
+     over http(s) instead gives Chrome a real manifest.json with a
+     fixed start_url/scope, so the installed icon always resolves
+     correctly — cold launch or warm. Keep this filename (quickship.html)
+     stable going forward instead of bumping it per version, and
+     re-install after any filename/path change. */
+  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("service-worker.js").catch(function () { /* non-fatal — app still works without it */ });
+    });
+  }
+
+  /* ---- Pin-to-top via Document Picture-in-Picture (Chrome/Edge) ----
+     A PiP window is always-on-top by the OS itself, which is exactly
+     the "stay on top for back-to-back data migration" behavior asked
+     for — there's no other way to get a real always-on-top window
+     from a plain browser tab. */
+
+  var pinPipWindow = null;
+
+  /* Read-only bridge so the main script (outside this closure) can
+     route dialogs (confirm/alert) to whichever window is actually
+     showing the UI right now. */
+  window.getPinnedWindow = function () { return pinPipWindow; };
+
+  /* Same routing this closure's own alert()/confirm() calls need —
+     a bare alert()/confirm() always targets *this* (the original,
+     often-backgrounded-once-pinned) window. */
+  function notify(msg) { (pinPipWindow || window).alert(msg); }
+  function confirmDialog(msg) { return (pinPipWindow || window).confirm(msg); }
+
+  /* The original tab isn't actually broken while pinned — its content
+     really did move into the PiP document, so an untouched <body> is
+     just empty/black. That's what reads as "blackout". Filling it
+     with a short explanation instead makes the behavior legible. */
+  function showPinPlaceholder() {
+    var ph = document.createElement("div");
+    ph.id = "pinPlaceholder";
+    ph.style.cssText = "position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:24px;background:#1e1e1e;color:#9d9d9d;font-family:'Segoe UI',Tahoma,Arial,sans-serif;";
+    ph.innerHTML =
+      '<div style="font-size:15px;color:#d4d4d4;">&#128204; QuickSlip is pinned in a floating window</div>' +
+      '<div style="font-size:12px;max-width:320px;">This tab is not stuck — its content moved to the floating window. You can minimize this tab; unpin from the floating window to bring it back here.</div>';
+    document.body.appendChild(ph);
+  }
+  function removePinPlaceholder() {
+    var ph = document.getElementById("pinPlaceholder");
+    if (ph && ph.parentNode) ph.parentNode.removeChild(ph);
+  }
+
+  window.togglePinWeb = function () {
+    if (!("documentPictureInPicture" in window)) {
+      showToast("Pin-to-top needs Chrome or Edge");
+      return;
+    }
+    if (!pinActive) {
+      enterPinnedWindow();
+    } else if (pinPipWindow) {
+      pinPipWindow.close();
+    }
+  };
+
+  /* PiP window sizing — hugs the right edge of the screen and fills
+     the full available height (minus a small allowance for the PiP
+     window's own title bar, which requestWindow's height doesn't
+     account for). Width is the old ideal scaled up 1.5x, floored at
+     980px (the app's own CSS min-width) so it can never trigger the
+     column-collapse/stack layout, and clamped down only if the
+     screen itself is narrower than that. */
+  var PIP_IDEAL_W = Math.round(990 * 1.5); // 1485
+  var PIP_CHROME_ALLOWANCE = 40; // PiP window's own title bar
+  var APP_MIN_WIDTH = 980; // must match the CSS min-width floor
+
+  function getPipTargetSize() {
+    var w = Math.max(APP_MIN_WIDTH, Math.min(PIP_IDEAL_W, screen.availWidth));
+    var h = Math.max(1, screen.availHeight - PIP_CHROME_ALLOWANCE);
+    return { w: w, h: h };
+  }
+
+  function enterPinnedWindow() {
+    var appRoot = document.getElementById("appRoot");
+    if (!appRoot) return;
+
+    var target = getPipTargetSize();
+    var pipW = target.w;
+    var pipH = target.h;
+
+    documentPictureInPicture.requestWindow({ width: pipW, height: pipH }).then(function (pipWin) {
+      pinPipWindow = pipWin;
+
+      Array.prototype.forEach.call(document.styleSheets, function (sheet) {
+        try {
+          var rules = Array.prototype.map.call(sheet.cssRules, function (r) { return r.cssText; }).join("\n");
+          var style = document.createElement("style");
+          style.textContent = rules;
+          pinPipWindow.document.head.appendChild(style);
+        } catch (e) {
+          if (sheet.href) {
+            var link = document.createElement("link");
+            link.rel = "stylesheet";
+            link.href = sheet.href;
+            pinPipWindow.document.head.appendChild(link);
+          }
+        }
+      });
+
+      pinPipWindow.document.body.style.margin = "0";
+      pinPipWindow.document.body.style.background = "#1e1e1e";
+      pinPipWindow.document.body.appendChild(appRoot);
+      showPinPlaceholder();
+
+      /* Force the exact target size (requestWindow's width/height
+         are only a request — some browsers adjust them) and hug the
+         right edge of the screen, top-aligned, so the window fills
+         the available height. Best-effort like setInitialWindowSize:
+         wrapped in try/catch since not every browser honors
+         resizeTo/moveTo on a PiP window. */
+      try {
+        pinPipWindow.resizeTo(pipW, pipH);
+        pinPipWindow.moveTo(
+          Math.round((screen.availLeft || 0) + screen.availWidth - pipW),
+          Math.round(screen.availTop || 0)
+        );
+      } catch (e) {}
+
+      /* Enforce the (screen-fitted) floor going forward — snap back
+         up the instant the user drags the PiP window smaller. Uses
+         pipW/pipH from this session's open, so it never asks a small
+         screen to hold a floor bigger than the screen itself. */
+      function clampPipToMin() {
+        try {
+          var w = pinPipWindow.outerWidth, h = pinPipWindow.outerHeight;
+          if (w < pipW || h < pipH) {
+            pinPipWindow.resizeTo(Math.max(w, pipW), Math.max(h, pipH));
+          }
+        } catch (e) {}
+      }
+      pinPipWindow.addEventListener("resize", clampPipToMin);
+
+      pinPipWindow.addEventListener("pagehide", function () {
+        removePinPlaceholder();
+        document.body.insertBefore(appRoot, document.body.firstChild);
+        pinPipWindow = null;
+        pinActive = false;
+        setPinVisual(false);
+      }, { once: true });
+
+      pinActive = true;
+      setPinVisual(true);
+    }).catch(function () {
+      showToast("Could not pin window");
+    });
+  }
+
+  /* ---- File Sorter — via the File System Access API ----
+     There's no native "move" in this API, so each match is copied
+     into the target folder then removed from the source to get the
+     same net effect as a real move. */
+
+  window.handleChooseFolderWeb = function () {
+    window.showDirectoryPicker({ mode: "readwrite" }).then(function (handle) {
+      webWorkingDirHandle = handle;
+      /* webWorkingDirHandle is a single handle shared by every
+         shipment tab (Sort always uses whichever folder was granted
+         last, regardless of which tab is active) — but workingDir
+         used to be written only onto the active shipment's own
+         record. That mismatch is what made a second tab show "No
+         working folder selected" while Sort quietly kept working off
+         the folder chosen on the first tab: the handle was genuinely
+         connected, the label just hadn't been told. Stamping the name
+         onto every tab keeps the display honest for all of them. */
+      for (var i = 0; i < appState.tabs.length; i++) {
+        appState.tabs[i].workingDir = handle.name; // browsers never expose a real filesystem path
+      }
+      renderWorkingDir();
+      saveState();
+    }).catch(function (err) {
+      if (err && err.name !== "AbortError") notify("Could not get folder access: " + (err.message || err));
+    });
+  };
+
+  var webWorkingDirHandle = null; // not persisted across reloads — the browser sandbox requires re-granting access each session
+
+  /* Read-only bridge so the main script (outside this closure) can
+     check whether a folder handle is actually live right now, for
+     rendering the "connected" vs "needs reconnect" state. */
+  window.getWebWorkingDirHandle = function () { return webWorkingDirHandle; };
+
+  function listFileEntries(dirHandle) {
+    var out = [];
+    var iterator = dirHandle.values();
+    function step() {
+      return iterator.next().then(function (res) {
+        if (res.done) return out;
+        if (res.value.kind === "file") out.push(res.value);
+        return step();
+      });
+    }
+    return step();
+  }
+
+  function findFilesForSlotWeb(entries, patterns) {
+    var matches = [];
+    for (var i = 0; i < entries.length; i++) {
+      var nameLower = entries[i].name.toLowerCase();
+      for (var p = 0; p < patterns.length; p++) {
+        var pat = trim(patterns[p]).toLowerCase();
+        if (pat && nameLower.indexOf(pat) !== -1) { matches.push(entries[i]); break; }
+      }
+    }
+    return matches;
+  }
+
+  function pickMostRecentFileWeb(matches) {
+    var best = matches[0];
+    var bestTime = -1;
+    var p = Promise.resolve();
+    for (var i = 0; i < matches.length; i++) {
+      (function (handle) {
+        p = p.then(function () {
+          return handle.getFile();
+        }).then(function (file) {
+          if (file.lastModified > bestTime) { bestTime = file.lastModified; best = handle; }
+        });
+      })(matches[i]);
+    }
+    return p.then(function () { return best; });
+  }
+
+  function extOf(name) {
+    var idx = name.lastIndexOf(".");
+    return idx > 0 ? name.slice(idx + 1) : "";
+  }
+
+  function fileOrFolderExistsWeb(dirHandle, name) {
+    return dirHandle.getFileHandle(name).then(function () { return true; }, function () {
+      return dirHandle.getDirectoryHandle(name).then(function () { return true; }, function () { return false; });
+    });
+  }
+
+  function uniqueNameWeb(dirHandle, name) {
+    return fileOrFolderExistsWeb(dirHandle, name).then(function (exists) {
+      if (!exists) return name;
+      var dot = name.lastIndexOf(".");
+      var base = dot > 0 ? name.slice(0, dot) : name;
+      var ext = dot > 0 ? name.slice(dot) : "";
+      var n = 1;
+      function tryNext() {
+        var candidate = base + " (" + n + ")" + ext;
+        n++;
+        return fileOrFolderExistsWeb(dirHandle, candidate).then(function (taken) {
+          return taken ? tryNext() : candidate;
+        });
+      }
+      return tryNext();
+    });
+  }
+
+  /* No native "move" in this API — copy the bytes into the
+     destination under the new name, then remove the original from
+     the source folder, so the net effect is a real move. */
+  function moveFileWeb(srcDirHandle, srcFileHandle, destDirHandle, destName) {
+    return srcFileHandle.getFile().then(function (file) {
+      return destDirHandle.getFileHandle(destName, { create: true }).then(function (destHandle) {
+        return destHandle.createWritable().then(function (writable) {
+          return writable.write(file).then(function () {
+            return writable.close();
+          });
+        });
+      });
+    }).then(function () {
+      return srcDirHandle.removeEntry(srcFileHandle.name);
+    });
+  }
+
+  window.handleSortClickWeb = function () {
+    if (!webWorkingDirHandle) {
+      notify("Choose a working folder first — that's where your source files live.");
+      return;
+    }
+
+    var computedPickSlip = computePickSlip(getActivePickSlips());
+    var folderName = buildFolderName(computedPickSlip, getActiveItems());
+    if (!folderName) {
+      notify("Fill in Destination, PN, Qty and at least one Pick Slip before sorting.");
+      return;
+    }
+
+    webWorkingDirHandle.queryPermission({ mode: "readwrite" }).then(function (perm) {
+      if (perm === "granted") return perm;
+      return webWorkingDirHandle.requestPermission({ mode: "readwrite" });
+    }).then(function (perm) {
+      if (perm !== "granted") { notify("File access permission was not granted."); return; }
+      return runWebSort(computedPickSlip, folderName);
+    }).catch(function (err) {
+      notify("Could not access the working folder: " + (err.message || err));
+    });
+  };
+
+  function runWebSort(computedPickSlip, folderName) {
+    var entries, slotMatches = {}, slotDupCounts = {}, targetDirHandle;
+
+    return listFileEntries(webWorkingDirHandle).then(function (list) {
+      entries = list;
+      var i, slot, chain = Promise.resolve();
+      SLOT_IDS.forEach(function (s) {
+        chain = chain.then(function () {
+          var matches = findFilesForSlotWeb(entries, FILE_MATCH_PATTERNS[s]);
+          slotDupCounts[s] = matches.length;
+          if (matches.length > 1) {
+            return pickMostRecentFileWeb(matches).then(function (best) { slotMatches[s] = best; });
+          }
+          slotMatches[s] = matches.length === 1 ? matches[0] : null;
+        });
+      });
+      return chain;
+    }).then(function () {
+      var safeFolderName = toSafeFsName(folderName);
+      var plannedSlots = 0, dupSlots = 0;
+      SLOT_IDS.forEach(function (s) {
+        if (slotMatches[s]) plannedSlots++;
+        if (slotDupCounts[s] > 1) dupSlots++;
+      });
+      var ediList = getActiveEdiBols();
+
+      var confirmMsg = "Create folder:\n" + safeFolderName +
+        "\n\nMatched files to move in: " + plannedSlots + " of " + SLOT_IDS.length +
+        (dupSlots ? "\n(" + dupSlots + " of these had multiple copies — most recently modified will be used)" : "") +
+        (ediList.length ? "\nPlus: scan for any file containing " + ediList.length + " EDI/BOL number(s): " + ediList.join(", ") : "") +
+        "\n\nContinue?";
+      if (!confirmDialog(confirmMsg)) return null;
+
+      clearLog();
+
+      return webWorkingDirHandle.getDirectoryHandle(safeFolderName, { create: true }).then(function (dh) {
+        targetDirHandle = dh;
+        logLine("Using folder: " + safeFolderName, "ok");
+
+        var labels = {
+          commercialInvoice: suffixed("Commercial Invoice", computedPickSlip),
+          serialProduct: suffixed("Serial Product", computedPickSlip),
+          pickSlipFinal: suffixed("Pick Slip Final", computedPickSlip),
+          releaseForm: suffixed("Rls", computedPickSlip)
+        };
+
+        var movedAny = false;
+        var chain = Promise.resolve();
+
+        SLOT_IDS.forEach(function (slot) {
+          chain = chain.then(function () {
+            var srcHandle = slotMatches[slot];
+            if (!srcHandle) {
+              logLine(OUTPUT_LABELS[slot] + ": no matching file found (looking for " + FILE_MATCH_PATTERNS[slot].join(" / ") + ")", "warn");
+              return;
+            }
+            if (slotDupCounts[slot] > 1) {
+              logLine(OUTPUT_LABELS[slot] + ": " + slotDupCounts[slot] + " matching files found — using most recently modified (" + srcHandle.name + ")", "warn");
+            }
+            var ext = extOf(srcHandle.name);
+            var newBaseName = toSafeFsName(labels[slot]);
+            return uniqueNameWeb(targetDirHandle, newBaseName + (ext ? "." + ext : "")).then(function (newName) {
+              return moveFileWeb(webWorkingDirHandle, srcHandle, targetDirHandle, newName).then(function () {
+                logLine(OUTPUT_LABELS[slot] + " -> " + newName, "ok");
+                movedAny = true;
+              });
+            }).catch(function (err) {
+              logLine(OUTPUT_LABELS[slot] + ": move failed - " + (err.message || err), "err");
+            });
+          });
+        });
+
+        return chain.then(function () {
+          if (ediList.length === 0) return movedAny;
+
+          var toMove = [], perEdiCount = {};
+          ediList.forEach(function (e) { perEdiCount[e] = 0; });
+          entries.forEach(function (entry) {
+            var nameLower = entry.name.toLowerCase();
+            for (var e2 = 0; e2 < ediList.length; e2++) {
+              if (nameLower.indexOf(ediList[e2].toLowerCase()) !== -1) {
+                toMove.push({ handle: entry, edi: ediList[e2] });
+                perEdiCount[ediList[e2]]++;
+                break;
+              }
+            }
+          });
+
+          var matchCount = 0;
+          var ediChain = Promise.resolve();
+          toMove.forEach(function (item) {
+            ediChain = ediChain.then(function () {
+              return uniqueNameWeb(targetDirHandle, item.handle.name).then(function (uniqueName) {
+                return moveFileWeb(webWorkingDirHandle, item.handle, targetDirHandle, uniqueName).then(function () {
+                  matchCount++;
+                  movedAny = true;
+                });
+              }).catch(function (moveErr) {
+                logLine("EDI match \"" + item.handle.name + "\": move failed - " + (moveErr.message || moveErr), "err");
+              });
+            });
+          });
+
+          return ediChain.then(function () {
+            if (matchCount > 0) {
+              logLine("EDI/BOL sweep: moved " + matchCount + " file(s) across " + ediList.length + " number(s)", "ok");
+              ediList.forEach(function (e3) {
+                var cnt = perEdiCount[e3];
+                if (cnt > 0) logLine("  \"" + e3 + "\": " + cnt + " file(s)", "ok");
+                else logLine("  \"" + e3 + "\": no matching files", "warn");
+              });
+            } else {
+              logLine("EDI/BOL sweep: no files in the working folder contain any of " + ediList.join(", "), "warn");
+            }
+            return movedAny;
+          });
+        });
+      });
+    }).then(function (movedAny) {
+      if (movedAny) {
+        state.lastSortedFolder = folderName;
+        saveState();
+        showToast("Sorted!");
+      }
+    });
+  }
+})();
+</script>
+</body>
+</html>

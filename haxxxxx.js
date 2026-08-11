@@ -1,7 +1,7 @@
 function pushCsvToGithub() {
   var TOKEN = "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";
   var OWNER = "Zack9725";
-  var REPO = "QuickShip";
+  var REPO = "Shipping";
   var PATH = "data.csv";
 
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sheet1");
@@ -20,11 +20,11 @@ function pushCsvToGithub() {
   var headers = { "Authorization": "Bearer " + TOKEN, "Accept": "application/vnd.github+json" };
 
   var sha = null;
-  try {
-    var getRes = UrlFetchApp.fetch(apiUrl, { headers: headers, muteHttpExceptions: true });
-    var getJson = JSON.parse(getRes.getContentText());
-    sha = getJson.sha || null;
-  } catch (e) {}
+  var getRes = UrlFetchApp.fetch(apiUrl, { headers: headers, muteHttpExceptions: true });
+  Logger.log("GET status: " + getRes.getResponseCode() + " | " + getRes.getContentText());
+  if (getRes.getResponseCode() === 200) {
+    sha = JSON.parse(getRes.getContentText()).sha;
+  }
 
   var payload = {
     message: "Auto-update PN data " + new Date().toISOString(),
@@ -33,11 +33,12 @@ function pushCsvToGithub() {
   };
   if (sha) payload.sha = sha;
 
-  UrlFetchApp.fetch(apiUrl, {
+  var putRes = UrlFetchApp.fetch(apiUrl, {
     method: "put",
     contentType: "application/json",
     headers: headers,
     payload: JSON.stringify(payload),
     muteHttpExceptions: true
   });
+  Logger.log("PUT status: " + putRes.getResponseCode() + " | " + putRes.getContentText());
 }

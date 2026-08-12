@@ -614,12 +614,9 @@ input.input-warn, input.input-warn:focus {
   transform: translateY(-14px) scale(0.96);
   transition: opacity 0.28s ease, transform 0.28s ease;
   pointer-events: auto;
-  cursor: grab;
-  touch-action: none;
   user-select: none;
 }
 .toast.show { opacity: 1; transform: translateY(0) scale(1); }
-.toast.dragging { transition: none; cursor: grabbing; }
 .toast.leaving { opacity: 0; transform: translateY(-24px) scale(0.96); }
 
 .input-placeholder::placeholder{text-align: center;}
@@ -786,8 +783,7 @@ function defaultItem() {
 	
 var SHEET_CSV_URL = "https://raw.githubusercontent.com/Zack9725/Shipping/main/data.csv";
 
-var sheetPnIndex = null;        // number ("002") -> [ {prefix, number, fullPn, dimensions, weight, unit}, ... ]
-var sheetPnIndexNumeric = null; // same, keyed by the number with leading zeros stripped, as a fallback
+var sheetPnIndex = null;        // number ("002") -> [ {prefix, number, fullPn, dimensions, weight, unit}, ... ] — exact match only
 var sheetLoadPromise = null;    // one fetch per page load — data doesn't change often enough to warrant an in-session refresh
 var pnLookupTimers = {};
 
@@ -802,7 +798,7 @@ function ensureSheetDataLoaded() {
     return sheetPnIndex;
   }).catch(function (err) {
     console.warn("QuickShip: could not load PN sheet data - " + (err.message || err));
-    if (!sheetPnIndex) { sheetPnIndex = {}; sheetPnIndexNumeric = {}; }
+    if (!sheetPnIndex) { sheetPnIndex = {}; }
     sheetLoadPromise = null; // let the next lookup retry instead of caching a failure
     return null;
   });
@@ -877,21 +873,13 @@ function buildSheetIndex(rows) {
     });
   }
 
-  var byNumber = {}, byNumeric = {};
+  var byNumber = {};
   for (var i = 0; i < entries.length; i++) {
     var e = entries[i];
     if (!byNumber[e.number]) byNumber[e.number] = [];
     byNumber[e.number].push(e);
-
-    var n = parseInt(e.number, 10);
-    if (!isNaN(n)) {
-      var nk = String(n);
-      if (!byNumeric[nk]) byNumeric[nk] = [];
-      byNumeric[nk].push(e);
-    }
   }
   sheetPnIndex = byNumber;
-  sheetPnIndexNumeric = byNumeric;
 }
 
 function splitPrefixAndNumber(raw) {
@@ -902,10 +890,7 @@ function splitPrefixAndNumber(raw) {
 }
 
 function candidatesForNumber(number) {
-  if (sheetPnIndex[number]) return sheetPnIndex[number];
-  var n = parseInt(number, 10);
-  if (!isNaN(n) && sheetPnIndexNumeric[String(n)]) return sheetPnIndexNumeric[String(n)];
-  return [];
+  return sheetPnIndex[number] || []; // exact match only — PN stands on its own, no leading-zero coercion
 }
 
 function schedulePnLookup(idx, card) {
@@ -2166,16 +2151,15 @@ function handleAddItem() {
    ============================================================ */
 
 var TOAST_DURATION_MS = 4000;
-var TOAST_DRAG_DISMISS_PX = 40; // drag up past this = immediate dismiss
-var activeToastDrag = null; // { el, dismiss } — the toast currently mid-drag, if any
+var activeToasts = []; // dismiss functions for toast(s) currently showing
 
 function showToast(message) {
   if (typeof message === "undefined" || !message) message = "Copied!";
   if (!dom.toastStack) return;
 
-  // If a toast is mid-drag when a new one pops in, finish that dismissal right away
-  // instead of leaving it hanging half-dragged under the new toast.
-  if (activeToastDrag) activeToastDrag.dismiss();
+  // Only one toast visible at a time — a new one immediately pushes/fades out
+  // whatever's showing, ignoring its remaining 4s lifetime.
+  while (activeToasts.length) activeToasts.shift()();
 
   var el = document.createElement("div");
   el.className = "toast";
@@ -2186,19 +2170,18 @@ function showToast(message) {
   void el.offsetWidth;
   el.className = "toast show";
 
-  var t = { timer: null, dragging: false, startY: 0, dy: 0 };
+  var dismissTimer = null;
 
   function scheduleDismiss() {
-    clearTimeout(t.timer);
-    t.timer = setTimeout(dismiss, TOAST_DURATION_MS);
+    clearTimeout(dismissTimer);
+    dismissTimer = setTimeout(dismiss, TOAST_DURATION_MS);
   }
 
   function dismiss() {
-    clearTimeout(t.timer);
-    if (activeToastDrag && activeToastDrag.el === el) activeToastDrag = null;
+    clearTimeout(dismissTimer);
+    var idx = activeToasts.indexOf(dismiss);
+    if (idx !== -1) activeToasts.splice(idx, 1);
     if (!el.parentNode) return;
-    el.style.transform = "";
-    el.style.opacity = "";
     el.className = "toast leaving";
     el.addEventListener("transitionend", function onEnd() {
       el.removeEventListener("transitionend", onEnd);
@@ -2206,42 +2189,7 @@ function showToast(message) {
     });
   }
 
-  el.addEventListener("pointerdown", function (e) {
-    t.dragging = true;
-    t.startY = e.clientY;
-    t.dy = 0;
-    el.classList.add("dragging");
-    clearTimeout(t.timer); // dragging pauses the auto-dismiss countdown
-    activeToastDrag = { el: el, dismiss: dismiss };
-    try { el.setPointerCapture(e.pointerId); } catch (err) {}
-  });
-
-  el.addEventListener("pointermove", function (e) {
-    if (!t.dragging) return;
-    var dy = Math.min(0, e.clientY - t.startY); // only drag up
-    t.dy = dy;
-    var progress = Math.min(1, -dy / TOAST_DRAG_DISMISS_PX);
-    el.style.transform = "translateY(" + dy + "px)";
-    el.style.opacity = String(1 - progress * 0.85);
-  });
-
-  function endDrag() {
-    if (!t.dragging) return;
-    t.dragging = false;
-    el.classList.remove("dragging");
-    if (activeToastDrag && activeToastDrag.el === el) activeToastDrag = null;
-    if (-t.dy >= TOAST_DRAG_DISMISS_PX) {
-      dismiss(); // dragged up far enough — fade out immediately
-    } else {
-      el.style.transform = "";
-      el.style.opacity = "";
-      scheduleDismiss(); // snapped back — resume the normal auto-dismiss timer
-    }
-  }
-
-  el.addEventListener("pointerup", endDrag);
-  el.addEventListener("pointercancel", endDrag);
-
+  activeToasts.push(dismiss);
   scheduleDismiss();
 }
 
@@ -2710,6 +2658,7 @@ window.addEventListener("load", init);
   var PIP_CHROME_ALLOWANCE = 40; // PiP window's own title bar
   var APP_MIN_WIDTH = 1200; // must match the CSS min-width floor
   var PIP_BOTTOM_PAD = 12; // a little breathing room below the file sorter card
+  var PIP_MAX_SCREEN_RATIO = 0.78; // Chrome hard-caps PiP windows to ~80% of the work area — no JS override exists
 
   function getPipTargetSize() {
     // Width: edge of the Input column to edge of the Output column.
@@ -2733,8 +2682,13 @@ window.addEventListener("load", init);
       h = Math.round(cr.bottom - hr.top) + PIP_BOTTOM_PAD;
     }
 
-    w = Math.max(APP_MIN_WIDTH, Math.min(w, screen.availWidth));
-    h = Math.max(1, Math.min(h + PIP_CHROME_ALLOWANCE, screen.availHeight));
+    // Chrome will clamp to ~80% of the work area regardless — request that ceiling
+    // directly instead of a value Chrome will silently shrink anyway.
+    var maxW = Math.round(screen.availWidth * PIP_MAX_SCREEN_RATIO);
+    var maxH = Math.round(screen.availHeight * PIP_MAX_SCREEN_RATIO);
+
+    w = Math.max(APP_MIN_WIDTH, Math.min(w, maxW));
+    h = Math.max(1, Math.min(h + PIP_CHROME_ALLOWANCE, maxH));
 
     return { w: w, h: h };
   }

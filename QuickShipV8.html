@@ -585,14 +585,23 @@ input.input-warn, input.input-warn:focus {
 .log-line.err { color: #ed3b3b; }
 .log-line.warn { color: #d6b172; }
 
-/* ============ Toast ============ */
+/* ============ Toast (stacked) ============ */
 
-.toast {
+.toast-stack {
   position: fixed;
   top: 0;
   left: 50%;
   margin-top: 60px;
-  margin-left: -84px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.toast {
   width: 168px;
   text-align: center;
   background: #0e639c;
@@ -602,11 +611,16 @@ input.input-warn, input.input-warn:focus {
   padding: 10.8px 14.4px;
   border-radius: 12px;
   opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.4s ease;
-  z-index: 100;
+  transform: translateY(-14px) scale(0.96);
+  transition: opacity 0.28s ease, transform 0.28s ease;
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
 }
-.toast.show { opacity: 1; }
+.toast.show { opacity: 1; transform: translateY(0) scale(1); }
+.toast.dragging { transition: none; cursor: grabbing; }
+.toast.leaving { opacity: 0; transform: translateY(-24px) scale(0.96); }
 
 .input-placeholder::placeholder{text-align: center;}
 
@@ -730,7 +744,7 @@ input.input-warn, input.input-warn:focus {
     </div>
   </main>
 
-  <div id="toast" class="toast">Copied!</div>
+  <div id="toastStack" class="toast-stack"></div>
 
   <div id="closeTabModal" class="modal-overlay">
     <div class="modal-box">
@@ -771,32 +785,27 @@ function defaultItem() {
 }
 	
 var SHEET_CSV_URL = "https://raw.githubusercontent.com/Zack9725/Shipping/main/data.csv";
-var SHEET_REFRESH_MS = 5 * 60 * 1000; //might not be necessary, just update when refresh page
 
 var sheetPnIndex = null;        // number ("002") -> [ {prefix, number, fullPn, dimensions, weight, unit}, ... ]
 var sheetPnIndexNumeric = null; // same, keyed by the number with leading zeros stripped, as a fallback
-var sheetLoadPromise = null;
-var sheetLoadedAt = 0;
+var sheetLoadPromise = null;    // one fetch per page load — data doesn't change often enough to warrant an in-session refresh
 var pnLookupTimers = {};
 
 function ensureSheetDataLoaded() {
   if (!SHEET_CSV_URL) return Promise.resolve(null);
-  var stale = !sheetLoadPromise || (Date.now() - sheetLoadedAt) > SHEET_REFRESH_MS;
-  if (stale) {
-    sheetLoadPromise = fetch(SHEET_CSV_URL, { cache: "no-store" }).then(function (res) {
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      return res.text();
-    }).then(function (csvText) {
-      buildSheetIndex(parseCsv(csvText));
-      sheetLoadedAt = Date.now();
-      return sheetPnIndex;
-    }).catch(function (err) {
-      console.warn("QuickShip: could not load PN sheet data - " + (err.message || err));
-      if (!sheetPnIndex) { sheetPnIndex = {}; sheetPnIndexNumeric = {}; }
-      sheetLoadedAt = Date.now(); // still throttle retries on failure
-      return null;
-    });
-  }
+  if (sheetLoadPromise) return sheetLoadPromise;
+  sheetLoadPromise = fetch(SHEET_CSV_URL, { cache: "no-store" }).then(function (res) {
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    return res.text();
+  }).then(function (csvText) {
+    buildSheetIndex(parseCsv(csvText));
+    return sheetPnIndex;
+  }).catch(function (err) {
+    console.warn("QuickShip: could not load PN sheet data - " + (err.message || err));
+    if (!sheetPnIndex) { sheetPnIndex = {}; sheetPnIndexNumeric = {}; }
+    sheetLoadPromise = null; // let the next lookup retry instead of caching a failure
+    return null;
+  });
   return sheetLoadPromise;
 }
 
@@ -862,7 +871,7 @@ function buildSheetIndex(rows) {
       prefix: lastPrefix,
       number: num,
       fullPn: colB,
-      dimensions: sanitizeDimensions(colC),
+      dimensions: colC, // sheet now writes "x" directly, no need to sanitize symbol variants
       weight: sanitizeWeight(colD),
       unit: normalizeSheetUnit(lastUnit)
     });
@@ -1019,7 +1028,7 @@ var dom = {
   addItemBtn: document.getElementById("addItemBtn"),
   hawb: document.getElementById("hawb"),
   clearAllBtn: document.getElementById("clearAllBtn"),
-  toast: document.getElementById("toast"),
+  toastStack: document.getElementById("toastStack"),
   pinBtn: document.getElementById("pinBtn"),
 
   tabBar: document.getElementById("tabBar"),
@@ -2156,14 +2165,84 @@ function handleAddItem() {
    Clipboard + toast
    ============================================================ */
 
-var toastTimer = null;
+var TOAST_DURATION_MS = 4000;
+var TOAST_DRAG_DISMISS_PX = 40; // drag up past this = immediate dismiss
+var activeToastDrag = null; // { el, dismiss } — the toast currently mid-drag, if any
 
 function showToast(message) {
   if (typeof message === "undefined" || !message) message = "Copied!";
-  dom.toast.textContent = message;
-  dom.toast.className = "toast show";
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(function () { dom.toast.className = "toast"; }, 4000);
+  if (!dom.toastStack) return;
+
+  // If a toast is mid-drag when a new one pops in, finish that dismissal right away
+  // instead of leaving it hanging half-dragged under the new toast.
+  if (activeToastDrag) activeToastDrag.dismiss();
+
+  var el = document.createElement("div");
+  el.className = "toast";
+  el.textContent = message;
+  dom.toastStack.insertBefore(el, dom.toastStack.firstChild);
+
+  // Force layout so the entrance transition (opacity/transform) actually animates.
+  void el.offsetWidth;
+  el.className = "toast show";
+
+  var t = { timer: null, dragging: false, startY: 0, dy: 0 };
+
+  function scheduleDismiss() {
+    clearTimeout(t.timer);
+    t.timer = setTimeout(dismiss, TOAST_DURATION_MS);
+  }
+
+  function dismiss() {
+    clearTimeout(t.timer);
+    if (activeToastDrag && activeToastDrag.el === el) activeToastDrag = null;
+    if (!el.parentNode) return;
+    el.style.transform = "";
+    el.style.opacity = "";
+    el.className = "toast leaving";
+    el.addEventListener("transitionend", function onEnd() {
+      el.removeEventListener("transitionend", onEnd);
+      if (el.parentNode) el.parentNode.removeChild(el);
+    });
+  }
+
+  el.addEventListener("pointerdown", function (e) {
+    t.dragging = true;
+    t.startY = e.clientY;
+    t.dy = 0;
+    el.classList.add("dragging");
+    clearTimeout(t.timer); // dragging pauses the auto-dismiss countdown
+    activeToastDrag = { el: el, dismiss: dismiss };
+    try { el.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+
+  el.addEventListener("pointermove", function (e) {
+    if (!t.dragging) return;
+    var dy = Math.min(0, e.clientY - t.startY); // only drag up
+    t.dy = dy;
+    var progress = Math.min(1, -dy / TOAST_DRAG_DISMISS_PX);
+    el.style.transform = "translateY(" + dy + "px)";
+    el.style.opacity = String(1 - progress * 0.85);
+  });
+
+  function endDrag() {
+    if (!t.dragging) return;
+    t.dragging = false;
+    el.classList.remove("dragging");
+    if (activeToastDrag && activeToastDrag.el === el) activeToastDrag = null;
+    if (-t.dy >= TOAST_DRAG_DISMISS_PX) {
+      dismiss(); // dragged up far enough — fade out immediately
+    } else {
+      el.style.transform = "";
+      el.style.opacity = "";
+      scheduleDismiss(); // snapped back — resume the normal auto-dismiss timer
+    }
+  }
+
+  el.addEventListener("pointerup", endDrag);
+  el.addEventListener("pointercancel", endDrag);
+
+  scheduleDismiss();
 }
 
 function copyToClipboard(text) {
@@ -2628,13 +2707,35 @@ window.addEventListener("load", init);
     }
   };
 
-  var PIP_IDEAL_W = Math.round(990 * 1.5); // 1485
   var PIP_CHROME_ALLOWANCE = 40; // PiP window's own title bar
   var APP_MIN_WIDTH = 1200; // must match the CSS min-width floor
+  var PIP_BOTTOM_PAD = 12; // a little breathing room below the file sorter card
 
   function getPipTargetSize() {
-    var w = Math.max(APP_MIN_WIDTH, Math.min(PIP_IDEAL_W, screen.availWidth));
-    var h = Math.max(1, screen.availHeight - PIP_CHROME_ALLOWANCE);
+    // Width: edge of the Input column to edge of the Output column.
+    // Height: top of the header down to just below the File Sorter card.
+    var firstCol = document.querySelector(".layout .column:first-child");
+    var lastCol = document.querySelector(".layout .column:last-child");
+    var header = document.querySelector(".app-header");
+    var sorterCard = document.querySelector(".sorter-card");
+
+    var w = APP_MIN_WIDTH;
+    if (firstCol && lastCol) {
+      var r1 = firstCol.getBoundingClientRect();
+      var r2 = lastCol.getBoundingClientRect();
+      w = Math.round(r2.right - r1.left);
+    }
+
+    var h = screen.availHeight - PIP_CHROME_ALLOWANCE;
+    if (header && sorterCard) {
+      var hr = header.getBoundingClientRect();
+      var cr = sorterCard.getBoundingClientRect();
+      h = Math.round(cr.bottom - hr.top) + PIP_BOTTOM_PAD;
+    }
+
+    w = Math.max(APP_MIN_WIDTH, Math.min(w, screen.availWidth));
+    h = Math.max(1, Math.min(h + PIP_CHROME_ALLOWANCE, screen.availHeight));
+
     return { w: w, h: h };
   }
 

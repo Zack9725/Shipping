@@ -1,12 +1,12 @@
 function pushCsvToGithub() {
-  var TOKEN = "TOKEN_KAU_SINI";
+  var TOKEN = "token here";
   var OWNER = "Zack9725";
   var REPO = "Shipping";
   var PATH = "data.csv";
 
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sheet1");
   var lastRow = sheet.getLastRow();
-  var data = sheet.getRange(1, 1, lastRow, 5).getValues(); // column A-E je, semua row
+  var data = sheet.getRange(1, 1, lastRow, 5).getValues(); //column A-E je, read semua row
 
   var csv = data.map(function(row) {
     return row.map(function(cell) {

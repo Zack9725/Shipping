@@ -26,7 +26,6 @@ Dear IT/Admin/Whoever reviewing this file,
 		-Take it down entirely from server but still allowed to run locally.
 		-Neither allowed and remove the tools entirely from Plexus's environment.
 
-
 	
 
 Thanks for you time and considerations,

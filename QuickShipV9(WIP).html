@@ -3001,11 +3001,8 @@ window.addEventListener("load", init);
 
   var PIP_MAX_SCREEN_RATIO = 0.8; // Chrome hard-caps PiP windows to ~80% of the work area — no JS override exists
 
-  // Live-measuring the columns via getBoundingClientRect was landing short in
-  // practice (timing/zoom quirks meant the requested window still clipped the
-  // PS field and the whole Output column, forcing both scroll directions).
-  // Instead, build the target width straight from the fixed values already
-  // defined in CSS, plus a generous buffer — reliable beats clever here.
+  // Fixed target width built from the known CSS column values, not a live
+  // DOM measurement (kept coming up short in practice).
   var INPUT_COL_PX = 390;   // keep in sync with .column-input width in CSS
   var OUTPUT_COL_PX = 320;  // keep in sync with .column-output width in CSS
   var COLUMN_GAP_PX = 24;   // keep in sync with .layout's gap in CSS
@@ -3016,20 +3013,18 @@ window.addEventListener("load", init);
   function getPipTargetSize() {
     // Width: fixed sum of Input + gap + Output + layout padding + buffer
     // (Misc column excluded — it's hidden in the PiP window).
-    // Height: always request Chrome's max allowed height for the PiP window.
     var w = PIP_MIN_WIDTH;
-
-    // Chrome hard-caps the PiP window itself, but our own ~80%-of-availHeight estimate
-    // of that cap tends to land a bit short (title bar overhead, rounding, etc.), which
-    // is why the window used to open with headroom still left to resize into. Rather
-    // than guess the exact cap, deliberately request MORE height than any real screen
-    // would allow (screen.height, not availHeight) — Chrome then clamps it down to its
-    // true internal max for us, so the window opens already at the real ceiling.
     var maxW = Math.round(screen.availWidth * PIP_MAX_SCREEN_RATIO);
-    var overshootH = screen.height * 2;
-
     w = Math.max(PIP_MIN_WIDTH, Math.min(w, maxW));
-    var h = overshootH; // Chrome clamps this down to its actual max PiP height
+
+    // Height: request Chrome's own ~80%-of-availHeight cap directly. This used
+    // to deliberately overshoot (screen.height * 2) on the theory that Chrome
+    // would silently clamp it down to its true max — but requestWindow() takes
+    // width and height as one options object, and an out-of-range height there
+    // risks the whole size request being discarded (falling back to a small
+    // default window), which would explain the width never actually landing
+    // either. Requesting an in-range height up front avoids that risk.
+    var h = Math.round(screen.availHeight * PIP_MAX_SCREEN_RATIO);
 
     return { w: w, h: h };
   }

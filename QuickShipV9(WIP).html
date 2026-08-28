@@ -3007,7 +3007,7 @@ window.addEventListener("load", init);
   var OUTPUT_COL_PX = 320;  // keep in sync with .column-output width in CSS
   var COLUMN_GAP_PX = 24;   // keep in sync with .layout's gap in CSS
   var LAYOUT_PAD_PX = 24;   // keep in sync with .layout's left/right padding in CSS
-  var PIP_WIDTH_BUFFER = 100; // cushion for scrollbar, borders, and rounding — better roomy than clipped
+  var PIP_WIDTH_BUFFER = 300; // cushion for scrollbar, borders, and rounding — better roomy than clipped
   var PIP_MIN_WIDTH = INPUT_COL_PX + COLUMN_GAP_PX + OUTPUT_COL_PX + (LAYOUT_PAD_PX * 2) + PIP_WIDTH_BUFFER;
 
   function getPipTargetSize() {
@@ -3017,13 +3017,11 @@ window.addEventListener("load", init);
     var maxW = Math.round(screen.availWidth * PIP_MAX_SCREEN_RATIO);
     w = Math.max(PIP_MIN_WIDTH, Math.min(w, maxW));
 
-    // Height: request Chrome's own ~80%-of-availHeight cap directly. This used
-    // to deliberately overshoot (screen.height * 2) on the theory that Chrome
-    // would silently clamp it down to its true max — but requestWindow() takes
-    // width and height as one options object, and an out-of-range height there
-    // risks the whole size request being discarded (falling back to a small
-    // default window), which would explain the width never actually landing
-    // either. Requesting an in-range height up front avoids that risk.
+    // Height: request an in-range height up front so the initial requestWindow()
+    // call — where width and height ride together in one options object — can't
+    // get its width discarded over an out-of-range height. Chrome's true max is
+    // grabbed separately afterward via resizeTo (see enterPinnedWindow), which
+    // tolerates an overshoot without risking the width that already landed.
     var h = Math.round(screen.availHeight * PIP_MAX_SCREEN_RATIO);
 
     return { w: w, h: h };
@@ -3080,7 +3078,11 @@ window.addEventListener("load", init);
       showPinPlaceholder();
 
       try {
-        pinPipWindow.resizeTo(pipW, pipH);
+        // Push height to Chrome's true max via an overshoot resizeTo — this call
+        // is separate from the initial requestWindow() above, so an out-of-range
+        // value here just gets clamped by Chrome, without risking the width.
+        var overshootH = screen.height * 2;
+        pinPipWindow.resizeTo(pipW, overshootH);
         pinPipWindow.moveTo(
           Math.round((screen.availLeft || 0) + screen.availWidth - pipW),
           Math.round(screen.availTop || 0)

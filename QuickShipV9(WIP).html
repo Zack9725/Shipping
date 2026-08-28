@@ -2999,52 +2999,25 @@ window.addEventListener("load", init);
     }
   };
 
-  var PIP_SAFETY_MIN_WIDTH = 360; // absolute fallback floor, only used if the columns can't be measured
   var PIP_MAX_SCREEN_RATIO = 0.8; // Chrome hard-caps PiP windows to ~80% of the work area — no JS override exists
 
-  // The PiP window deliberately requests more height than any screen allows
-  // (see overshootH below), so its content is almost always taller than the
-  // window Chrome actually grants — meaning a vertical scrollbar appears in
-  // the PiP body. That scrollbar eats into the horizontal space, and since
-  // the columns use flex-shrink: 0 they don't yield to it, so without this
-  // the window opens looking short by exactly the scrollbar's width (fine
-  // once manually widened past it, but collapsed again at the locked default).
-  function getScrollbarWidth() {
-    var outer = document.createElement("div");
-    outer.style.cssText = "visibility:hidden;position:absolute;top:-9999px;left:-9999px;width:100px;height:100px;overflow:scroll;";
-    document.body.appendChild(outer);
-    var inner = document.createElement("div");
-    inner.style.width = "100%";
-    outer.appendChild(inner);
-    var width = outer.offsetWidth - inner.offsetWidth;
-    document.body.removeChild(outer);
-    return width;
-  }
+  // Live-measuring the columns via getBoundingClientRect was landing short in
+  // practice (timing/zoom quirks meant the requested window still clipped the
+  // PS field and the whole Output column, forcing both scroll directions).
+  // Instead, build the target width straight from the fixed values already
+  // defined in CSS, plus a generous buffer — reliable beats clever here.
+  var INPUT_COL_PX = 390;   // keep in sync with .column-input width in CSS
+  var OUTPUT_COL_PX = 320;  // keep in sync with .column-output width in CSS
+  var COLUMN_GAP_PX = 24;   // keep in sync with .layout's gap in CSS
+  var LAYOUT_PAD_PX = 24;   // keep in sync with .layout's left/right padding in CSS
+  var PIP_WIDTH_BUFFER = 100; // cushion for scrollbar, borders, and rounding — better roomy than clipped
+  var PIP_MIN_WIDTH = INPUT_COL_PX + COLUMN_GAP_PX + OUTPUT_COL_PX + (LAYOUT_PAD_PX * 2) + PIP_WIDTH_BUFFER;
 
   function getPipTargetSize() {
-    // Width: left edge of the Input column to right edge of the Output column
-    // (Misc column excluded), plus the layout's own left/right padding so the
-    // two columns sit with the same inset they have in the main app, plus a
-    // buffer for the PiP body's own vertical scrollbar (see getScrollbarWidth).
+    // Width: fixed sum of Input + gap + Output + layout padding + buffer
+    // (Misc column excluded — it's hidden in the PiP window).
     // Height: always request Chrome's max allowed height for the PiP window.
-    var firstCol = document.querySelector(".layout .column-input");
-    var lastCol = document.querySelector(".layout .column-output");
-    var layoutEl = document.querySelector(".layout");
-
-    var w = PIP_SAFETY_MIN_WIDTH;
-    if (firstCol && lastCol) {
-      var r1 = firstCol.getBoundingClientRect();
-      var r2 = lastCol.getBoundingClientRect();
-      var contentW = r2.right - r1.left;
-
-      var padLeft = 0, padRight = 0;
-      if (layoutEl) {
-        var cs = getComputedStyle(layoutEl);
-        padLeft = parseFloat(cs.paddingLeft) || 0;
-        padRight = parseFloat(cs.paddingRight) || 0;
-      }
-      w = Math.round(contentW + padLeft + padRight + getScrollbarWidth());
-    }
+    var w = PIP_MIN_WIDTH;
 
     // Chrome hard-caps the PiP window itself, but our own ~80%-of-availHeight estimate
     // of that cap tends to land a bit short (title bar overhead, rounding, etc.), which
@@ -3055,7 +3028,7 @@ window.addEventListener("load", init);
     var maxW = Math.round(screen.availWidth * PIP_MAX_SCREEN_RATIO);
     var overshootH = screen.height * 2;
 
-    w = Math.max(PIP_SAFETY_MIN_WIDTH, Math.min(w, maxW));
+    w = Math.max(PIP_MIN_WIDTH, Math.min(w, maxW));
     var h = overshootH; // Chrome clamps this down to its actual max PiP height
 
     return { w: w, h: h };

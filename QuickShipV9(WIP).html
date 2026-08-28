@@ -656,11 +656,10 @@ input.input-warn, input.input-warn:focus {
 }
 .btn-danger-ghost:hover { background: rgba(241, 76, 76, 0.1); border-color: #f14c4c; color: #f14c4c; }
 
-/* Clear (X) button — pale pink by default, brighter warning red on hover, solid red on click */
 .btn-clear-x {
   background: transparent;
-  border: 1px solid rgba(232, 138, 157, 0.45);
-  color: #e88a9d;
+  border: 1px solid rgba(138, 138, 138, 0.45);
+  color: #d4d4d4;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 .btn-clear-x:hover {
@@ -821,7 +820,7 @@ input.input-warn, input.input-warn:focus {
         </div>
       </div>
       <div class="refresh-group">
-        <span class="refresh-hint">Re-fetch data.csv &rarr;</span>
+        <span class="refresh-hint">Re-fetch <span style="color: #6488EA;">data.csv</span> &rarr;</span>
         <button id="refreshDataBtn" class="refresh-btn" type="button" title="Refresh data.csv">&#8635;</button>
       </div>
     </div>
@@ -913,7 +912,7 @@ input.input-warn, input.input-warn:focus {
       <p class="card-hint"></p><!--spacer -->
 
       <div class="filesorter-actions">
-        <button class="btn btn-primary" id="sortBtn" type="button"><span id="sortBtnIcon">&#128193;</span> Sort into Folder</button>
+        <button class="btn btn-primary" id="sortBtn" type="button"><span id="sortBtnIcon">!</span> Sort into Folder</button>
       </div>
 
     </div>
@@ -2801,7 +2800,7 @@ function renderWorkingDir() {
     dom.workDirPath.textContent = state.workingDir;
     dom.workDirPath.className = "workdir-path is-set";
   } else if (state.workingDir) {
-    dom.workDirPath.textContent = state.workingDir + " — not connected, click Choose Folder";
+    dom.workDirPath.textContent = state.workingDir + " — not connected!";
     dom.workDirPath.className = "workdir-path is-stale";
   } else {
     dom.workDirPath.textContent = "No working folder selected";
@@ -2809,7 +2808,7 @@ function renderWorkingDir() {
   }
 
   if (dom.sortBtn) dom.sortBtn.disabled = !connected;
-  if (dom.sortBtnIcon) dom.sortBtnIcon.innerHTML = connected ? "&#128193;" : "&#x2757;";
+  if (dom.sortBtnIcon) dom.sortBtnIcon.innerHTML = connected ? "&#128193;" : "!";
   if (dom.chooseFolderBtn) {
     var needsFolder = !connected && !dom.chooseFolderBtn.disabled;
     dom.chooseFolderBtn.classList.toggle("needs-folder", needsFolder);

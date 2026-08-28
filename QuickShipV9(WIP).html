@@ -1450,10 +1450,13 @@ function tabLabel(shipment) {
   var dest = trim(shipment.destination);
 
   var pnParts = [];
+  var pnSeen = {};
   if (shipment.items) {
     for (var i = 0; i < shipment.items.length; i++) {
       var pn = trim(shipment.items[i].pn);
-      if (pn) pnParts.push(pn);
+      // Same PN across multiple item cards (e.g. one item split across two
+      // pick slips) is only mentioned once in the tab title.
+      if (pn && !pnSeen.hasOwnProperty(pn)) { pnSeen[pn] = true; pnParts.push(pn); }
     }
   }
 
@@ -2507,6 +2510,12 @@ function buildFolderName(computedPickSlip, activeItems) {
     // slips) is only mentioned once in the folder name.
     if (pn && !pnSeen.hasOwnProperty(pn)) { pnSeen[pn] = true; pnParts.push(pn); }
 
+    // A card with no PN yet is usually just a placeholder added to attach
+    // a second Pick Slip to an item already represented by another card
+    // (same item, same qty/unit) — its qty/unit default shouldn't fold
+    // into the title until a PN is actually entered on it.
+    if (!pn) continue;
+
     var qn = parseFloat(trim(it.qty));
     if (!isNaN(qn) && qn > 0) {
       if (!unitSums.hasOwnProperty(it.unit)) {
@@ -2990,23 +2999,35 @@ window.addEventListener("load", init);
     }
   };
 
-  var PIP_CHROME_ALLOWANCE = 40; // PiP window's own title bar
-  var APP_MIN_WIDTH = 1310; // must match the default app launch width below
-  var PIP_WIDTH_REDUCTION = 280; // default PiP window is narrower than the main app by this much
-  var PIP_MIN_WIDTH = APP_MIN_WIDTH - PIP_WIDTH_REDUCTION;
+  var PIP_SAFETY_MIN_WIDTH = 360; // absolute fallback floor, only used if the columns can't be measured
   var PIP_MAX_SCREEN_RATIO = 0.8; // Chrome hard-caps PiP windows to ~80% of the work area — no JS override exists
 
   function getPipTargetSize() {
-    // Width: edge of the Input column to edge of the Output column (Misc column excluded).
+    // Width: left edge of the Input column to right edge of the Output column
+    // (Misc column excluded), plus the layout's own left/right padding so the
+    // two columns sit with the same inset they have in the main app — nothing
+    // more. (Previously this was floored at a fixed value that was larger than
+    // the two columns actually need, which left the PiP window oversized and,
+    // combined with the centered layout, showed up as an exaggerated gap
+    // before the Input column.)
     // Height: always request Chrome's max allowed height for the PiP window.
     var firstCol = document.querySelector(".layout .column-input");
     var lastCol = document.querySelector(".layout .column-output");
+    var layoutEl = document.querySelector(".layout");
 
-    var w = PIP_MIN_WIDTH;
+    var w = PIP_SAFETY_MIN_WIDTH;
     if (firstCol && lastCol) {
       var r1 = firstCol.getBoundingClientRect();
       var r2 = lastCol.getBoundingClientRect();
-      w = Math.round(r2.right - r1.left);
+      var contentW = r2.right - r1.left;
+
+      var padLeft = 0, padRight = 0;
+      if (layoutEl) {
+        var cs = getComputedStyle(layoutEl);
+        padLeft = parseFloat(cs.paddingLeft) || 0;
+        padRight = parseFloat(cs.paddingRight) || 0;
+      }
+      w = Math.round(contentW + padLeft + padRight);
     }
 
     // Chrome hard-caps the PiP window itself, but our own ~80%-of-availHeight estimate
@@ -3018,7 +3039,7 @@ window.addEventListener("load", init);
     var maxW = Math.round(screen.availWidth * PIP_MAX_SCREEN_RATIO);
     var overshootH = screen.height * 2;
 
-    w = Math.max(PIP_MIN_WIDTH, Math.min(w, maxW));
+    w = Math.max(PIP_SAFETY_MIN_WIDTH, Math.min(w, maxW));
     var h = overshootH; // Chrome clamps this down to its actual max PiP height
 
     return { w: w, h: h };

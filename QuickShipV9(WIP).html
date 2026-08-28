@@ -2923,29 +2923,21 @@ window.addEventListener("load", init);
 
   var PIP_CHROME_ALLOWANCE = 40; // PiP window's own title bar
   var APP_MIN_WIDTH = 1310; // must match the default app launch width below
-  var PIP_BOTTOM_PAD = 12; // a little breathing room below the file sorter card
+  var PIP_WIDTH_REDUCTION = 280; // default PiP window is narrower than the main app by this much
+  var PIP_MIN_WIDTH = APP_MIN_WIDTH - PIP_WIDTH_REDUCTION;
   var PIP_MAX_SCREEN_RATIO = 0.8; // Chrome hard-caps PiP windows to ~80% of the work area — no JS override exists
 
   function getPipTargetSize() {
-    // Width: edge of the Input column to edge of the Output column.
-    // Height: top of the header down to just below the File Sorter card.
+    // Width: edge of the Input column to edge of the Output column (Misc column excluded).
+    // Height: always request Chrome's max allowed height for the PiP window.
     var firstCol = document.querySelector(".layout .column-input");
     var lastCol = document.querySelector(".layout .column-output");
-    var header = document.querySelector(".app-header");
-    var sorterCard = document.querySelector(".sorter-card");
 
-    var w = APP_MIN_WIDTH;
+    var w = PIP_MIN_WIDTH;
     if (firstCol && lastCol) {
       var r1 = firstCol.getBoundingClientRect();
       var r2 = lastCol.getBoundingClientRect();
       w = Math.round(r2.right - r1.left);
-    }
-
-    var h = screen.availHeight - PIP_CHROME_ALLOWANCE;
-    if (header && sorterCard) {
-      var hr = header.getBoundingClientRect();
-      var cr = sorterCard.getBoundingClientRect();
-      h = Math.round(cr.bottom - hr.top) + PIP_BOTTOM_PAD;
     }
 
     // Chrome will clamp to ~80% of the work area regardless — request that ceiling
@@ -2953,8 +2945,8 @@ window.addEventListener("load", init);
     var maxW = Math.round(screen.availWidth * PIP_MAX_SCREEN_RATIO);
     var maxH = Math.round(screen.availHeight * PIP_MAX_SCREEN_RATIO);
 
-    w = Math.max(APP_MIN_WIDTH, Math.min(w, maxW));
-    h = Math.max(1, Math.min(h + PIP_CHROME_ALLOWANCE, maxH));
+    w = Math.max(PIP_MIN_WIDTH, Math.min(w, maxW));
+    var h = maxH; // push height to the maximum Chrome allows for a PiP window
 
     return { w: w, h: h };
   }
@@ -2988,6 +2980,18 @@ window.addEventListener("load", init);
           }
         }
       });
+
+      // The base stylesheet pins html/body to a min-width sized for all three columns
+      // (Input + Misc + Output). With the Misc column hidden for PiP, that min-width
+      // no longer matches the window we asked for, so the header/layout overflow past
+      // the visible edge and a horizontal scrollbar appears. Override it for this window
+      // only so Input/Output render as the only columns, with no leftover Misc gap.
+      var pipOverride = pinPipWindow.document.createElement("style");
+      pipOverride.textContent =
+        "html, body { min-width: 0 !important; overflow-x: hidden !important; }" +
+        ".column-misc { display: none !important; }" +
+        ".layout { justify-content: center !important; }";
+      pinPipWindow.document.head.appendChild(pipOverride);
 
       pinPipWindow.document.body.style.margin = "0";
       pinPipWindow.document.body.style.background = "#1e1e1e";

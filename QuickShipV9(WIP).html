@@ -67,6 +67,42 @@ html, body {
 }
 .pin-btn.active:hover { color: #37a1b5; border-color: #37a1b5; }
 
+.refresh-btn {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1a3244;
+  border: 1.5px solid #007acc;
+  color: #007acc;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
+}
+.refresh-btn:hover { background: #204159; border-color: #1a8ad4; color: #1a8ad4; }
+.refresh-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.refresh-btn.spinning { animation: refresh-btn-spin 0.7s linear infinite; }
+@keyframes refresh-btn-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.refresh-group {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.refresh-hint {
+  font-size: 11.5px;
+  color: #9d9d9d;
+  white-space: nowrap;
+}
+
 /* ============ Shipment tab bar (Chrome-style) ============ */
 
 .tab-bar-wrap {
@@ -784,6 +820,10 @@ input.input-warn, input.input-warn:focus {
           <p>Made By - Zack</p>
         </div>
       </div>
+      <div class="refresh-group">
+        <span class="refresh-hint">Re-fetch data.csv &rarr;</span>
+        <button id="refreshDataBtn" class="refresh-btn" type="button" title="Refresh data.csv">&#8635;</button>
+      </div>
     </div>
   </header>
 
@@ -951,6 +991,31 @@ function ensureSheetDataLoaded() {
     return null;
   });
   return sheetLoadPromise;
+}
+
+function initRefreshDataButton() {
+  if (!dom.refreshDataBtn) return;
+  dom.refreshDataBtn.addEventListener("click", refreshSheetData);
+}
+
+function refreshSheetData() {
+  if (!dom.refreshDataBtn || dom.refreshDataBtn.disabled) return;
+  dom.refreshDataBtn.disabled = true;
+  dom.refreshDataBtn.classList.add("spinning");
+
+  // Force a brand-new fetch of data.csv instead of the cached one-per-page-load promise.
+  sheetLoadPromise = null;
+  sheetPnIndex = null;
+
+  ensureSheetDataLoaded().then(function (index) {
+    if (index) showToast("Data refreshed");
+    else showToast("Couldn't refresh data.csv");
+  }).catch(function () {
+    showToast("Couldn't refresh data.csv");
+  }).then(function () {
+    dom.refreshDataBtn.disabled = false;
+    dom.refreshDataBtn.classList.remove("spinning");
+  });
 }
 
 function parseCsv(text) {
@@ -1184,6 +1249,7 @@ var dom = {
   clearAllBtn: document.getElementById("clearAllBtn"),
   toastStack: document.getElementById("toastStack"),
   pinBtn: document.getElementById("pinBtn"),
+  refreshDataBtn: document.getElementById("refreshDataBtn"),
 
   tabBar: document.getElementById("tabBar"),
   tabLayoutBridge: document.getElementById("tabLayoutBridge"),
@@ -2432,12 +2498,15 @@ function buildFolderName(computedPickSlip, activeItems) {
   var destination = trim(state.destination);
 
   var pnParts = [];
+  var pnSeen = {};
   var unitOrder = [];
   var unitSums = {};
   for (var i = 0; i < activeItems.length; i++) {
     var it = activeItems[i];
     var pn = trim(it.pn);
-    if (pn) pnParts.push(pn);
+    // Same PN across multiple item cards (e.g. same PN on different pick
+    // slips) is only mentioned once in the folder name.
+    if (pn && !pnSeen.hasOwnProperty(pn)) { pnSeen[pn] = true; pnParts.push(pn); }
 
     var qn = parseFloat(trim(it.qty));
     if (!isNaN(qn) && qn > 0) {
@@ -2871,6 +2940,7 @@ function init() {
   safeStep(bindClearAll, "bindClearAll");
   safeStep(initFileSorter, "initFileSorter");
   safeStep(initPinButton, "initPinButton");
+  safeStep(initRefreshDataButton, "initRefreshDataButton");
   safeStep(recalculate, "recalculate");
   safeStep(setInitialWindowSize, "setInitialWindowSize");
   safeStep(initTabLayoutBridgeResize, "initTabLayoutBridgeResize");
@@ -2940,13 +3010,17 @@ window.addEventListener("load", init);
       w = Math.round(r2.right - r1.left);
     }
 
-    // Chrome will clamp to ~80% of the work area regardless — request that ceiling
-    // directly instead of a value Chrome will silently shrink anyway.
+    // Chrome hard-caps the PiP window itself, but our own ~80%-of-availHeight estimate
+    // of that cap tends to land a bit short (title bar overhead, rounding, etc.), which
+    // is why the window used to open with headroom still left to resize into. Rather
+    // than guess the exact cap, deliberately request MORE height than any real screen
+    // would allow (screen.height, not availHeight) — Chrome then clamps it down to its
+    // true internal max for us, so the window opens already at the real ceiling.
     var maxW = Math.round(screen.availWidth * PIP_MAX_SCREEN_RATIO);
-    var maxH = Math.round(screen.availHeight * PIP_MAX_SCREEN_RATIO);
+    var overshootH = screen.height * 2;
 
     w = Math.max(PIP_MIN_WIDTH, Math.min(w, maxW));
-    var h = maxH; // push height to the maximum Chrome allows for a PiP window
+    var h = overshootH; // Chrome clamps this down to its actual max PiP height
 
     return { w: w, h: h };
   }
@@ -2986,9 +3060,12 @@ window.addEventListener("load", init);
       // no longer matches the window we asked for, so the header/layout overflow past
       // the visible edge and a horizontal scrollbar appears. Override it for this window
       // only so Input/Output render as the only columns, with no leftover Misc gap.
+      // The min-width is set to pipW (not 0) so that if the window is ever dragged
+      // narrower than its default width faster than the resize listener below can
+      // snap it back, the layout stays intact (scrollable) instead of breaking.
       var pipOverride = pinPipWindow.document.createElement("style");
       pipOverride.textContent =
-        "html, body { min-width: 0 !important; overflow-x: hidden !important; }" +
+        "html, body { min-width: " + pipW + "px !important; overflow-x: auto !important; }" +
         ".column-misc { display: none !important; }" +
         ".layout { justify-content: center !important; }";
       pinPipWindow.document.head.appendChild(pipOverride);
@@ -3006,11 +3083,14 @@ window.addEventListener("load", init);
         );
       } catch (e) {}
 
+      // Width has a real floor: never allow shrinking below the default (pipW) —
+      // sizing up is unrestricted, sizing down snaps back to pipW. Height is left
+      // free to resize in either direction; it only opens at Chrome's max by default.
       function clampPipToMin() {
         try {
-          var w = pinPipWindow.outerWidth, h = pinPipWindow.outerHeight;
-          if (w < pipW || h < pipH) {
-            pinPipWindow.resizeTo(Math.max(w, pipW), Math.max(h, pipH));
+          var w = pinPipWindow.outerWidth;
+          if (w < pipW) {
+            pinPipWindow.resizeTo(pipW, pinPipWindow.outerHeight);
           }
         } catch (e) {}
       }
@@ -3184,11 +3264,20 @@ window.addEventListener("load", init);
         if (slotDupCounts[s] > 1) dupSlots++;
       });
       var ediList = getActiveEdiBols();
+      var hawbVal = trim(state.hawb);
+
+      var sweepMsgLine = "";
+      if (ediList.length) {
+        sweepMsgLine = "\nPlus: scan for any file containing " + ediList.length + " BOL/EDI number(s): " + ediList.join(", ") +
+          (hawbVal ? " (falling back to HAWB " + hawbVal + " if none found)" : "");
+      } else if (hawbVal) {
+        sweepMsgLine = "\nPlus: scan for any file containing HAWB number: " + hawbVal;
+      }
 
       var confirmMsg = "Create folder:\n" + safeFolderName +
         "\n\nMatched files to move in: " + plannedSlots + " of " + SLOT_IDS.length +
         (dupSlots ? "\n(" + dupSlots + " of these had multiple copies — most recently modified will be used)" : "") +
-        (ediList.length ? "\nPlus: scan for any file containing " + ediList.length + " EDI/BOL number(s): " + ediList.join(", ") : "") +
+        sweepMsgLine +
         "\n\nContinue?";
       if (!confirmDialog(confirmMsg)) return null;
 
@@ -3222,7 +3311,7 @@ window.addEventListener("load", init);
             var newBaseName = toSafeFsName(labels[slot]);
             return uniqueNameWeb(targetDirHandle, newBaseName + (ext ? "." + ext : "")).then(function (newName) {
               return moveFileWeb(webWorkingDirHandle, srcHandle, targetDirHandle, newName).then(function () {
-                logLine(OUTPUT_LABELS[slot] + " -> " + newName, "ok");
+                logLine(srcHandle.name + " -> " + newName, "ok");
                 movedAny = true;
               });
             }).catch(function (err) {
@@ -3231,50 +3320,71 @@ window.addEventListener("load", init);
           });
         });
 
-        return chain.then(function () {
-          if (ediList.length === 0) return movedAny;
-
-          var toMove = [], perEdiCount = {};
-          ediList.forEach(function (e) { perEdiCount[e] = 0; });
+        // Sweeps `entries` for filenames containing any of `numberList`, moving matches
+        // into targetDirHandle. Returns a promise resolving to the number of files moved.
+        function sweepForNumbers(numberList, sourceLabel, warnIfNoMatches) {
+          var toMove = [], perNumCount = {};
+          numberList.forEach(function (n) { perNumCount[n] = 0; });
           entries.forEach(function (entry) {
             var nameLower = entry.name.toLowerCase();
-            for (var e2 = 0; e2 < ediList.length; e2++) {
-              if (nameLower.indexOf(ediList[e2].toLowerCase()) !== -1) {
-                toMove.push({ handle: entry, edi: ediList[e2] });
-                perEdiCount[ediList[e2]]++;
+            for (var e2 = 0; e2 < numberList.length; e2++) {
+              if (nameLower.indexOf(numberList[e2].toLowerCase()) !== -1) {
+                toMove.push({ handle: entry, num: numberList[e2] });
+                perNumCount[numberList[e2]]++;
                 break;
               }
             }
           });
 
           var matchCount = 0;
-          var ediChain = Promise.resolve();
+          var sweepChain = Promise.resolve();
           toMove.forEach(function (item) {
-            ediChain = ediChain.then(function () {
+            sweepChain = sweepChain.then(function () {
               return uniqueNameWeb(targetDirHandle, item.handle.name).then(function (uniqueName) {
                 return moveFileWeb(webWorkingDirHandle, item.handle, targetDirHandle, uniqueName).then(function () {
                   matchCount++;
                   movedAny = true;
+                  entries.splice(entries.indexOf(item.handle), 1);
                 });
               }).catch(function (moveErr) {
-                logLine("EDI match \"" + item.handle.name + "\": move failed - " + (moveErr.message || moveErr), "err");
+                logLine(sourceLabel + " match \"" + item.handle.name + "\": move failed - " + (moveErr.message || moveErr), "err");
               });
             });
           });
 
-          return ediChain.then(function () {
+          return sweepChain.then(function () {
             if (matchCount > 0) {
-              logLine("EDI/BOL sweep: moved " + matchCount + " file(s) across " + ediList.length + " number(s)", "ok");
-              ediList.forEach(function (e3) {
-                var cnt = perEdiCount[e3];
-                if (cnt > 0) logLine("  \"" + e3 + "\": " + cnt + " file(s)", "ok");
-                else logLine("  \"" + e3 + "\": no matching files", "warn");
+              logLine(sourceLabel + " sweep: moved " + matchCount + " file(s) across " + numberList.length + " number(s)", "ok");
+              numberList.forEach(function (n3) {
+                var cnt = perNumCount[n3];
+                if (cnt > 0) logLine("  \"" + n3 + "\": " + cnt + " file(s)", "ok");
+                else logLine("  \"" + n3 + "\": no matching files", "warn");
               });
-            } else {
-              logLine("EDI/BOL sweep: no files in the working folder contain any of " + ediList.join(", "), "warn");
+            } else if (warnIfNoMatches) {
+              logLine(sourceLabel + " sweep: no files in the working folder contain any of " + numberList.join(", "), "warn");
             }
-            return movedAny;
+            return matchCount;
           });
+        }
+
+        return chain.then(function () {
+          // BOL takes priority. If BOL numbers are present, sweep those first;
+          // only fall back to sweeping the HAWB value if BOL was entered but
+          // turned up nothing. If BOL is empty and HAWB is present, sweep HAWB
+          // directly (silently — no warning if nothing turns up). If neither
+          // is entered, skip file sweeping entirely.
+          if (ediList.length > 0) {
+            return sweepForNumbers(ediList, "BOL/EDI", true).then(function (bolMatchCount) {
+              if (bolMatchCount === 0 && hawbVal) {
+                return sweepForNumbers([hawbVal], "HAWB", true);
+              }
+            });
+          } else if (hawbVal) {
+            return sweepForNumbers([hawbVal], "HAWB", false);
+          }
+          // Neither BOL nor HAWB entered — no sweep.
+        }).then(function () {
+          return movedAny;
         });
       });
     }).then(function (movedAny) {

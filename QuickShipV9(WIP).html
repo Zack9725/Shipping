@@ -3002,14 +3002,30 @@ window.addEventListener("load", init);
   var PIP_SAFETY_MIN_WIDTH = 360; // absolute fallback floor, only used if the columns can't be measured
   var PIP_MAX_SCREEN_RATIO = 0.8; // Chrome hard-caps PiP windows to ~80% of the work area — no JS override exists
 
+  // The PiP window deliberately requests more height than any screen allows
+  // (see overshootH below), so its content is almost always taller than the
+  // window Chrome actually grants — meaning a vertical scrollbar appears in
+  // the PiP body. That scrollbar eats into the horizontal space, and since
+  // the columns use flex-shrink: 0 they don't yield to it, so without this
+  // the window opens looking short by exactly the scrollbar's width (fine
+  // once manually widened past it, but collapsed again at the locked default).
+  function getScrollbarWidth() {
+    var outer = document.createElement("div");
+    outer.style.cssText = "visibility:hidden;position:absolute;top:-9999px;left:-9999px;width:100px;height:100px;overflow:scroll;";
+    document.body.appendChild(outer);
+    var inner = document.createElement("div");
+    inner.style.width = "100%";
+    outer.appendChild(inner);
+    var width = outer.offsetWidth - inner.offsetWidth;
+    document.body.removeChild(outer);
+    return width;
+  }
+
   function getPipTargetSize() {
     // Width: left edge of the Input column to right edge of the Output column
     // (Misc column excluded), plus the layout's own left/right padding so the
-    // two columns sit with the same inset they have in the main app — nothing
-    // more. (Previously this was floored at a fixed value that was larger than
-    // the two columns actually need, which left the PiP window oversized and,
-    // combined with the centered layout, showed up as an exaggerated gap
-    // before the Input column.)
+    // two columns sit with the same inset they have in the main app, plus a
+    // buffer for the PiP body's own vertical scrollbar (see getScrollbarWidth).
     // Height: always request Chrome's max allowed height for the PiP window.
     var firstCol = document.querySelector(".layout .column-input");
     var lastCol = document.querySelector(".layout .column-output");
@@ -3027,7 +3043,7 @@ window.addEventListener("load", init);
         padLeft = parseFloat(cs.paddingLeft) || 0;
         padRight = parseFloat(cs.paddingRight) || 0;
       }
-      w = Math.round(contentW + padLeft + padRight);
+      w = Math.round(contentW + padLeft + padRight + getScrollbarWidth());
     }
 
     // Chrome hard-caps the PiP window itself, but our own ~80%-of-availHeight estimate

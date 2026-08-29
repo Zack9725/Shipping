@@ -3004,12 +3004,12 @@ window.addEventListener("load", init);
   // Fixed target width built from generous, rounded-up versions of the CSS column
   // values (not the exact live numbers) — deliberately padded so this doesn't need
   // re-tuning every time: 400 (Input, CSS is 390) + 30 (gap, CSS is 24) + 320 (Output)
-  // + 50 (layout padding, CSS is 24+24) + 80 (extra buffer) = 880px default width.
+  // + 50 (layout padding, CSS is 24+24) + 200 (extra buffer) = 1000px default width.
   var INPUT_COL_PX = 400;
   var OUTPUT_COL_PX = 320;
   var COLUMN_GAP_PX = 30;
   var LAYOUT_PAD_PX = 50;   // total, not per-side
-  var PIP_WIDTH_BUFFER = 80;
+  var PIP_WIDTH_BUFFER = 200;
   var PIP_MIN_WIDTH = INPUT_COL_PX + COLUMN_GAP_PX + OUTPUT_COL_PX + LAYOUT_PAD_PX + PIP_WIDTH_BUFFER;
 
   function getPipTargetSize() {

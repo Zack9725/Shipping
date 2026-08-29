@@ -3007,7 +3007,7 @@ window.addEventListener("load", init);
   var OUTPUT_COL_PX = 320;  // keep in sync with .column-output width in CSS
   var COLUMN_GAP_PX = 24;   // keep in sync with .layout's gap in CSS
   var LAYOUT_PAD_PX = 24;   // keep in sync with .layout's left/right padding in CSS
-  var PIP_WIDTH_BUFFER = 24; // small cushion for borders/rounding — not centered, so this reads as a bit of right-side breathing room, not a phantom left gap
+  var PIP_WIDTH_BUFFER = 72; // cushion for borders/rounding — measured against the manually-tuned optimum width (854px)
   var PIP_MIN_WIDTH = INPUT_COL_PX + COLUMN_GAP_PX + OUTPUT_COL_PX + (LAYOUT_PAD_PX * 2) + PIP_WIDTH_BUFFER;
 
   function getPipTargetSize() {
@@ -3069,9 +3069,13 @@ window.addEventListener("load", init);
       // sized to exactly fit columns 1+2, so centering would just split any small
       // buffer/rounding slack into padding on both sides instead of hugging the
       // normal left inset the main app uses.
+      // Scrollbars are hidden (never wanted visually), but overflow stays scrollable
+      // rather than clipped — a safety net in case content ever grows taller than the
+      // window or the width-lock listener hasn't caught a resize yet.
       var pipOverride = pinPipWindow.document.createElement("style");
       pipOverride.textContent =
-        "html, body { min-width: " + pipW + "px !important; overflow-x: auto !important; }" +
+        "html, body { min-width: " + pipW + "px !important; overflow: auto !important; scrollbar-width: none !important; }" +
+        "html::-webkit-scrollbar, body::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }" +
         ".column-misc { display: none !important; }";
       pinPipWindow.document.head.appendChild(pipOverride);
 

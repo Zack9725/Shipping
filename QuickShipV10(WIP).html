@@ -33,7 +33,7 @@ html, body {
   padding: 8px 24px;
 }
 
-.brand-icon {width: 48px; height: 48px; margin-left:-6px; object-fit: contain; flex-shrink: 0;}
+.brand-icon {width: 36px; height: 36px; margin-left:-6px; object-fit: contain; flex-shrink: 0;}
 
 .brand { display: flex; align-items: center; gap: 12px; }
 .brand-mark { color: #007acc; font-size: 20px; }
@@ -243,7 +243,7 @@ html, body {
   display: flex;
   gap: 24px;
   padding: 20px 24px 8px;
-  allign-items: flex-start;
+  align-items: flex-start;
   justify-content: flex-start;
   position: relative;
 }
@@ -391,7 +391,6 @@ html, body {
 .qty-step-down { border-radius: 0 0 5px 0; }
 .qty-step:hover { background: rgba(0, 122, 204, 0.12); color: #ffffff; }
 
-.field-half { }
 .field-dim { width: 70%; }
 .field-weight { width: 30%; }
 
@@ -1008,7 +1007,6 @@ input.input-warn, input.input-warn:focus {
         <span class="brand-mark">&#9657;</span>
         <div class="brand-text">
           <h1>QuickShip</h1>
-          <p>Made By - Zack</p>
         </div>
       </div>
       <nav class="header-nav" id="headerNav">
@@ -1026,16 +1024,16 @@ input.input-warn, input.input-warn:focus {
     <div class="landing-wrap">
       <section class="landing-hero">
         <div class="landing-col-text">
-          <span class="landing-badge">Shipment Documentation Assistant</span>
+          <span class="landing-badge">In active development</span>
           <h1 class="landing-title">Quick<span class="accent-blue">Ship</span></h1>
-          <h2 class="landing-subtitle">Your Shipment Documentation <span class="accent-blue">Assistant</span></h2>
+          <h2 class="landing-subtitle">Your Shipment Documentation <span style="color: #49c595;">Assistant</span></h2>
           <p class="landing-desc">QuickShip is an offline web app designed to assist with your shipment documentation. Organize your inputs, generate document details, and stay consistent &mdash; all in one place.</p>
 
           <div class="landing-info-box">
-            <span class="landing-info-icon">&#9432;</span>
+            <span class="landing-info-icon" style="font-size: 24px; padding: 4px;">&#9432;</span>
             <div class="landing-info-text">
-              <p class="landing-info-title">Built for Shipping <strong>personnel</strong></p>
-              <p class="landing-info-sub">This tool is meant to assist with shipment documentation, please double if not triple check.</p>
+              <p class="landing-info-title">Built for Shipping Personnel.</p>
+              <p class="landing-info-sub">Designed to assist with shipment documentation. <span style="font-size: 12px; font-weight: bold;">Please double-check</span><br> all information before proceeding.</p>
             </div>
           </div>
         </div>
@@ -1068,9 +1066,13 @@ input.input-warn, input.input-warn:focus {
       </section>
     </div>
   </div>
-
+  <footer class="app-footer">
+    <div class="footer-inner">
+      <span class="footer-text" style="font-size: 12px; position: fixed;bottom: 2px; right: 5px; width: 100%;text-align: right;">QuickShip. All rights reserved &copy; 2026 - Made By Zack - Version 1.10</span>
+    </div>
+  </footer>
   <!-- ============================================================ -->
-  <!-- WINDOW: TOOL 1 (current / Normal Shipment) — existing app     -->
+  <!-- WINDOW: TOOL 1 (Normal Shipment)                             -->
   <!-- ============================================================ -->
   <div id="windowTool1" class="app-window">
 
@@ -3700,12 +3702,6 @@ window.addEventListener("load", init);
     for (var i = 0; i < navBtns.length; i++) {
       navBtns[i].classList.toggle("active", navBtns[i].getAttribute("data-nav-target") === name);
     }
-    // Tool1's tab bar is measured with clientWidth/getBoundingClientRect at
-    // render time. If tool1 was hidden (display:none) when that ran — e.g.
-    // on first page load, since the landing window is the default — those
-    // measurements come back as 0 and the tab bar gets stuck at 0px width.
-    // Re-run the sizing now that the window is actually visible so it
-    // measures correctly.
     if (name === "tool1") {
       if (typeof renderTabBar === "function") renderTabBar();
       if (typeof updateTabLayoutBridge === "function") updateTabLayoutBridge();

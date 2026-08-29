@@ -3001,14 +3001,16 @@ window.addEventListener("load", init);
 
   var PIP_MAX_SCREEN_RATIO = 0.8; // Chrome hard-caps PiP windows to ~80% of the work area — no JS override exists
 
-  // Fixed target width built from the known CSS column values, not a live
-  // DOM measurement (kept coming up short in practice).
-  var INPUT_COL_PX = 390;   // keep in sync with .column-input width in CSS
-  var OUTPUT_COL_PX = 320;  // keep in sync with .column-output width in CSS
-  var COLUMN_GAP_PX = 24;   // keep in sync with .layout's gap in CSS
-  var LAYOUT_PAD_PX = 24;   // keep in sync with .layout's left/right padding in CSS
-  var PIP_WIDTH_BUFFER = 72; // cushion for borders/rounding — measured against the manually-tuned optimum width (854px)
-  var PIP_MIN_WIDTH = INPUT_COL_PX + COLUMN_GAP_PX + OUTPUT_COL_PX + (LAYOUT_PAD_PX * 2) + PIP_WIDTH_BUFFER;
+  // Fixed target width built from generous, rounded-up versions of the CSS column
+  // values (not the exact live numbers) — deliberately padded so this doesn't need
+  // re-tuning every time: 400 (Input, CSS is 390) + 30 (gap, CSS is 24) + 320 (Output)
+  // + 50 (layout padding, CSS is 24+24) + 80 (extra buffer) = 880px default width.
+  var INPUT_COL_PX = 400;
+  var OUTPUT_COL_PX = 320;
+  var COLUMN_GAP_PX = 30;
+  var LAYOUT_PAD_PX = 50;   // total, not per-side
+  var PIP_WIDTH_BUFFER = 80;
+  var PIP_MIN_WIDTH = INPUT_COL_PX + COLUMN_GAP_PX + OUTPUT_COL_PX + LAYOUT_PAD_PX + PIP_WIDTH_BUFFER;
 
   function getPipTargetSize() {
     // Width: fixed sum of Input + gap + Output + layout padding + buffer
@@ -3072,11 +3074,15 @@ window.addEventListener("load", init);
       // Scrollbars are hidden (never wanted visually), but overflow stays scrollable
       // rather than clipped — a safety net in case content ever grows taller than the
       // window or the width-lock listener hasn't caught a resize yet.
+      // The refresh-data button/text lives in the header row alongside the brand and
+      // isn't relevant in the PiP window, so it's hidden entirely — display:none pulls
+      // it out of the flex flow completely, no leftover gap or layout shift from it.
       var pipOverride = pinPipWindow.document.createElement("style");
       pipOverride.textContent =
         "html, body { min-width: " + pipW + "px !important; overflow: auto !important; scrollbar-width: none !important; }" +
         "html::-webkit-scrollbar, body::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }" +
-        ".column-misc { display: none !important; }";
+        ".column-misc { display: none !important; }" +
+        ".refresh-group { display: none !important; }";
       pinPipWindow.document.head.appendChild(pipOverride);
 
       pinPipWindow.document.body.style.margin = "0";

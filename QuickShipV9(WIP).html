@@ -3007,7 +3007,7 @@ window.addEventListener("load", init);
   var OUTPUT_COL_PX = 320;  // keep in sync with .column-output width in CSS
   var COLUMN_GAP_PX = 24;   // keep in sync with .layout's gap in CSS
   var LAYOUT_PAD_PX = 24;   // keep in sync with .layout's left/right padding in CSS
-  var PIP_WIDTH_BUFFER = 300; // cushion for scrollbar, borders, and rounding — better roomy than clipped
+  var PIP_WIDTH_BUFFER = 24; // small cushion for borders/rounding — not centered, so this reads as a bit of right-side breathing room, not a phantom left gap
   var PIP_MIN_WIDTH = INPUT_COL_PX + COLUMN_GAP_PX + OUTPUT_COL_PX + (LAYOUT_PAD_PX * 2) + PIP_WIDTH_BUFFER;
 
   function getPipTargetSize() {
@@ -3065,11 +3065,14 @@ window.addEventListener("load", init);
       // The min-width is set to pipW (not 0) so that if the window is ever dragged
       // narrower than its default width faster than the resize listener below can
       // snap it back, the layout stays intact (scrollable) instead of breaking.
+      // justify-content stays at the base flex-start (no center override): pipW is
+      // sized to exactly fit columns 1+2, so centering would just split any small
+      // buffer/rounding slack into padding on both sides instead of hugging the
+      // normal left inset the main app uses.
       var pipOverride = pinPipWindow.document.createElement("style");
       pipOverride.textContent =
         "html, body { min-width: " + pipW + "px !important; overflow-x: auto !important; }" +
-        ".column-misc { display: none !important; }" +
-        ".layout { justify-content: center !important; }";
+        ".column-misc { display: none !important; }";
       pinPipWindow.document.head.appendChild(pipOverride);
 
       pinPipWindow.document.body.style.margin = "0";

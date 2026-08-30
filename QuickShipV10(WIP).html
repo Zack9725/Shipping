@@ -595,18 +595,28 @@ input.input-warn, input.input-warn:focus {
 }
 .item-delete-btn:hover { background: rgba(241, 76, 76, 0.1); color: #f14c4c; }
 
+/* ============ SVG icon helper (icons.svg sprite) ============ */
+.svg-icon { display: inline-block; vertical-align: middle; flex-shrink: 0; }
+.nav-icon svg { width: 15px; height: 15px; }
+.landing-card-icon svg { width: 26px; height: 26px; }
+.copy-btn svg { width: 14px; height: 14px; }
+.pin-btn svg { width: 18px; height: 18px; }
+
 /* ============ Copy buttons ============ */
 
 .copy-btn {
   background: transparent;
-  border: 1px solid #3c3c3c;
+  border: 1px solid #2a5249ab;
   color: #9d9d9d;
   cursor: pointer;
   font-size: 13px;
   padding: 6px 8px;
   border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
-.copy-btn:hover { background: rgba(0, 122, 204, 0.12); border-color: #007acc; color: #ffffff; }
+.copy-btn:hover { background: rgba(78, 201, 176, 0.14); border-color: #4ec9b0; color: #ffffff; }
 
 .input-with-copy { display: flex; gap: 6px; min-width: 0; }
 .input-with-copy input { flex: 1; min-width: 0; }
@@ -841,8 +851,8 @@ input.input-warn, input.input-warn:focus {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: -9px; /* lands the bar exactly on the header's own border-bottom line */
-  height: 2px;
+  bottom: -10px; /* lands the bar exactly on the header's own border-bottom line */
+  height: 4px;
   border-radius: 2px;
   background: #1a8ad4;
   opacity: 0;
@@ -997,7 +1007,51 @@ input.input-warn, input.input-warn:focus {
 </head>
 <body>
 
-  <div id="appRoot" data-window="landing">
+<div id="appRoot" data-window="landing">
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <defs>
+      <symbol id="icon-home" viewBox="0 0 24 24">
+        <g fill="none" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 11.5L12 4l9 7.5"/>
+          <path d="M5.5 9.5V19a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V9.5"/>
+          <path d="M9.5 20v-6h5v6"/>
+          <path d="M15 4.5V7"/>
+        </g>
+      </symbol>
+      <symbol id="icon-box" viewBox="0 0 24 24">
+        <g fill="none" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 7.5v9l-9 5-9-5v-9l9-5 9 5z"/>
+          <path d="M3 7.5l9 5 9-5"/>
+          <path d="M12 12.5V21"/>
+          <path d="M16.5 5l-9 5"/>
+        </g>
+      </symbol>
+      <symbol id="icon-document" viewBox="0 0 24 24">
+        <g fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z"/>
+          <path d="M14 2v6h6"/>
+          <line x1="8" y1="13" x2="16" y2="13"/>
+          <line x1="8" y1="17" x2="16" y2="17"/>
+          <line x1="8" y1="9" x2="10" y2="9"/>
+        </g>
+      </symbol>
+      <symbol id="icon-clipboard" viewBox="0 0 24 24">
+        <g fill="none" stroke="#4ec9b0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="8" y="2" width="8" height="4" rx="1"/>
+          <path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/>
+          <line x1="8" y1="11" x2="16" y2="11"/>
+          <line x1="8" y1="15" x2="16" y2="15"/>
+          <line x1="8" y1="19" x2="13" y2="19"/>
+        </g>
+      </symbol>
+      <symbol id="icon-pin" viewBox="0 0 24 24">
+        <path d="M15.2 12.8L10.4 8.6L20.5 18.6Z" fill="#C4CACF"/>
+        <circle cx="9" cy="8" r="5.5" fill="#F14C4C" stroke="#C81E2C" stroke-width="1"/>
+        <ellipse cx="7.1" cy="5.9" rx="1.7" ry="1" fill="#FF9B9B" opacity="0.8" transform="rotate(-25 7.1 5.9)"/>
+      </symbol>
+    </defs>
+  </svg>
+  
 
   <!-- ============ HEADER ============ -->
   <header class="app-header">
@@ -1010,9 +1064,9 @@ input.input-warn, input.input-warn:focus {
         </div>
       </div>
       <nav class="header-nav" id="headerNav">
-        <button type="button" class="header-nav-btn active" data-nav-target="landing" id="navHomeBtn"><span class="nav-icon">&#127968;</span>Home</button>
-        <button type="button" class="header-nav-btn" data-nav-target="tool1" id="navTool1Btn"><span class="nav-icon">&#128230;</span>Normal Shipment</button>
-        <button type="button" class="header-nav-btn" data-nav-target="tool2" id="navTool2Btn"><span class="nav-icon">&#128667;</span>Interside Shipment</button>
+        <button type="button" class="header-nav-btn active" data-nav-target="landing" id="navHomeBtn"><span class="nav-icon"><svg class="svg-icon" viewBox="0 0 24 24"><use href="#icon-home"></use></svg></span>Home</button>
+        <button type="button" class="header-nav-btn" data-nav-target="tool1" id="navTool1Btn"><span class="nav-icon"><svg class="svg-icon" viewBox="0 0 24 24"><use href="#icon-box"></use></svg></span>Normal Shipment</button>
+        <button type="button" class="header-nav-btn" data-nav-target="tool2" id="navTool2Btn"><span class="nav-icon"><svg class="svg-icon" viewBox="0 0 24 24"><use href="#icon-document"></use></svg></span>Intersite Shipment</button>
       </nav>
     </div>
   </header>
@@ -1027,13 +1081,13 @@ input.input-warn, input.input-warn:focus {
           <span class="landing-badge">In active development</span>
           <h1 class="landing-title">Quick<span class="accent-blue">Ship</span></h1>
           <h2 class="landing-subtitle">Your Shipment Documentation <span style="color: #49c595;">Assistant</span></h2>
-          <p class="landing-desc">QuickShip is an offline web app designed to assist with your shipment documentation. Organize your inputs, generate document details, and stay consistent &mdash; all in one place.</p>
+          <p class="landing-desc">Centralized data for easy access, generate document details,<br>organize files, and stay consistent &mdash; all in one place.</p>
 
           <div class="landing-info-box">
             <span class="landing-info-icon" style="font-size: 24px; padding: 4px;">&#9432;</span>
             <div class="landing-info-text">
               <p class="landing-info-title">Built for Shipping Personnel.</p>
-              <p class="landing-info-sub">Designed to assist with shipment documentation. <span style="font-size: 12px; font-weight: bold;">Please double-check</span><br> all information before proceeding.</p>
+              <p class="landing-info-sub">Designed to <span style="font-weight: bold; font-size: 14px;">assist</span> with shipment documentation. <span style="font-size: 12px; font-weight: bold;">Please double-check</span><br> all information before proceeding.</p>
             </div>
           </div>
         </div>
@@ -1046,7 +1100,7 @@ input.input-warn, input.input-warn:focus {
 
         <div class="landing-cards">
           <button type="button" class="landing-card landing-card-blue" id="gotoTool1Btn">
-            <span class="landing-card-icon">&#128230;</span>
+            <span class="landing-card-icon"><svg class="svg-icon" viewBox="0 0 24 24"><use href="#icon-box"></use></svg></span>
             <span class="landing-card-body">
               <span class="landing-card-title">Normal Shipment</span>
               <span class="landing-card-sub">For standard shipments and regular documentation workflow.</span>
@@ -1055,10 +1109,10 @@ input.input-warn, input.input-warn:focus {
           </button>
 
           <button type="button" class="landing-card landing-card-green" id="gotoTool2Btn">
-            <span class="landing-card-icon">&#128230;</span>
+            <span class="landing-card-icon"><svg class="svg-icon" viewBox="0 0 24 24"><use href="#icon-document"></use></svg></span>
             <span class="landing-card-body">
-              <span class="landing-card-title">Interside Shipment</span>
-              <span class="landing-card-sub">For interside transfers and internal shipment documentation.</span>
+              <span class="landing-card-title">Intersite Shipment</span>
+              <span class="landing-card-sub">For intersite transfers documentation dealing with S2 Numbers.</span>
             </span>
             <span class="landing-card-chev">&#10095;</span>
           </button>
@@ -1077,7 +1131,7 @@ input.input-warn, input.input-warn:focus {
   <div id="windowTool1" class="app-window">
 
   <div class="tab-bar-wrap">
-    <button id="pinBtn" class="pin-btn" type="button" title="Pin window on top">&#128204;</button>
+    <button id="pinBtn" class="pin-btn" type="button" title="Pin window on top"><svg class="svg-icon" viewBox="0 0 24 24"><use href="#icon-pin"></use></svg></button>
     <div id="tabBar" class="tab-bar"></div>
     <button id="addTabBtn" class="tab-add-btn" type="button" title="New shipment tab">+</button>
   </div>
@@ -1108,7 +1162,7 @@ input.input-warn, input.input-warn:focus {
             <label for="hawb">HAWB :</label>
             <div class="input-with-copy">
               <input type="text" id="hawb" placeholder="( Optional )" class="input-placeholder" autocomplete="off">
-              <button class="copy-btn" data-copy-target="hawb" title="Copy HAWB">&#128203;</button>
+              <button class="copy-btn" data-copy-target="hawb" title="Copy HAWB"><svg class="svg-icon" viewBox="0 0 24 24"><use href="#icon-clipboard"></use></svg></button>
             </div>
           </div>
         </div>
@@ -1137,7 +1191,7 @@ input.input-warn, input.input-warn:focus {
         <h3 class="card-title">Generated EDI :</h3>
 	<div class="output-row">
           <div class="output-value" id="generatedEDI">&mdash;</div>
-          <button class="copy-btn" data-copy-target-out="generatedEDI" title="Copy">&#128203;</button>
+          <button class="copy-btn" data-copy-target-out="generatedEDI" title="Copy"><svg class="svg-icon" viewBox="0 0 24 24"><use href="#icon-clipboard"></use></svg></button>
         </div>
        </div>
     </section>
@@ -1177,7 +1231,7 @@ input.input-warn, input.input-warn:focus {
         <h3 class="card-title">Pick Slip String :</h3>
 	<div class="output-row">
           <div class="output-value" id="pickSlipString">&mdash;</div>
-          <button class="copy-btn" data-copy-target-out="pickSlipString" title="Copy">&#128203;</button>
+          <button class="copy-btn" data-copy-target-out="pickSlipString" title="Copy"><svg class="svg-icon" viewBox="0 0 24 24"><use href="#icon-clipboard"></use></svg></button>
         </div>
        </div>
     </section>
@@ -1187,15 +1241,15 @@ input.input-warn, input.input-warn:focus {
   </div><!-- #windowTool1 -->
 
   <!-- ============================================================ -->
-  <!-- WINDOW: TOOL 2 (Interside Shipment) — soon to be built        -->
+  <!-- WINDOW: TOOL 2 (Intersite Shipment) — soon to be built        -->
   <!-- Independent chunk. Build tool2's own markup/CSS/JS inside     -->
   <!-- this block only — it does not touch tool1 or the landing page.-->
   <!-- ============================================================ -->
   <div id="windowTool2" class="app-window">
     <div class="tool2-placeholder">
       <span class="tool2-placeholder-icon">&#128679;</span>
-      <h2>Interside Shipment tool is coming soon</h2>
-      <p>This window is reserved for the 2nd tool and doesn't affect Normal Shipment above.</p>
+      <h2>Intersite Shipment tool tngh masak</h2>
+      <p>Biarkan bro memasak.</p>
     </div>
   </div><!-- #windowTool2 -->
 
@@ -2240,7 +2294,7 @@ function buildTileBox(index, displayText, copyValue) {
   btn.className = "copy-btn";
   btn.type = "button";
   btn.title = "Copy";
-  btn.innerHTML = "&#128203;";
+  btn.innerHTML = "<svg class=\"svg-icon\" viewBox=\"0 0 24 24\"><use href=\"#icon-clipboard\"></use></svg>";
   btn.addEventListener("click", function () { copyToClipboard(copyValue); });
   row.appendChild(btn);
 
@@ -2305,7 +2359,7 @@ function buildDimensionTile(box) {
   btn.className = "copy-btn";
   btn.type = "button";
   btn.title = "Copy";
-  btn.innerHTML = "&#128203;";
+  btn.innerHTML = "<svg class=\"svg-icon\" viewBox=\"0 0 24 24\"><use href=\"#icon-clipboard\"></use></svg>";
   btn.addEventListener("click", function () { copyToClipboard(box.plain); });
   row.appendChild(btn);
 
@@ -2448,7 +2502,7 @@ function buildItemCard(item, index, isOnlyCard) {
   ediCopyBtn.className = "copy-btn";
   ediCopyBtn.type = "button";
   ediCopyBtn.title = "Copy EDI / BOL";
-  ediCopyBtn.innerHTML = "&#128203;";
+  ediCopyBtn.innerHTML = "<svg class=\"svg-icon\" viewBox=\"0 0 24 24\"><use href=\"#icon-clipboard\"></use></svg>";
   ediCopyBtn.addEventListener("click", function () {
     var val = trim(ediInput.value);
     if (val) copyToClipboard(val);
@@ -2487,7 +2541,7 @@ function buildItemCard(item, index, isOnlyCard) {
   dimCopyBtn.className = "copy-btn";
   dimCopyBtn.type = "button";
   dimCopyBtn.title = "Copy Dimensions";
-  dimCopyBtn.innerHTML = "&#128203;";
+  dimCopyBtn.innerHTML = "<svg class=\"svg-icon\" viewBox=\"0 0 24 24\"><use href=\"#icon-clipboard\"></use></svg>";
   dimCopyBtn.addEventListener("click", function () {
     if (dimInput.value) copyToClipboard(dimInput.value);
   });
@@ -2534,7 +2588,7 @@ function buildItemCard(item, index, isOnlyCard) {
   weightCopyBtn.className = "copy-btn";
   weightCopyBtn.type = "button";
   weightCopyBtn.title = "Copy Weight";
-  weightCopyBtn.innerHTML = "&#128203;";
+  weightCopyBtn.innerHTML = "<svg class=\"svg-icon\" viewBox=\"0 0 24 24\"><use href=\"#icon-clipboard\"></use></svg>";
   weightCopyBtn.addEventListener("click", function () {
     if (weightInput.value) copyToClipboard(weightInput.value);
   });
@@ -3249,7 +3303,14 @@ window.addEventListener("load", init);
     ph.id = "pinPlaceholder";
     ph.style.cssText = "position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:24px;background:#1e1e1e;color:#9d9d9d;font-family:'Segoe UI',Tahoma,Arial,sans-serif;";
     ph.innerHTML =
-      '<div style="font-size:15px;color:#d4d4d4;">&#128204; QuickSlip is pinned in a floating window</div>' +
+      '<div style="font-size:15px;color:#d4d4d4;display:flex;align-items:center;justify-content:center;gap:6px;">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" style="flex-shrink:0;">' +
+          '<path d="M15.2 12.8L10.4 8.6L20.5 18.6Z" fill="#C4CACF"/>' +
+          '<circle cx="9" cy="8" r="5.5" fill="#F14C4C" stroke="#C81E2C" stroke-width="1"/>' +
+          '<ellipse cx="7.1" cy="5.9" rx="1.7" ry="1" fill="#FF9B9B" opacity="0.8" transform="rotate(-25 7.1 5.9)"/>' +
+        '</svg>' +
+        'QuickSlip is pinned in a floating window' +
+      '</div>' +
       '<div style="font-size:12px;max-width:320px;">This tab is not stuck — its content moved to the floating window. You can minimize this tab; unpin from the floating window to bring it back here.</div>';
     document.body.appendChild(ph);
   }

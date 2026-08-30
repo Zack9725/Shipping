@@ -11,6 +11,32 @@
 
 * { box-sizing: border-box; }
 
+/* Global click feel: every button gets a quick tactile squish on press,
+   visible the instant the pointer goes down — before the click (and
+   whatever it triggers) actually fires on release. Pure CSS :active, so
+   nothing is delayed and no click handler's timing changes (this matters
+   for things like clipboard writes and the Picture-in-Picture request,
+   which need to run inside the original user gesture).
+   header-nav-btn and landing-card are excluded — they already get their
+   own bespoke pressed feel further down, driven by JS. */
+button:not(.header-nav-btn):not(.landing-card):not(:disabled):active {
+  transform: scale(0.96);
+  transition: transform 0.05s ease-out;
+}
+/* Same press feel for the handful of clickable controls that aren't real
+   <button> elements: the "+ Add Item" div-button, and the unit radio pills
+   (Carton/Pallet/Crate) — those are a visually-hidden radio input layered
+   over a <span>, so the squish is applied to the span when its input is
+   pressed. */
+.btn:not(button):active {
+  transform: scale(0.96);
+  transition: transform 0.05s ease-out;
+}
+.radio-pill input:active + span {
+  transform: scale(0.94);
+  transition: transform 0.05s ease-out;
+}
+
 html, body {
   margin: 0;
   background: #1e1e1e;
@@ -948,6 +974,50 @@ input.input-warn, input.input-warn:focus {
 }
 .landing-col-art svg { display: block; width: 100%; height: auto; }
 
+.landing-art-cloud { animation: landingArtCloud 6.5s ease-in-out infinite; }
+@keyframes landingArtCloud {
+  0%, 100%  { transform: translate(0, 0); }
+  25%       { transform: translate(4px, -5px); }
+  50%       { transform: translate(0, -8px); }
+  75%       { transform: translate(-4px, -3px); }
+}
+
+.landing-art-box { animation: landingArtBox 4.3s ease-in-out infinite; }
+@keyframes landingArtBox {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+
+.landing-art-clipboard { animation: landingArtClipboard 5.6s ease-in-out infinite; animation-delay: -1.4s; }
+@keyframes landingArtClipboard {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-5px); }
+}
+
+.landing-art-truck { animation: landingArtTruck 3.8s ease-in-out infinite; }
+@keyframes landingArtTruck {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(5px); }
+}
+
+.landing-art-dashes { animation: landingArtDash 2.6s linear infinite; }
+@keyframes landingArtDash { to { stroke-dashoffset: -22; } }
+
+.landing-art-pulse { animation: landingArtPulse 2.8s ease-in-out infinite; transform-origin: 205px 165px; }
+@keyframes landingArtPulse {
+  0%, 100% { filter: drop-shadow(0 0 0px rgba(63,139,255,0)); }
+  50%      { filter: drop-shadow(0 0 7px rgba(63,139,255,0.7)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-art-cloud,
+  .landing-art-box,
+  .landing-art-clipboard,
+  .landing-art-truck,
+  .landing-art-dashes,
+  .landing-art-pulse { animation: none; }
+}
+
 .landing-badge {
   display: inline-block;
   padding: 5px 12px;
@@ -975,7 +1045,6 @@ input.input-warn, input.input-warn:focus {
   font-weight: 700;
   color: #d4d4d4;
 }
-.landing-subtitle .accent-blue { color: #1a8ad4; }
 
 .landing-desc {
   margin: 0 0 20px;
@@ -984,23 +1053,46 @@ input.input-warn, input.input-warn:focus {
   max-width: 480px;
 }
 
+.landing-badges-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 22px;
+}
+
+.landing-mini-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 11px;
+  border-radius: 13px;
+  background: #252526;
+  border: 1px solid #3c3c3c;
+  color: #d4d4d4;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: default;
+  user-select: none;
+}
+.landing-mini-badge svg { width: 15px; height: 15px; flex-shrink: 0; }
+
 .landing-info-box {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  background: #252526;
-  border: 1px solid #3c3c3c;
+  background: #967f3b1e;
+  border: 1px solid #967f3b;
   border-radius: 10px;
   padding: 14px 16px;
   max-width: 480px;
 }
-.landing-info-icon { color: #1a8ad4; font-size: 18px; flex-shrink: 0; line-height: 1.3; }
+.landing-info-icon { font-size: 24px; padding: 4px; color: #ffc107; flex-shrink: 0; line-height: 1;}
 .landing-info-title { margin: 0 0 4px; font-size: 13px; color: #d4d4d4; font-weight: 600; }
-.landing-info-sub { margin: 0; font-size: 12px; color: #9d9d9d; }
+.landing-info-sub { margin: 0; font-size: 12px; color: #b1b1b1; }
 
-.landing-picker { margin-top: 44px; text-align: center; }
-.landing-picker-title { margin: 0 0 6px; font-size: 22px; font-weight: 700; color: #ffffff; }
-.landing-picker-sub { margin: 0 0 24px; font-size: 13px; color: #9d9d9d; }
+.landing-picker { margin-top: 10px; text-align: center; }
+.landing-picker-title {font-size: 17px; font-weight: 700; color: #fafafa; }
+.landing-picker-sub {margin-top: -19px; font-size: 12px; color: #9d9d9d; }
 
 .landing-cards {
   display: flex;
@@ -1052,6 +1144,44 @@ input.input-warn, input.input-warn:focus {
 .landing-card-chev { color: #6a6a6a; font-size: 16px; flex-shrink: 0; }
 .landing-card-blue:hover .landing-card-chev { color: #1a8ad4; }
 .landing-card-green:hover .landing-card-chev { color: #4ec9b0; }
+
+.landing-divider {
+  border: none;
+  border-top: 1px solid #1f5761;
+  margin: 40px 0 32px;
+}
+
+.landing-features { padding: 0; margin-top: 40px; }
+
+.landing-features-card {
+  display: flex;
+  flex-wrap: wrap;
+  background: #252526;
+  border: 1px solid #3c3c3c;
+  border-radius: 12px;
+  padding: 20px;
+  gap: 20px;
+}
+
+.landing-feature-item {
+  flex: 1 1 220px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: default;
+}
+
+.landing-feature-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.landing-feature-icon svg { width: 41px; height: 41px; }
+
+.landing-feature-body { display: flex; flex-direction: column; gap: 2px; }
+.landing-feature-title { font-size: 13.5px; font-weight: 700; color: #ffffff; }
+.landing-feature-sub { font-size: 12px; color: #9d9d9d; margin: 0; }
 
 /* ============ Tool 2 placeholder ============ */
 
@@ -1145,22 +1275,52 @@ input.input-warn, input.input-warn:focus {
     <div class="landing-wrap">
       <section class="landing-hero">
         <div class="landing-col-text">
-          <span class="landing-badge">In active development</span>
-          <h1 class="landing-title">Quick<span class="accent-blue">Ship</span></h1>
-          <h2 class="landing-subtitle">Your Shipment Documentation <span style="color: #49c595;">Assistant</span></h2>
+          <h1 class="landing-title" style="text-shadow: #2f7eb6 0 0 6px;">Quick<span class="accent-blue" style="text-shadow: #5796c4 0 0 3px;">Ship</span></h1>
+          <h2 class="landing-subtitle">Your Shipment Documentation Tool</h2>
           <p class="landing-desc">Centralized data for easy access, generate document details,<br>organize files, and stay consistent &mdash; all in one place.</p>
 
+          <div class="landing-badges-row">
+            <span class="landing-mini-badge badge-purple">
+              <svg class="svg-icon" viewBox="0 0 24 24">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="none" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M9 12l2 2 4-4" fill="none" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Secured
+            </span>
+            <span class="landing-mini-badge badge-blue">
+              <svg class="svg-icon" viewBox="0 0 24 24">
+                <rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 11V7a4 4 0 0 1 8 0v4" fill="none" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="12" cy="15.2" r="1.3" fill="#3B82F6" stroke="none"/>
+                <path d="M12 16.5v1.8" stroke="#3B82F6" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              Private
+            </span>
+            <span class="landing-mini-badge badge-orange">
+              <svg class="svg-icon" viewBox="0 0 24 24">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="none" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Efficient
+            </span>
+            <span class="landing-mini-badge badge-green">
+              <svg class="svg-icon" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="9" fill="none" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 12.5l2.5 2.5L16 9" fill="none" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Easy to use
+            </span>
+          </div>
+
           <div class="landing-info-box">
-            <span class="landing-info-icon" style="font-size: 24px; padding: 4px;">&#9432;</span>
+            <span class="landing-info-icon">&#9432;</span>
             <div class="landing-info-text">
-              <p class="landing-info-title">Built for Shipping Personnel.</p>
-              <p class="landing-info-sub">Designed to <span style="font-weight: bold; font-size: 14px;">assist</span> with shipment documentation. <span style="font-size: 12px; font-weight: bold;">Please double-check</span><br> all information before proceeding.</p>
+              <p class="landing-info-sub">This tool was made to assist with shipment documentation.<br>Please <span style="font-weight: bold; font-size: 13px; color: #caa023;">double-check</span> all information before proceeding.</p>
             </div>
           </div>
         </div>
         <div class="landing-col-art" aria-hidden="true">
           <svg width="100%" viewBox="0 0 380 260" role="img" preserveAspectRatio="xMidYMid meet">
-            <g stroke="#2f6fd6" stroke-width="1.2" stroke-dasharray="6 5" opacity="0.7">
+            <g class="landing-art-dashes landing-art-cloud" stroke="#2f6fd6" stroke-width="1.2" stroke-dasharray="6 5" opacity="0.7">
               <line x1="8"   y1="57"  x2="48"  y2="57"/>
               <line x1="62"  y1="53"  x2="91"  y2="53"/>
               <line x1="14"  y1="116" x2="42"  y2="116"/>
@@ -1169,7 +1329,7 @@ input.input-warn, input.input-warn:focus {
               <line x1="341" y1="96"  x2="366" y2="96"/>
             </g>
 
-            <g stroke="#4a5b82" stroke-width="1" fill="none" stroke-linejoin="round">
+            <g class="landing-art-box" stroke="#4a5b82" stroke-width="1" fill="none" stroke-linejoin="round">
               <polygon points="35,150 90,130 145,150 90,170" fill="#111a2e"/>
               <polygon points="35,150 35,205 90,225 90,170" fill="#0d1526"/>
               <polygon points="90,170 90,225 145,205 145,150" fill="#141f38"/>
@@ -1181,21 +1341,25 @@ input.input-warn, input.input-warn:focus {
               <path d="M64 191 L68 186 L72 191" fill="none" stroke="#7f93bf" stroke-width="1" stroke-linecap="round"/>
             </g>
 
-            <g stroke="#5a6ea0" stroke-width="1" fill="none" stroke-linejoin="round" stroke-linecap="round">
-              <rect x="160" y="45" width="90" height="150" rx="8" fill="#111a2e"/>
-              <rect x="187" y="35" width="36" height="16" rx="5" fill="#0d1526"/>
-              <circle cx="205" cy="43" r="3.2" fill="#0d1526"/>
-              <line x1="175" y1="75" x2="240" y2="75" stroke-width="1"/>
-              <line x1="175" y1="86" x2="230" y2="86" stroke-width="1"/>
-              <line x1="175" y1="97" x2="240" y2="97" stroke-width="1"/>
-              <line x1="175" y1="108" x2="222" y2="108" stroke-width="1"/>
-              <line x1="175" y1="119" x2="235" y2="119" stroke-width="1"/>
-              <line x1="175" y1="130" x2="200" y2="130" stroke-width="1"/>
+            <g class="landing-art-clipboard">
+              <g stroke="#5a6ea0" stroke-width="1" fill="none" stroke-linejoin="round" stroke-linecap="round">
+                <rect x="160" y="45" width="90" height="150" rx="8" fill="#111a2e"/>
+                <rect x="187" y="35" width="36" height="16" rx="5" fill="#0d1526"/>
+                <circle cx="205" cy="43" r="3.2" fill="#0d1526"/>
+                <line x1="175" y1="75" x2="240" y2="75" stroke-width="1"/>
+                <line x1="175" y1="86" x2="230" y2="86" stroke-width="1"/>
+                <line x1="175" y1="97" x2="240" y2="97" stroke-width="1"/>
+                <line x1="175" y1="108" x2="222" y2="108" stroke-width="1"/>
+                <line x1="175" y1="119" x2="235" y2="119" stroke-width="1"/>
+                <line x1="175" y1="130" x2="200" y2="130" stroke-width="1"/>
+              </g>
+              <g class="landing-art-pulse">
+                <circle cx="205" cy="165" r="21" fill="#0d1526" stroke="#2f7fe8" stroke-width="1.5"/>
+                <path d="M194 160 L201 173 L218 156" fill="none" stroke="#3f8bff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+              </g>
             </g>
-            <circle cx="205" cy="165" r="21" fill="#0d1526" stroke="#2f7fe8" stroke-width="1.5"/>
-            <path d="M194 160 L201 173 L218 156" fill="none" stroke="#3f8bff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
 
-            <g stroke="#4a5b82" stroke-width="1" fill="none" stroke-linejoin="round">
+            <g class="landing-art-truck" stroke="#4a5b82" stroke-width="1" fill="none" stroke-linejoin="round">
               <rect x="260" y="150" width="65" height="45" rx="3" fill="#111a2e"/>
               <path d="M325 165 L355 165 L362 182 L362 195 L325 195 Z" fill="#0d1526"/>
               <rect x="332" y="170" width="18" height="12" rx="3" fill="#1b2947" stroke-width="0.7"/>
@@ -1210,7 +1374,7 @@ input.input-warn, input.input-warn:focus {
       </section>
 
       <section class="landing-picker">
-        <h3 class="landing-picker-title">Choose Your Shipment Type</h3>
+        <h3 class="landing-picker-title">Shipment Types</h3>
         <p class="landing-picker-sub">Select the type of shipment you're working on.</p>
 
         <div class="landing-cards">
@@ -1233,10 +1397,65 @@ input.input-warn, input.input-warn:focus {
           </button>
         </div>
       </section>
+      <br><br><br>
+      <section class="landing-features">
+        <div class="landing-features-card">
+          <div class="landing-feature-item feat-purple">
+            <span class="landing-feature-icon">
+              <svg class="svg-icon" viewBox="0 0 24 24">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="none" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M9 12l2 2 4-4" fill="none" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            <span class="landing-feature-body">
+              <span class="landing-feature-title">100% Offline</span>
+              <p class="landing-feature-sub">Works entirely offline.<br>No internet required.</p>
+            </span>
+          </div>
+          <div class="landing-feature-item feat-blue">
+            <span class="landing-feature-icon">
+              <svg class="svg-icon" viewBox="0 0 24 24">
+                <rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 11V7a4 4 0 0 1 8 0v4" fill="none" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="12" cy="15.2" r="1.3" fill="#3B82F6" stroke="none"/>
+                <path d="M12 16.5v1.8" stroke="#3B82F6" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <span class="landing-feature-body">
+              <span class="landing-feature-title">Your Data, Yours</span>
+              <p class="landing-feature-sub">No data is sent anywhere.<br>Everything stays on your device.</p>
+            </span>
+          </div>
+          <div class="landing-feature-item feat-orange">
+            <span class="landing-feature-icon">
+              <svg class="svg-icon" viewBox="0 0 24 24">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            <span class="landing-feature-body">
+              <span class="landing-feature-title">Get It Done Faster</span>
+              <p class="landing-feature-sub">Helps reduce repetitive tasks, <br>saving you time and effort.</p>
+            </span>
+          </div>
+          <div class="landing-feature-item feat-green">
+            <span class="landing-feature-icon">
+              <svg class="svg-icon" viewBox="0 0 24 24">
+                <path d="M7.5 6L1.5 12l6 6" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M13.5 7l-3 10" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round"/>
+                <path d="M16.5 6l6 6-6 6" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            <span class="landing-feature-body">
+              <span class="landing-feature-title">Simple & Lightweight</span>
+              <p class="landing-feature-sub">Use it directly or install it as an<br>app for a cleaner experience.</p>
+            </span>
+          </div>
+        </div>
+      </section>
     </div>
     <br>
     <hr size="1px"color="#1f5761">
-    <p class="landing-picker-sub" style="font-size: 12px; width: 100%;text-align: center;">QuickShip. All rights reserved &copy; 2026 - Made By Zack - Version 1.10</p>
+    <p style="color: #9d9d9d; font-size: 11px; width: 100%;text-align: center; margin-top: -4px;">QuickShip. All rights reserved &copy; 2026 - Made By Zack - Version 1.10</p>
   </div>
   
   <!-- ============================================================ -->
@@ -3523,10 +3742,16 @@ window.addEventListener("load", init);
       // The refresh-data button/text lives in the header row alongside the brand and
       // isn't relevant in the PiP window, so it's hidden entirely — display:none pulls
       // it out of the flex flow completely, no leftover gap or layout shift from it.
+      // The app header (brand + Home/Normal/Intersite nav) is hidden the same way for
+      // PiP: it's not needed once a specific tool is popped out, and dropping it frees
+      // up vertical space for the actual Input/Output columns. Hiding via CSS (rather
+      // than detaching the DOM node) keeps every listener and reference intact, and
+      // the layout below simply reflows upward to fill the freed space.
       var pipOverride = pinPipWindow.document.createElement("style");
       pipOverride.textContent =
         "html, body { min-width: " + pipW + "px !important; overflow: auto !important; scrollbar-width: none !important; }" +
         "html::-webkit-scrollbar, body::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }" +
+        ".app-header { display: none !important; }" +
         ".column-misc { display: none !important; }" +
         ".refresh-group { display: none !important; }";
       pinPipWindow.document.head.appendChild(pipOverride);

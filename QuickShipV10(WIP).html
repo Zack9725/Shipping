@@ -4836,29 +4836,13 @@ function t2HandleChooseFolder() {
   });
 }
 
-/* Simplified sorter: no BOL/EDI/HAWB sweep — Intersite has neither EDI
-   nor BOL, and HAWB here doesn't need a file sweep either. It just
-   creates the destination folder, ready for files to be dropped in. */
+/* No BOL/EDI/HAWB sweep — Intersite has neither EDI nor BOL, and HAWB
+   here doesn't need a file sweep either. It still runs the same
+   slot-matching/rename pass as Normal Shipment (Commercial Invoice,
+   Serial Product, Pick Slip Final, Rls), creating the destination
+   folder and moving+renaming whatever it finds into it. */
 function t2HandleSort() {
-  var liveHandle = webWorkingDirHandleLive();
-  if (!liveHandle) {
-    t2Log("Choose a working folder first.", "err");
-    t2FlashChooseFolderBtn();
-    flashSortBtnError("t2SortBtn");
-    return;
-  }
-  var folderName = t2BuildFolderName();
-  if (!folderName) {
-    t2Log("Fill in Destination and Shipment Type / Number / Qty first.", "err");
-    flashSortBtnError("t2SortBtn");
-    return;
-  }
-  var safeName = folderName.replace(/[\\/:*?"<>|]/g, "-");
-  liveHandle.getDirectoryHandle(safeName, { create: true }).then(function () {
-    t2Log("Folder \"" + safeName + "\" ready.", "ok");
-  }).catch(function (err) {
-    t2Log("Could not create folder: " + (err.message || err), "err");
-  });
+  if (typeof t2HandleSortWeb === "function") t2HandleSortWeb();
 }
 
 function t2ClearAll() {
@@ -5496,6 +5480,125 @@ window.addEventListener("load", init);
         saveState();
         showToast("Sorted!");
       }
+    });
+  }
+
+  /* ============================================================
+     Tool 2 (Intersite Shipment) file sorter — reuses the same
+     slot-matching/rename machinery as Tool 1 above (SLOT_IDS /
+     FILE_MATCH_PATTERNS / OUTPUT_LABELS / suffixed / findFilesForSlotWeb /
+     uniqueNameWeb / moveFileWeb), just against Intersite's own state2
+     (destination/pickslips/etc.) and its own log (t2Log). No BOL/EDI/HAWB
+     sweep here — Intersite has none of those.
+
+     Serial Product is still searched for like the other three slots, but
+     it's an optional slot for Intersite: if no matching file turns up,
+     that's expected and stays silent — no "not found" warning is logged
+     for it specifically, unlike the other three slots which do warn. */
+  var T2_SILENT_SLOTS = { serialProduct: true };
+
+  window.t2HandleSortWeb = function () {
+    var liveHandle = webWorkingDirHandleLive();
+    if (!liveHandle) {
+      t2Log("Choose a working folder first.", "err");
+      t2FlashChooseFolderBtn();
+      flashSortBtnError("t2SortBtn");
+      return;
+    }
+    var folderName = t2BuildFolderName();
+    if (!folderName) {
+      t2Log("Fill in Destination and Shipment Type / Number / Qty first.", "err");
+      flashSortBtnError("t2SortBtn");
+      return;
+    }
+    var computedPickSlip = t2FormatNumberList(state2.pickslips);
+
+    liveHandle.queryPermission({ mode: "readwrite" }).then(function (perm) {
+      if (perm === "granted") return perm;
+      return liveHandle.requestPermission({ mode: "readwrite" });
+    }).then(function (perm) {
+      if (perm !== "granted") { t2Log("File access permission was not granted.", "err"); return; }
+      return t2RunWebSort(computedPickSlip, folderName);
+    }).catch(function (err) {
+      t2Log("Could not access the working folder: " + (err.message || err), "err");
+    });
+  };
+
+  function t2RunWebSort(computedPickSlip, folderName) {
+    var slotMatches = {}, slotDupCounts = {}, targetDirHandle;
+
+    return listFileEntries(webWorkingDirHandle).then(function (entries) {
+      var chain = Promise.resolve();
+      SLOT_IDS.forEach(function (s) {
+        chain = chain.then(function () {
+          var matches = findFilesForSlotWeb(entries, FILE_MATCH_PATTERNS[s]);
+          slotDupCounts[s] = matches.length;
+          if (matches.length > 1) {
+            return pickMostRecentFileWeb(matches).then(function (best) { slotMatches[s] = best; });
+          }
+          slotMatches[s] = matches.length === 1 ? matches[0] : null;
+        });
+      });
+      return chain;
+    }).then(function () {
+      var safeFolderName = toSafeFsName(folderName);
+      var plannedSlots = 0, dupSlots = 0;
+      SLOT_IDS.forEach(function (s) {
+        if (slotMatches[s]) plannedSlots++;
+        if (slotDupCounts[s] > 1) dupSlots++;
+      });
+
+      var confirmMsg = "Create folder:\n" + safeFolderName +
+        "\n\nMatched files to move in: " + plannedSlots + " of " + SLOT_IDS.length +
+        (dupSlots ? "\n(" + dupSlots + " of these had multiple copies — most recently modified will be used)" : "") +
+        "\n\nContinue?";
+      if (!confirmDialog(confirmMsg)) return null;
+
+      t2ClearLog();
+
+      return webWorkingDirHandle.getDirectoryHandle(safeFolderName, { create: true }).then(function (dh) {
+        targetDirHandle = dh;
+        t2Log("Using folder: " + safeFolderName, "ok");
+
+        var labels = {
+          commercialInvoice: suffixed("Commercial Invoice", computedPickSlip),
+          serialProduct: suffixed("Serial Product", computedPickSlip),
+          pickSlipFinal: suffixed("Pick Slip Final", computedPickSlip),
+          releaseForm: suffixed("Rls", computedPickSlip)
+        };
+
+        var movedAny = false;
+        var chain = Promise.resolve();
+
+        SLOT_IDS.forEach(function (slot) {
+          chain = chain.then(function () {
+            var srcHandle = slotMatches[slot];
+            if (!srcHandle) {
+              if (!T2_SILENT_SLOTS[slot]) {
+                t2Log(OUTPUT_LABELS[slot] + ": no matching file found (looking for " + FILE_MATCH_PATTERNS[slot].join(" / ") + ")", "warn");
+              }
+              return;
+            }
+            if (slotDupCounts[slot] > 1) {
+              t2Log(OUTPUT_LABELS[slot] + ": " + slotDupCounts[slot] + " matching files found — using most recently modified (" + srcHandle.name + ")", "warn");
+            }
+            var ext = extOf(srcHandle.name);
+            var newBaseName = toSafeFsName(labels[slot]);
+            return uniqueNameWeb(targetDirHandle, newBaseName + (ext ? "." + ext : "")).then(function (newName) {
+              return moveFileWeb(webWorkingDirHandle, srcHandle, targetDirHandle, newName).then(function () {
+                t2Log(srcHandle.name + " -> " + newName, "ok");
+                movedAny = true;
+              });
+            }).catch(function (err) {
+              t2Log(OUTPUT_LABELS[slot] + ": move failed - " + (err.message || err), "err");
+            });
+          });
+        });
+
+        return chain.then(function () { return movedAny; });
+      });
+    }).then(function (movedAny) {
+      if (movedAny) showToast("Sorted!");
     });
   }
 })();

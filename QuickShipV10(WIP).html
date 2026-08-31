@@ -4105,6 +4105,24 @@ function logLine(text, kind) {
   }, LOG_LINE_LIFETIME_MS);
 }
 
+/* Same log panel as logLine(), but for a running process (the sort/sweep)
+   that reports several lines in a row — each call here ADDS a line
+   instead of wiping the previous one, so the whole result list stays
+   visible together. No auto-fade: the batch just sits there until the
+   next clearLog() (i.e. the next sort run) clears it out. Only use this
+   for lines produced during/after an actual sort pass; one-off
+   validation messages (e.g. "choose a folder first") should keep using
+   logLine() so they still show/fade as a single line. */
+function logLineAppend(text, kind) {
+  if (logLineTimer) { clearTimeout(logLineTimer); logLineTimer = null; }
+  var line = document.createElement("div");
+  line.className = "log-line" + (kind ? " " + kind : "");
+  line.textContent = text;
+  dom.sorterLog.appendChild(line);
+  dom.sorterLog.className = "sorter-log show";
+  dom.sorterLog.scrollTop = dom.sorterLog.scrollHeight;
+}
+
 function setInitialWindowSize() {
    
     try {
@@ -4741,6 +4759,22 @@ function t2Log(text, kind) {
   }, LOG_LINE_LIFETIME_MS);
 }
 
+/* Same relationship as logLineAppend() has to logLine() above — used for
+   the multi-line sort result list so each slot's outcome stacks instead
+   of wiping the one before it. Quick single-line validation messages
+   (folder not chosen, fields missing, etc.) keep using t2Log(). */
+function t2LogAppend(text, kind) {
+  var log = document.getElementById("t2SorterLog");
+  if (!log) return;
+  if (t2LogLineTimer) { clearTimeout(t2LogLineTimer); t2LogLineTimer = null; }
+  var line = document.createElement("div");
+  line.className = "log-line" + (kind ? " " + kind : "");
+  line.textContent = text;
+  log.appendChild(line);
+  log.className = "sorter-log show";
+  log.scrollTop = log.scrollHeight;
+}
+
 function t2ClearLog() {
   var log = document.getElementById("t2SorterLog");
   if (!log) return;
@@ -5372,7 +5406,7 @@ window.addEventListener("load", init);
 
       return webWorkingDirHandle.getDirectoryHandle(safeFolderName, { create: true }).then(function (dh) {
         targetDirHandle = dh;
-        logLine("Using folder: " + safeFolderName, "ok");
+        logLineAppend("Using folder: " + safeFolderName, "ok");
 
         var labels = {
           commercialInvoice: suffixed("Commercial Invoice", computedPickSlip),
@@ -5388,21 +5422,21 @@ window.addEventListener("load", init);
           chain = chain.then(function () {
             var srcHandle = slotMatches[slot];
             if (!srcHandle) {
-              logLine(OUTPUT_LABELS[slot] + ": no matching file found (looking for " + FILE_MATCH_PATTERNS[slot].join(" / ") + ")", "warn");
+              logLineAppend(OUTPUT_LABELS[slot] + ": no matching file found (looking for " + FILE_MATCH_PATTERNS[slot].join(" / ") + ")", "warn");
               return;
             }
             if (slotDupCounts[slot] > 1) {
-              logLine(OUTPUT_LABELS[slot] + ": " + slotDupCounts[slot] + " matching files found — using most recently modified (" + srcHandle.name + ")", "warn");
+              logLineAppend(OUTPUT_LABELS[slot] + ": " + slotDupCounts[slot] + " matching files found — using most recently modified (" + srcHandle.name + ")", "warn");
             }
             var ext = extOf(srcHandle.name);
             var newBaseName = toSafeFsName(labels[slot]);
             return uniqueNameWeb(targetDirHandle, newBaseName + (ext ? "." + ext : "")).then(function (newName) {
               return moveFileWeb(webWorkingDirHandle, srcHandle, targetDirHandle, newName).then(function () {
-                logLine(srcHandle.name + " -> " + newName, "ok");
+                logLineAppend(srcHandle.name + " -> " + newName, "ok");
                 movedAny = true;
               });
             }).catch(function (err) {
-              logLine(OUTPUT_LABELS[slot] + ": move failed - " + (err.message || err), "err");
+              logLineAppend(OUTPUT_LABELS[slot] + ": move failed - " + (err.message || err), "err");
             });
           });
         });
@@ -5434,21 +5468,21 @@ window.addEventListener("load", init);
                   entries.splice(entries.indexOf(item.handle), 1);
                 });
               }).catch(function (moveErr) {
-                logLine(sourceLabel + " match \"" + item.handle.name + "\": move failed - " + (moveErr.message || moveErr), "err");
+                logLineAppend(sourceLabel + " match \"" + item.handle.name + "\": move failed - " + (moveErr.message || moveErr), "err");
               });
             });
           });
 
           return sweepChain.then(function () {
             if (matchCount > 0) {
-              logLine(sourceLabel + " sweep: moved " + matchCount + " file(s) across " + numberList.length + " number(s)", "ok");
+              logLineAppend(sourceLabel + " sweep: moved " + matchCount + " file(s) across " + numberList.length + " number(s)", "ok");
               numberList.forEach(function (n3) {
                 var cnt = perNumCount[n3];
-                if (cnt > 0) logLine("  \"" + n3 + "\": " + cnt + " file(s)", "ok");
-                else logLine("  \"" + n3 + "\": no matching files", "warn");
+                if (cnt > 0) logLineAppend("  \"" + n3 + "\": " + cnt + " file(s)", "ok");
+                else logLineAppend("  \"" + n3 + "\": no matching files", "warn");
               });
             } else if (warnIfNoMatches) {
-              logLine(sourceLabel + " sweep: no files in the working folder contain any of " + numberList.join(", "), "warn");
+              logLineAppend(sourceLabel + " sweep: no files in the working folder contain any of " + numberList.join(", "), "warn");
             }
             return matchCount;
           });
@@ -5558,7 +5592,7 @@ window.addEventListener("load", init);
 
       return webWorkingDirHandle.getDirectoryHandle(safeFolderName, { create: true }).then(function (dh) {
         targetDirHandle = dh;
-        t2Log("Using folder: " + safeFolderName, "ok");
+        t2LogAppend("Using folder: " + safeFolderName, "ok");
 
         var labels = {
           commercialInvoice: suffixed("Commercial Invoice", computedPickSlip),
@@ -5575,22 +5609,22 @@ window.addEventListener("load", init);
             var srcHandle = slotMatches[slot];
             if (!srcHandle) {
               if (!T2_SILENT_SLOTS[slot]) {
-                t2Log(OUTPUT_LABELS[slot] + ": no matching file found (looking for " + FILE_MATCH_PATTERNS[slot].join(" / ") + ")", "warn");
+                t2LogAppend(OUTPUT_LABELS[slot] + ": no matching file found (looking for " + FILE_MATCH_PATTERNS[slot].join(" / ") + ")", "warn");
               }
               return;
             }
             if (slotDupCounts[slot] > 1) {
-              t2Log(OUTPUT_LABELS[slot] + ": " + slotDupCounts[slot] + " matching files found — using most recently modified (" + srcHandle.name + ")", "warn");
+              t2LogAppend(OUTPUT_LABELS[slot] + ": " + slotDupCounts[slot] + " matching files found — using most recently modified (" + srcHandle.name + ")", "warn");
             }
             var ext = extOf(srcHandle.name);
             var newBaseName = toSafeFsName(labels[slot]);
             return uniqueNameWeb(targetDirHandle, newBaseName + (ext ? "." + ext : "")).then(function (newName) {
               return moveFileWeb(webWorkingDirHandle, srcHandle, targetDirHandle, newName).then(function () {
-                t2Log(srcHandle.name + " -> " + newName, "ok");
+                t2LogAppend(srcHandle.name + " -> " + newName, "ok");
                 movedAny = true;
               });
             }).catch(function (err) {
-              t2Log(OUTPUT_LABELS[slot] + ": move failed - " + (err.message || err), "err");
+              t2LogAppend(OUTPUT_LABELS[slot] + ": move failed - " + (err.message || err), "err");
             });
           });
         });

@@ -111,6 +111,17 @@ html, body {
 }
 .pin-btn.active:hover { color: #37a1b5; border-color: #37a1b5; }
 
+/* Intersite Shipment's pin button already shares .pin-btn.active with
+   Normal Shipment's, but restated explicitly here (same colours/glow) so
+   it's guaranteed to match — no matter what else touches .pin-btn later. */
+#t2PinBtn.active {
+  color: #2b7b8a;
+  border-color: #2b7b8a;
+  background: rgba(43, 123, 138, 0.14);
+  box-shadow: 0 0 6px 1px rgba(43, 123, 138, 0.65), 0 0 0 1px rgba(43, 123, 138, 0.65);
+}
+#t2PinBtn.active:hover { color: #37a1b5; border-color: #37a1b5; }
+
 .refresh-btn {
   flex-shrink: 0;
   width: 28px;
@@ -133,6 +144,30 @@ html, body {
 .refresh-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .refresh-btn.spinning { animation: refresh-btn-spin 0.7s linear infinite; }
 @keyframes refresh-btn-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* ============ Nav loading overlay (fake, cosmetic) ============ */
+.nav-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(30, 30, 30, 0.55);
+  backdrop-filter: blur(1.5px);
+  -webkit-backdrop-filter: blur(1.5px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+.nav-loading-overlay.show { opacity: 1; pointer-events: all; }
+.nav-spinner { animation: navSpinnerRotate 0.85s linear infinite; }
+@keyframes navSpinnerRotate { to { transform: rotate(360deg); } }
+.nav-spinner-track { stroke: rgba(255, 255, 255, 0.1); }
+.nav-spinner-arc { stroke: var(--nav-spinner-color, #3B82F6); stroke-dasharray: 34 92; stroke-dashoffset: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .nav-spinner { animation: none; }
+}
 
 .refresh-group {
   flex-shrink: 0;
@@ -335,6 +370,12 @@ html, body {
   gap: 10px;
 }
 .column-title-row .column-title { margin: 2px 0 12px; }
+.column-title-group {
+  display: flex;
+  align-items: center;
+  gap: 14px; /* breathing room between the title and the pin button */
+}
+.column-title-group .pin-btn { margin-bottom: 0; }
 .btn-sm { padding: 5px 10px; font-size: 11px; position: relative; top: -3px; }
 
 /* ============ Card ============ */
@@ -362,6 +403,69 @@ html, body {
 }
 
 .card-hint { margin: -4px 0 10px; font-size: 11.5px; color: #6a6a6a; }
+
+.card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.card-title-row .card-title { margin: 0; }
+
+.t2-switch-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #9d9d9d;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.t2-switch {
+  position: relative;
+  display: inline-block;
+  width: 32px;
+  height: 18px;
+  flex: 0 0 32px;
+}
+.t2-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+}
+.t2-switch-track {
+  position: absolute;
+  inset: 0;
+  background: #3c3c3c;
+  border: 1px solid #3c3c3c;
+  border-radius: 999px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  pointer-events: none;
+}
+.t2-switch-track::before {
+  content: "";
+  position: absolute;
+  height: 12px;
+  width: 12px;
+  left: 2px;
+  top: 2px;
+  background: #d4d4d4;
+  border-radius: 50%;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.t2-switch input:checked + .t2-switch-track {
+  background: #007acc;
+  border-color: #007acc;
+}
+.t2-switch input:checked + .t2-switch-track::before {
+  transform: translateX(14px);
+  background: #ffffff;
+}
 
 /* ============ Fields ============ */
 
@@ -642,8 +746,8 @@ input.input-warn, input.input-warn:focus {
 /* ============ SVG icon helper (icons.svg sprite) ============ */
 .svg-icon { display: inline-block; vertical-align: middle; flex-shrink: 0; }
 .nav-icon svg { width: 22.5px; height: 22.5px; }
-.landing-card-icon svg { width: 26px; height: 26px; }
-.copy-btn svg { width: 14px; height: 14px; }
+.landing-card-icon svg { width: 52px; height: 52px; }
+.copy-btn svg { width: 17px; height: 17px; }
 .pin-btn svg { width: 18px; height: 18px; }
 
 /* ============ Copy buttons ============ */
@@ -713,7 +817,15 @@ input.input-warn, input.input-warn:focus {
   background: transparent;
   border: 1px solid rgba(138, 138, 138, 0.45);
   color: #d4d4d4;
+  padding-left: 6px;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.btn-clear-x .icon-trash-svg {
+  width: 24px;
+  height: 19px;
+  margin-right: 2px;
+  position: relative;
+  top: -1px;
 }
 .btn-clear-x:hover {
   background: rgba(255, 59, 59, 0.14);
@@ -728,13 +840,13 @@ input.input-warn, input.input-warn:focus {
 .btn-primary { background: #007acc; border-color: #007acc; color: #ffffff; }
 .btn-primary:hover { background: #1a8ad4; }
 .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
-#sortBtn:disabled {
+#sortBtn:disabled, #t2SortBtn:disabled {
   background: rgba(241, 76, 76, 0.14);
   border-color: rgba(241, 76, 76, 0.45);
   color: #f14c4c;
   opacity: 1;
 }
-#sortBtn:disabled:hover { background: rgba(241, 76, 76, 0.14); }
+#sortBtn:disabled:hover, #t2SortBtn:disabled:hover { background: rgba(241, 76, 76, 0.14); }
 .btn-secondary { background: transparent; border: 1px solid #3c3c3c; color: #d4d4d4; }
 .btn-secondary:hover { border-color: #007acc; color: #ffffff; background: rgba(0, 122, 204, 0.12); }
 
@@ -743,13 +855,42 @@ input.input-warn, input.input-warn:focus {
   70%  { box-shadow: 0 0 0 14px rgba(0, 122, 204, 0); }
   100% { box-shadow: 0 0 0 0 rgba(0, 122, 204, 0); }
 }
-#chooseFolderBtn.needs-folder {
+#chooseFolderBtn.needs-folder, #t2ChooseFolderBtn.needs-folder {
   border-color: #007acc;
   animation: chooseFolderPulse 1.8s ease-out infinite;
 }
-#chooseFolderBtn.needs-folder:hover { animation-play-state: paused; }
+#chooseFolderBtn.needs-folder:hover, #t2ChooseFolderBtn.needs-folder:hover { animation-play-state: paused; }
 @media (prefers-reduced-motion: reduce) {
-  #chooseFolderBtn.needs-folder { animation: none; }
+  #chooseFolderBtn.needs-folder, #t2ChooseFolderBtn.needs-folder { animation: none; }
+}
+
+/* Same-language "attention" flash for both File Sorters: 2-3 quick red
+   pulses on the Choose Folder button rim when a sort is attempted without
+   the required info, then it settles back into the normal blue pulse. */
+@keyframes chooseFolderFlashRed {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(241, 76, 76, 0.65); border-color: #f14c4c; }
+  50%      { box-shadow: 0 0 0 14px rgba(241, 76, 76, 0); border-color: #f14c4c; }
+}
+#chooseFolderBtn.flash-error, #t2ChooseFolderBtn.flash-error {
+  animation: chooseFolderFlashRed 0.5s ease-out 3;
+}
+@media (prefers-reduced-motion: reduce) {
+  #chooseFolderBtn.flash-error, #t2ChooseFolderBtn.flash-error { animation: none; border-color: #f14c4c; }
+}
+
+/* Attention flash for the Sort into Folder button itself when a sort is
+   attempted with insufficient input — the whole button face flashes solid
+   red a few times (much more visible than a thin rim), then reverts back
+   to its normal state (enabled blue or disabled red). */
+@keyframes sortBtnFillFlash {
+  0%, 100% { box-shadow: inset 0 0 0 0 rgba(241, 76, 76, 0); }
+  50%      { box-shadow: inset 0 0 0 999px rgba(241, 76, 76, 0.95); border-color: #f14c4c; color: #ffffff; }
+}
+#sortBtn.fill-flash-error, #t2SortBtn.fill-flash-error {
+  animation: sortBtnFillFlash 0.28s ease-in-out 3;
+}
+@media (prefers-reduced-motion: reduce) {
+  #sortBtn.fill-flash-error, #t2SortBtn.fill-flash-error { animation: none; }
 }
 .btn-ghost { background: transparent; border: 1px solid #3c3c3c; color: #9d9d9d; }
 
@@ -814,7 +955,8 @@ input.input-warn, input.input-warn:focus {
   display: none;
 }
 .sorter-log.show { display: block; }
-.log-line { padding: 2px 0; }
+.log-line { padding: 2px 0; opacity: 1; transition: opacity 0.3s ease; }
+.log-line.fade-out { opacity: 0; }
 .log-line.ok { color: #4ec9b0; }
 .log-line.err { color: #ed3b3b; }
 .log-line.warn { color: #d6b172; }
@@ -866,11 +1008,90 @@ input.input-warn, input.input-warn:focus {
 #appRoot[data-window="tool1"] #windowTool1 { display: block; }
 #appRoot[data-window="tool2"] #windowTool2 { display: block; }
 
+.header-right {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 22px; /* pulls nav a little left of the true edge, separating it from the toggle */
+}
 .header-nav {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 28px;
+}
+.back-intercept-wrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 18px;
+  border-left: 1px solid #3c3c3c;
+}
+.back-intercept-label {
+  display: inline-block;
+  font-size: 11px;
+  letter-spacing: 0.3px;
+  color: #9d9d9d;
+  white-space: nowrap;
+  transition: transform 0.15s ease;
+}
+.toggle-switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 36px;
+  height: 20px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1.5px solid #3c3c3c;
+  background: #1e1e1e;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.toggle-switch:hover { border-color: #6a6a6a; }
+.toggle-switch .toggle-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #6a6a6a;
+  transition: transform 0.18s ease, background 0.15s ease;
+}
+.toggle-switch.on {
+  border-color: #8B5CF6;
+  background: rgba(139, 92, 246, 0.22);
+}
+.toggle-switch.on:hover { border-color: #a78bfa; }
+.toggle-switch.on .toggle-knob {
+  transform: translateX(16px);
+  background: #fafafa;
+}
+@keyframes toggleShake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-3px); }
+  40%, 60% { transform: translateX(3px); }
+}
+.toggle-switch.shake { animation: toggleShake 0.5s ease-in-out; }
+@keyframes labelColorFlash {
+  0%, 100% { color: #9d9d9d; }
+  50% { color: #ffffff; }
+}
+/* Scale + "bold" apply immediately and hold steady for the whole attention
+   burst — only the colour flashes (multiple times) on top of that. The
+   bold look comes from a doubled text-shadow rather than a real font-weight
+   change, so nothing here ever changes the label's layout box — it can't
+   push the header nav buttons around, no matter how many times it fires. */
+.back-intercept-label.flash-white {
+  transform: scale(1.16);
+  text-shadow: 0.4px 0 currentColor, -0.4px 0 currentColor;
+  animation: labelColorFlash 0.3s ease-in-out 4;
+}
+@media (prefers-reduced-motion: reduce) {
+  .toggle-switch.shake { animation: none; }
+  .back-intercept-label.flash-white { animation: none; }
 }
 .header-nav-btn {
   position: relative;
@@ -974,6 +1195,20 @@ input.input-warn, input.input-warn:focus {
 }
 .landing-col-art svg { display: block; width: 100%; height: auto; }
 
+.landing-art-box-wrap { animation: landingArtShake 6s ease-in-out infinite; transform-origin: 90px 177px; }
+@keyframes landingArtShake {
+  0%, 90%, 100% { transform: translate(0, 0) rotate(0deg); }
+  91% { transform: translate(-1.4px, 0.5px) rotate(-0.3deg); }
+  92% { transform: translate(1.4px, -0.5px) rotate(0.3deg); }
+  93% { transform: translate(-1.4px, 0px) rotate(-0.25deg); }
+  94% { transform: translate(1.4px, 0.5px) rotate(0.25deg); }
+  95% { transform: translate(-1px, -0.5px) rotate(-0.15deg); }
+  96% { transform: translate(1px, 0.5px) rotate(0.15deg); }
+  97% { transform: translate(-0.5px, 0px) rotate(-0.08deg); }
+  98% { transform: translate(0.5px, 0px) rotate(0.08deg); }
+  99% { transform: translate(0, 0) rotate(0deg); }
+}
+
 .landing-art-cloud { animation: landingArtCloud 6.5s ease-in-out infinite; }
 @keyframes landingArtCloud {
   0%, 100%  { transform: translate(0, 0); }
@@ -1000,6 +1235,15 @@ input.input-warn, input.input-warn:focus {
   50%      { transform: translateX(5px); }
 }
 
+/* Road under the lorry: two static edge lines + a dashed centre line that
+   scrolls left underneath the tires to sell the sense of movement. */
+.landing-art-road-dash {
+  animation: landingArtRoadDash 1s linear infinite;
+}
+@keyframes landingArtRoadDash {
+  to { stroke-dashoffset: 48; }
+}
+
 .landing-art-dashes { animation: landingArtDash 2.6s linear infinite; }
 @keyframes landingArtDash { to { stroke-dashoffset: -22; } }
 
@@ -1010,12 +1254,14 @@ input.input-warn, input.input-warn:focus {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .landing-art-box-wrap,
   .landing-art-cloud,
   .landing-art-box,
   .landing-art-clipboard,
   .landing-art-truck,
   .landing-art-dashes,
-  .landing-art-pulse { animation: none; }
+  .landing-art-pulse,
+  .landing-art-road-dash { animation: none; }
 }
 
 .landing-badge {
@@ -1103,38 +1349,62 @@ input.input-warn, input.input-warn:focus {
 
 .landing-card {
   flex: 1 1 320px;
-  max-width: 480px;
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 20px;
   text-align: left;
   background: #252526;
-  border: 1px solid #3c3c3c;
   border-radius: 12px;
-  padding: 18px 20px;
+  padding: 30px 26px;
   cursor: pointer;
   font-family: inherit;
   transform-origin: center;
-  transition: border-color 0.15s ease, transform 0.18s ease;
+  overflow: hidden;
+  transition: border-color 0.15s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
 .landing-card:hover { transform: scale(1.03); }
 
+.landing-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 55%;
+  height: 100%;
+  background: linear-gradient(115deg, transparent 0%, rgba(255,255,255,0.14) 45%, rgba(255,255,255,0.32) 50%, rgba(255,255,255,0.14) 55%, transparent 100%);
+  transform: skewX(-20deg);
+  pointer-events: none;
+}
+.landing-card:hover::before { animation: landingCardShimmer 0.9s ease forwards; }
+@keyframes landingCardShimmer {
+  from { left: -150%; }
+  to { left: 150%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-card:hover::before { animation: none; }
+}
+
 .landing-card-icon {
-  width: 52px;
-  height: 52px;
+  width: 104px;
+  height: 104px;
   flex-shrink: 0;
-  border-radius: 50%;
+  border-radius: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: 44px;
   transition: box-shadow 0.18s ease;
 }
-.landing-card-blue .landing-card-icon { background: rgba(0,122,204,0.12); border: 1.5px solid #1a5a80; }
-.landing-card-blue:hover { border-color: #1a8ad4; }
+.landing-card-blue { border: 2px solid #1a5a80; }
+.landing-card-blue:hover { border-color: #1a8ad4; box-shadow: 0 0 20px rgba(26,138,212,0.4); }
+.landing-card-blue .landing-card-icon { width: 99px; height: 99px; border-radius: 24px; background: rgba(0,122,204,0.12); border: 1.5px solid #1a5a80; }
+.landing-card-blue .landing-card-icon svg { width: 73px; height: 73px; }
 .landing-card-blue:hover .landing-card-icon { box-shadow: 0 0 14px rgba(59,130,246,0.35); }
-.landing-card-green .landing-card-icon { background: rgba(78,201,176,0.12); border: 1.5px solid #2f6a5c; }
-.landing-card-green:hover { border-color: #4ec9b0; }
+.landing-card-green { border: 2px solid #2f6a5c; }
+.landing-card-green:hover { border-color: #4ec9b0; box-shadow: 0 0 20px rgba(78,201,176,0.4); }
+.landing-card-green .landing-card-icon { width: 99px; height: 99px; border-radius: 24px; background: rgba(78,201,176,0.12); border: 1.5px solid #2f6a5c; }
+.landing-card-green .landing-card-icon svg { width: 61px; height: 61px; }
 .landing-card-green:hover .landing-card-icon { box-shadow: 0 0 14px rgba(16,185,129,0.35); }
 
 .landing-card-body { flex: 1; display: flex; flex-direction: column; gap: 4px; }
@@ -1157,7 +1427,6 @@ input.input-warn, input.input-warn:focus {
   display: flex;
   flex-wrap: wrap;
   background: #252526;
-  border: 1px solid #3c3c3c;
   border-radius: 12px;
   padding: 20px;
   gap: 20px;
@@ -1195,6 +1464,56 @@ input.input-warn, input.input-warn:focus {
 .tool2-placeholder-icon { font-size: 40px; display: block; margin-bottom: 16px; }
 .tool2-placeholder h2 { color: #d4d4d4; margin: 0 0 8px; font-size: 18px; }
 .tool2-placeholder p { margin: 0; font-size: 13px; }
+
+/* ============ Tool 2 (Intersite Shipment) ============ */
+
+.t2-method-row { display: flex; align-items: center; gap: 16px; height: 34px; }
+.t2-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #d4d4d4;
+  cursor: pointer;
+  user-select: none;
+}
+.t2-check input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: #4ec9b0;
+  cursor: pointer;
+}
+
+.t2-grow-list { display: flex; flex-direction: column; gap: 8px; }
+.t2-input-row { display: flex; align-items: center; gap: 8px; }
+.t2-input-row input.t2-grow-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  border-radius: 6px;
+  color: #d4d4d4;
+  font-size: 13px;
+  padding: 7px 10px;
+  font-family: inherit;
+}
+.t2-input-row input.t2-grow-input:focus { outline: none; border-color: #4ec9b0; }
+.t2-remove-btn {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid #3c3c3c;
+  background: transparent;
+  color: #9d9d9d;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.t2-remove-btn:hover { border-color: #f14c4c; color: #f14c4c; }
+
+.output-value-multiline { line-height: 1.5; }
 
 </style>
 </head>
@@ -1238,13 +1557,31 @@ input.input-warn, input.input-warn:focus {
         </g>
       </symbol>
       <symbol id="icon-pin" viewBox="0 0 24 24">
-        <path d="M15.2 12.8L10.4 8.6L20.5 18.6Z" fill="#C4CACF"/>
+        <path d="M10.15 13.59L14.85 8.41L19.9 17.73Z" fill="#C4CACF"/>
         <circle cx="9" cy="8" r="5.5" fill="#F14C4C" stroke="#C81E2C" stroke-width="1"/>
         <ellipse cx="7.1" cy="5.9" rx="1.7" ry="1" fill="#FF9B9B" opacity="0.8" transform="rotate(-25 7.1 5.9)"/>
+      </symbol>
+      <symbol id="icon-trash" viewBox="0 0 24 24">
+        <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 7h16"/>
+          <path d="M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7"/>
+          <path d="M6.5 7l1 13a1.5 1.5 0 0 0 1.5 1.4h6a1.5 1.5 0 0 0 1.5-1.4l1-13"/>
+          <line x1="9" y1="11" x2="9" y2="17"/>
+          <line x1="12" y1="11" x2="12" y2="17"/>
+          <line x1="15" y1="11" x2="15" y2="17"/>
+        </g>
       </symbol>
     </defs>
   </svg>
   
+
+  <!-- ============ NAV LOADING OVERLAY (fake, cosmetic only) ============ -->
+  <div id="navLoadingOverlay" class="nav-loading-overlay" aria-hidden="true">
+    <svg class="nav-spinner" viewBox="0 0 50 50" width="46" height="46">
+      <circle class="nav-spinner-track" cx="25" cy="25" r="20" fill="none" stroke-width="4"></circle>
+      <circle class="nav-spinner-arc" cx="25" cy="25" r="20" fill="none" stroke-width="4" stroke-linecap="round"></circle>
+    </svg>
+  </div>
 
   <!-- ============ HEADER ============ -->
   <header class="app-header">
@@ -1260,11 +1597,19 @@ input.input-warn, input.input-warn:focus {
           </div>
         </div>
       </div>
-      <nav class="header-nav" id="headerNav">
-        <button type="button" class="header-nav-btn active" data-nav-target="landing" id="navHomeBtn"><span class="nav-content"><span class="nav-icon"><svg class="svg-icon" viewBox="0 0 24 24"><use href="#icon-home"></use></svg></span>Home</span></button>
-        <button type="button" class="header-nav-btn" data-nav-target="tool1" id="navTool1Btn"><span class="nav-content"><span class="nav-icon"><svg class="svg-icon" viewBox="0 0 24 24"><use href="#icon-box"></use></svg></span>Normal Shipment</span></button>
-        <button type="button" class="header-nav-btn" data-nav-target="tool2" id="navTool2Btn"><span class="nav-content"><span class="nav-icon"><svg class="svg-icon" viewBox="0 0 24 24"><use href="#icon-document"></use></svg></span>Intersite Shipment</span></button>
-      </nav>
+      <div class="header-right">
+        <nav class="header-nav" id="headerNav">
+          <button type="button" class="header-nav-btn active" data-nav-target="landing" id="navHomeBtn"><span class="nav-content"><span class="nav-icon"><svg class="svg-icon" viewBox="0 0 24 24"><use href="#icon-home"></use></svg></span>Home</span></button>
+          <button type="button" class="header-nav-btn" data-nav-target="tool1" id="navTool1Btn"><span class="nav-content"><span class="nav-icon"><svg class="svg-icon" viewBox="0 0 24 24"><use href="#icon-box"></use></svg></span>Normal Shipment</span></button>
+          <button type="button" class="header-nav-btn" data-nav-target="tool2" id="navTool2Btn"><span class="nav-content"><span class="nav-icon"><svg class="svg-icon" viewBox="0 0 24 24"><use href="#icon-document"></use></svg></span>Intersite Shipment</span></button>
+        </nav>
+        <div class="back-intercept-wrap" title="When on, the browser Back button returns you to Home instead of leaving this page.">
+          <span class="back-intercept-label">Lock Back</span>
+          <button type="button" id="backInterceptToggle" class="toggle-switch" role="switch" aria-checked="false">
+            <span class="toggle-knob"></span>
+          </button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -1320,6 +1665,12 @@ input.input-warn, input.input-warn:focus {
         </div>
         <div class="landing-col-art" aria-hidden="true">
           <svg width="100%" viewBox="0 0 380 260" role="img" preserveAspectRatio="xMidYMid meet">
+            <g class="landing-art-road" stroke-linecap="round">
+              <line x1="0" y1="184" x2="380" y2="184" stroke="#3a4a6b" stroke-width="1.2"/>
+              <line class="landing-art-road-dash" x1="0" y1="211" x2="380" y2="211" stroke="#7f93bf" stroke-width="2" stroke-dasharray="14 10"/>
+              <line x1="0" y1="238" x2="380" y2="238" stroke="#3a4a6b" stroke-width="1.2"/>
+            </g>
+
             <g class="landing-art-dashes landing-art-cloud" stroke="#2f6fd6" stroke-width="1.2" stroke-dasharray="6 5" opacity="0.7">
               <line x1="8"   y1="57"  x2="48"  y2="57"/>
               <line x1="62"  y1="53"  x2="91"  y2="53"/>
@@ -1329,16 +1680,18 @@ input.input-warn, input.input-warn:focus {
               <line x1="341" y1="96"  x2="366" y2="96"/>
             </g>
 
-            <g class="landing-art-box" stroke="#4a5b82" stroke-width="1" fill="none" stroke-linejoin="round">
-              <polygon points="35,150 90,130 145,150 90,170" fill="#111a2e"/>
-              <polygon points="35,150 35,205 90,225 90,170" fill="#0d1526"/>
-              <polygon points="90,170 90,225 145,205 145,150" fill="#141f38"/>
-              <polygon points="54,157 106,136 126,143 73,164" fill="#1b2947" stroke-width="0.7"/>
-              <polygon points="73,164 54,157 54,177 73,185" fill="#1b2947" stroke-width="0.7"/>
-              <path d="M56 199 L56 182" stroke="#7f93bf" stroke-width="1" stroke-linecap="round"/>
-              <path d="M52 187 L56 182 L60 187" fill="none" stroke="#7f93bf" stroke-width="1" stroke-linecap="round"/>
-              <path d="M68 203 L68 186" stroke="#7f93bf" stroke-width="1" stroke-linecap="round"/>
-              <path d="M64 191 L68 186 L72 191" fill="none" stroke="#7f93bf" stroke-width="1" stroke-linecap="round"/>
+            <g class="landing-art-box-wrap">
+              <g class="landing-art-box" stroke="#4a5b82" stroke-width="1" fill="none" stroke-linejoin="round">
+                <polygon points="35,150 90,130 145,150 90,170" fill="#111a2e"/>
+                <polygon points="35,150 35,205 90,225 90,170" fill="#0d1526"/>
+                <polygon points="90,170 90,225 145,205 145,150" fill="#141f38"/>
+                <polygon points="54,157 106,136 126,143 73,164" fill="#1b2947" stroke-width="0.7"/>
+                <polygon points="73,164 54,157 54,177 73,185" fill="#1b2947" stroke-width="0.7"/>
+                <path d="M56 199 L56 182" stroke="#7f93bf" stroke-width="1" stroke-linecap="round"/>
+                <path d="M52 187 L56 182 L60 187" fill="none" stroke="#7f93bf" stroke-width="1" stroke-linecap="round"/>
+                <path d="M68 203 L68 186" stroke="#7f93bf" stroke-width="1" stroke-linecap="round"/>
+                <path d="M64 191 L68 186 L72 191" fill="none" stroke="#7f93bf" stroke-width="1" stroke-linecap="round"/>
+              </g>
             </g>
 
             <g class="landing-art-clipboard">
@@ -1478,7 +1831,7 @@ input.input-warn, input.input-warn:focus {
       <div class="column-title-row">
         <h2 class="column-title">Inputs</h2>
         <button id="clearAllBtn" class="btn btn-clear-x btn-sm" type="button" title="Clear this shipment's fields">
-          <span class="icon">&#10005;</span> Clear
+          <span class="icon"><svg class="svg-icon icon-trash-svg" viewBox="0 0 24 24"><use href="#icon-trash"></use></svg></span> Clear
         </button>
       </div>
 
@@ -1579,11 +1932,121 @@ input.input-warn, input.input-warn:focus {
   <!-- this block only — it does not touch tool1 or the landing page.-->
   <!-- ============================================================ -->
   <div id="windowTool2" class="app-window">
-    <div class="tool2-placeholder">
-      <span class="tool2-placeholder-icon">&#128679;</span>
-      <h2>Intersite Shipment tool tngh masak</h2>
-      <p>Biarkan bro memasak.</p>
+
+  <div class="layout-divider">
+  <main class="layout">
+
+    <!-- ============ INPUT COLUMN ============ -->
+    <section class="column column-input">
+      <div class="column-title-row">
+        <div class="column-title-group">
+          <h2 class="column-title">Inputs</h2>
+          <button id="t2PinBtn" class="pin-btn" type="button" title="Pin window on top"><svg class="svg-icon" viewBox="0 0 24 24"><use href="#icon-pin"></use></svg></button>
+        </div>
+        <button id="t2ClearAllBtn" class="btn btn-clear-x btn-sm" type="button" title="Clear this shipment's fields">
+          <span class="icon"><svg class="svg-icon icon-trash-svg" viewBox="0 0 24 24"><use href="#icon-trash"></use></svg></span> Clear
+        </button>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">Shipment</h3>
+
+        <div class="field-row">
+          <div class="field field-half">
+            <label for="t2Destination">Destination :</label>
+            <input type="text" id="t2Destination" placeholder="Short Destination" autocomplete="off">
+          </div>
+
+          <div class="field field-half">
+            <label>Method :</label>
+            <div class="t2-method-row">
+              <label class="t2-check"><input type="checkbox" id="t2MethodTruck"> By Truck</label>
+              <label class="t2-check"><input type="checkbox" id="t2MethodHand"> Hand Carry</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field field-half">
+            <label for="t2ShipType">Shipment Type :</label>
+            <input type="text" id="t2ShipType" placeholder="e.g: S2" maxlength="4" autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="t2TypeNumCard" style="display:none;">
+        <h3 class="card-title" id="t2TypeNumTitle">Number/s</h3>
+        <div id="t2TypeNumList" class="t2-grow-list"></div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">Pickslip</h3>
+        <div id="t2PickslipList" class="t2-grow-list"></div>
+      </div>
+
+      <div id="t2ItemCardsList"></div>
+
+      <div class="btn btn-ghost" id="t2AddItemBtn">+ Add Item</div>
+
+    </section>
+
+    <!-- ============ OUTPUT COLUMN ============ -->
+    <section class="column column-output">
+      <h2 class="column-title">OUTPUT</h2>
+
+      <div class="card output-card">
+        <h3 class="card-title">HAWB :</h3>
+        <div class="output-row">
+          <div class="output-value" id="t2GeneratedHawb">&mdash;</div>
+          <button class="copy-btn" data-copy-target-out="t2GeneratedHawb" title="Copy HAWB"><svg class="svg-icon" viewBox="0 0 24 24"><use href="#icon-clipboard"></use></svg></button>
+        </div>
+      </div>
+
+      <div class="card output-card">
+        <div class="card-title-row">
+          <h3 class="card-title">Generated Dimensions :</h3>
+          <label class="t2-switch-label" for="t2ConsolidateToggle">
+            Consolidate
+            <span class="t2-switch">
+              <input type="checkbox" id="t2ConsolidateToggle">
+              <span class="t2-switch-track"></span>
+            </span>
+          </label>
+        </div>
+        <div id="t2DimensionsGrid" class="tile-grid"></div>
+      </div>
+    </section>
+
+    <!-- ============ MISCELLANEOUS COLUMN ============ -->
+    <section class="column column-misc">
+      <div class="column-title-row">
+        <h2 class="column-title">MISCELLANEOUS</h2>
+      </div>
+
+      <div class="card sorter-card" id="t2SorterCard">
+      <h3 class="card-title">&#128193; File Sorter <span class="badge-local">local files</span></h3>
+      <div class="fs-note" id="t2FsNote"></div>
+      <p class="card-hint">Select folder directory to work with</p>
+      <div class="workdir-row">
+        <div class="workdir-path" id="t2WorkDirPath">No working folder selected</div>
+        <button class="btn btn-secondary" id="t2ChooseFolderBtn" type="button">Choose Folder&hellip;</button>
+      </div>
+
+      <h4 class="card-title">Folder Name Preview</h4>
+          <div class="output-value output-value-folder" id="t2OutFolderName">&mdash;</div>
+          <p class="card-hint"></p><!--spacer -->
+      <div class="sorter-log" id="t2SorterLog"></div>
+      <p class="card-hint"></p><!--spacer -->
+
+      <div class="filesorter-actions">
+        <button class="btn btn-primary" id="t2SortBtn" type="button"><span id="t2SortBtnIcon">!</span> Sort into Folder</button>
+      </div>
+
     </div>
+    </section>
+  </main>
+  </div>
+
   </div><!-- #windowTool2 -->
 
   <div id="toastStack" class="toast-stack"></div>
@@ -1610,6 +2073,17 @@ input.input-warn, input.input-warn:focus {
     </div>
   </div>
 
+  <div id="t2ClearAllModal" class="modal-overlay">
+    <div class="modal-box">
+      <p class="modal-title">Clear this shipment's fields?</p>
+      <p class="modal-text">All data in this tab will be discarded. This cannot be undone.</p>
+      <div class="modal-actions">
+        <button id="t2ClearAllCancelBtn" class="btn btn-secondary" type="button">Cancel</button>
+        <button id="t2ClearAllConfirmBtn" class="btn btn-danger-rim" type="button">Clear</button>
+      </div>
+    </div>
+  </div>
+
   </div><!-- #appRoot -->
 
 <script>
@@ -1619,6 +2093,7 @@ var MAX_TABS = 6;
 var STORAGE_KEY = "quickslip_state_v3";
 var LEGACY_V2_KEY = "quickslip_state_v2";
 var LEGACY_V1_KEY = "quickslip_state_v1";
+var T2_WORKDIR_KEY = "quickslip_t2_workdir";
 
 var UNIT_PLURALS = { Carton: "Cartons", Pallet: "Pallets", Crate: "Crates" };
 
@@ -1906,6 +2381,7 @@ var dom = {
   clearAllBtn: document.getElementById("clearAllBtn"),
   toastStack: document.getElementById("toastStack"),
   pinBtn: document.getElementById("pinBtn"),
+  t2PinBtn: document.getElementById("t2PinBtn"),
   refreshDataBtn: document.getElementById("refreshDataBtn"),
 
   tabBar: document.getElementById("tabBar"),
@@ -2574,6 +3050,36 @@ function escapeHtml(str) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+/* Shared "attention" flash for a Choose Folder button — 3 quick red pulses,
+   then reverts to whatever pulse state (blue "needs-folder" or none) the
+   button should normally be in. Used by both Tool 1 and Tool 2 sorters. */
+function flashFolderBtnError(btnId) {
+  var btn = document.getElementById(btnId);
+  if (!btn) return;
+  btn.classList.remove("flash-error");
+  void btn.offsetWidth; // restart animation if already mid-flash
+  btn.classList.add("flash-error");
+  window.setTimeout(function () {
+    btn.classList.remove("flash-error");
+  }, 1500);
+}
+function flashChooseFolderBtn() { flashFolderBtnError("chooseFolderBtn"); }
+function t2FlashChooseFolderBtn() { flashFolderBtnError("t2ChooseFolderBtn"); }
+
+/* Same idea as flashFolderBtnError, but for the Sort into Folder button
+   itself: its whole face flashes solid red a few times on trigger, then
+   it settles back into its normal (enabled/blue or disabled/red) state. */
+function flashSortBtnError(btnId) {
+  var btn = document.getElementById(btnId);
+  if (!btn) return;
+  btn.classList.remove("fill-flash-error");
+  void btn.offsetWidth; // restart animation if already mid-flash
+  btn.classList.add("fill-flash-error");
+  window.setTimeout(function () {
+    btn.classList.remove("fill-flash-error");
+  }, 900); // 3 x 0.28s
 }
 
 function webWorkingDirHandleLive() {
@@ -3534,11 +4040,19 @@ var pinActive = false;
 function initPinButton() {
   if (!dom.pinBtn) return;
   dom.pinBtn.addEventListener("click", togglePin);
+  if (dom.t2PinBtn) dom.t2PinBtn.addEventListener("click", togglePin);
 }
 
+/* Uses the cached dom.t2PinBtn element reference rather than re-querying
+   document.getElementById("t2PinBtn") — Pin-to-top moves the whole #appRoot
+   (including this button) into the PiP window's own document, so a fresh
+   lookup against the outer document returns null from that point on and the
+   Intersite Shipment pin glow silently stops updating. A cached element
+   reference stays valid no matter which document it's currently attached to. */
 function setPinVisual(isActive) {
-  if (!dom.pinBtn) return;
-  dom.pinBtn.className = "pin-btn" + (isActive ? " active" : "");
+  var cls = "pin-btn" + (isActive ? " active" : "");
+  if (dom.pinBtn) dom.pinBtn.className = cls;
+  if (dom.t2PinBtn) dom.t2PinBtn.className = cls;
 }
 
 function togglePin() {
@@ -3556,20 +4070,39 @@ function toSafeFsName(str) {
   return cleaned;
 }
 
-/* ---- Log panel ---- */
+/* ---- Log panel ----
+   One line at a time — a new message clears whatever was showing instead
+   of stacking underneath it — and every line auto-fades and disappears on
+   its own after a short delay instead of sitting there for the rest of
+   the session. */
+
+var logLineTimer = null;
+var LOG_LINE_LIFETIME_MS = 2600;
 
 function clearLog() {
+  if (logLineTimer) { clearTimeout(logLineTimer); logLineTimer = null; }
   dom.sorterLog.innerHTML = "";
   dom.sorterLog.className = "sorter-log";
 }
 
 function logLine(text, kind) {
+  if (logLineTimer) { clearTimeout(logLineTimer); logLineTimer = null; }
+  dom.sorterLog.innerHTML = "";
   var line = document.createElement("div");
   line.className = "log-line" + (kind ? " " + kind : "");
   line.textContent = text;
   dom.sorterLog.appendChild(line);
   dom.sorterLog.className = "sorter-log show";
   dom.sorterLog.scrollTop = dom.sorterLog.scrollHeight;
+
+  logLineTimer = setTimeout(function () {
+    line.classList.add("fade-out");
+    setTimeout(function () {
+      dom.sorterLog.innerHTML = "";
+      dom.sorterLog.className = "sorter-log";
+      logLineTimer = null;
+    }, 300); // matches .log-line's opacity transition
+  }, LOG_LINE_LIFETIME_MS);
 }
 
 function setInitialWindowSize() {
@@ -3595,6 +4128,843 @@ function safeStep(fn, label) {
   }
 }
 
+/* ============================================================
+   Tool 2 (Intersite Shipment) — self-contained, independent of
+   Tool 1's tabs/PN-sheet/sweep machinery. Own state, own DOM ids
+   (t2* prefix), own file sorter (create-folder only, no sweep).
+   ============================================================ */
+
+var state2 = {
+  destination: "",
+  method: "",           // "truck" | "hand" | ""
+  shipmentType: "",
+  typeNumbers: [""],    // auto-grows as boxes get filled
+  pickslips: [""],      // auto-grows as boxes get filled
+  items: [t2DefaultItem()], // appendable, like Tool 1's item cards
+  consolidate: false    // Generated Dimensions: split (one tile per item) vs one combined tile
+};
+
+function t2DefaultItem() {
+  return { length: "", width: "", height: "", weight: "", qty: "1", unit: "" };
+}
+
+/* Intersite now shares the same folder access as Normal Shipment — grant
+   once from either tool, both see it connected. See webWorkingDirHandleLive(). */
+var T2_FS_SUPPORTED = false;
+try { T2_FS_SUPPORTED = (typeof window.showDirectoryPicker === "function"); } catch (t2FsErr) { T2_FS_SUPPORTED = false; }
+
+/* Formats a list of numbers the way Pick Slip numbers are read:
+   a lone number stays as-is, a run of consecutive numbers collapses
+   into "start-end", and separate runs/numbers are comma-joined.
+   e.g. ["5","6","7","9","12","13"] -> "5-7,9,12-13" */
+function t2FormatNumberList(rawList) {
+  var raw = [];
+  for (var i = 0; i < rawList.length; i++) {
+    var v = trim(rawList[i]);
+    if (v) raw.push(v);
+  }
+  if (raw.length === 0) return "";
+
+  var allNumeric = true;
+  for (var j = 0; j < raw.length; j++) {
+    if (!/^\d+$/.test(raw[j])) { allNumeric = false; break; }
+  }
+  // Non-numeric entries (e.g. someone typed a prefix) can't be range-grouped —
+  // fall back to a plain comma-joined list instead of guessing.
+  if (!allNumeric) return raw.join(",");
+
+  var seen = {};
+  var nums = [];
+  for (var k = 0; k < raw.length; k++) {
+    var n = parseInt(raw[k], 10);
+    if (!seen[n]) { seen[n] = true; nums.push(n); }
+  }
+  nums.sort(function (a, b) { return a - b; });
+
+  var groups = [];
+  var start = nums[0], prev = nums[0];
+  for (var m = 1; m < nums.length; m++) {
+    if (nums[m] === prev + 1) { prev = nums[m]; continue; }
+    groups.push(start === prev ? String(start) : (start + "-" + prev));
+    start = nums[m]; prev = nums[m];
+  }
+  groups.push(start === prev ? String(start) : (start + "-" + prev));
+  return groups.join(",");
+}
+
+/* Keeps exactly one trailing empty box: pops extra trailing empties down
+   to one, and appends a fresh empty box once the current last one is
+   filled in. A box only "counts" once it actually holds a value. */
+function t2NormalizeGrowArray(arr) {
+  while (arr.length > 1 && trim(arr[arr.length - 1]) === "" && trim(arr[arr.length - 2]) === "") {
+    arr.pop();
+  }
+  if (trim(arr[arr.length - 1]) !== "") {
+    arr.push("");
+  }
+}
+
+function t2BuildGrowList(containerEl, arr, onChange) {
+  containerEl.innerHTML = "";
+  for (var i = 0; i < arr.length; i++) {
+    (function (idx) {
+      var row = document.createElement("div");
+      row.className = "t2-input-row";
+
+      var input = document.createElement("input");
+      input.type = "text";
+      input.className = "t2-grow-input";
+      input.autocomplete = "off";
+      input.value = arr[idx];
+      input.addEventListener("input", function (e) {
+        var wasEmpty = trim(arr[idx]) === "";
+        var oldLen = arr.length;
+        arr[idx] = e.target.value;
+        var isEmpty = trim(arr[idx]) === "";
+        t2NormalizeGrowArray(arr);
+        if (arr.length !== oldLen || wasEmpty !== isEmpty) {
+          t2BuildGrowList(containerEl, arr, onChange);
+          var inputs = containerEl.querySelectorAll(".t2-grow-input");
+          if (inputs[idx]) {
+            inputs[idx].focus();
+            var v = inputs[idx].value;
+            try { inputs[idx].setSelectionRange(v.length, v.length); } catch (selErr) {}
+          }
+        }
+        onChange();
+      });
+      row.appendChild(input);
+
+      var copyBtn = document.createElement("button");
+      copyBtn.type = "button";
+      copyBtn.className = "copy-btn";
+      copyBtn.title = "Copy";
+      copyBtn.innerHTML = '<svg class="svg-icon" viewBox="0 0 24 24"><use href="#icon-clipboard"></use></svg>';
+      copyBtn.addEventListener("click", function () { copyToClipboard(trim(arr[idx])); });
+      row.appendChild(copyBtn);
+
+      // Only a box that actually holds a value is removable — the
+      // trailing auto-added empty box has nothing to remove.
+      if (arr.length > 1 && trim(arr[idx]) !== "") {
+        var rmBtn = document.createElement("button");
+        rmBtn.type = "button";
+        rmBtn.className = "t2-remove-btn";
+        rmBtn.title = "Remove";
+        rmBtn.innerHTML = "&times;";
+        rmBtn.addEventListener("click", function () {
+          arr.splice(idx, 1);
+          t2NormalizeGrowArray(arr);
+          t2BuildGrowList(containerEl, arr, onChange);
+          onChange();
+        });
+        row.appendChild(rmBtn);
+      }
+
+      containerEl.appendChild(row);
+    })(i);
+  }
+}
+
+function t2RenderTypeNumList() {
+  var el = document.getElementById("t2TypeNumList");
+  if (el) t2BuildGrowList(el, state2.typeNumbers, t2Recalculate);
+}
+
+function t2RenderPickslipList() {
+  var el = document.getElementById("t2PickslipList");
+  if (el) t2BuildGrowList(el, state2.pickslips, t2Recalculate);
+}
+
+/* Shown only once a Shipment Type value exists, titled after it —
+   e.g. Shipment Type "S2" -> card title "S2 Number/s". */
+function t2UpdateTypeNumCardVisibility() {
+  var card = document.getElementById("t2TypeNumCard");
+  var titleEl = document.getElementById("t2TypeNumTitle");
+  if (!card || !titleEl) return;
+  var shipType = trim(state2.shipmentType);
+  if (shipType) {
+    card.style.display = "";
+    titleEl.textContent = shipType + " Number/s";
+  } else {
+    card.style.display = "none";
+  }
+}
+
+/* Qty + Unit across every item card, stacked the same way Tool 1 stacks
+   them (same unit sums together, e.g. two "2 Crates" items become "4
+   Crates"; different units each stay as their own "N Unit" chunk). */
+function t2AggregateQtyUnits(items) {
+  var unitOrder = [], unitSums = {};
+  for (var i = 0; i < items.length; i++) {
+    var it = items[i];
+    if (!it.unit) continue;
+    var qn = parseFloat(trim(it.qty));
+    if (isNaN(qn) || qn <= 0) continue;
+    if (!unitSums.hasOwnProperty(it.unit)) { unitSums[it.unit] = 0; unitOrder.push(it.unit); }
+    unitSums[it.unit] += qn;
+  }
+  var parts = [];
+  for (var u = 0; u < unitOrder.length; u++) {
+    var key = unitOrder[u];
+    var sum = unitSums[key];
+    parts.push(sum + " " + pluralizedUnit(sum, key));
+  }
+  return parts;
+}
+
+function t2DisplayDims(it) {
+  var l = trim(it.length) || "0";
+  var w = trim(it.width) || "0";
+  var h = trim(it.height) || "0";
+  return l + " x " + w + " x " + h;
+}
+
+/* One dimension tile per item card — box length/width/height + weight,
+   auto-filled from what the operator typed (no more manual template). */
+function t2BuildDimensionBoxes(items) {
+  var boxes = [];
+  for (var i = 0; i < items.length; i++) {
+    var it = items[i];
+    if (!it.unit) continue;
+    var qn = parseFloat(trim(it.qty));
+    var qtyText = (!isNaN(qn) && qn > 0) ? (qn + " " + pluralizedUnit(qn, it.unit)) : "";
+    var weightText = formatWeightValue(it.weight) || "0.0";
+
+    var lines = [];
+    lines.push(t2DisplayDims(it) + " Cm");
+    lines.push("Weight : " + weightText + " Kgs");
+    lines.push("Total : " + qtyText);
+
+    var html = lines.join("<br>");
+    boxes.push({ subtitle: "", html: html, plain: htmlBrToPlain(html) });
+  }
+  return boxes;
+}
+
+/* Total-line units are always read out Carton, then Pallet, then Crate,
+   regardless of the order the items were entered in. */
+var T2_UNIT_PRIORITY = ["Carton", "Pallet", "Crate"];
+
+function t2SortUnitPartsByPriority(unitSums) {
+  var parts = [];
+  var used = {};
+  for (var i = 0; i < T2_UNIT_PRIORITY.length; i++) {
+    var key = T2_UNIT_PRIORITY[i];
+    if (unitSums.hasOwnProperty(key)) {
+      parts.push(unitSums[key] + " " + pluralizedUnit(unitSums[key], key));
+      used[key] = true;
+    }
+  }
+  for (var otherKey in unitSums) {
+    if (unitSums.hasOwnProperty(otherKey) && !used[otherKey]) {
+      parts.push(unitSums[otherKey] + " " + pluralizedUnit(unitSums[otherKey], otherKey));
+    }
+  }
+  return parts;
+}
+
+/* Consolidate ON: items sharing the exact same L x W x H AND the same unit
+   type (jenis) are folded into a single dimension line with their qty
+   combined — no need to repeat identical lines or tag each with its own
+   "(Qty Unit)". That clarifier only shows up when there's more than one
+   distinct dims/unit group, so the reader can tell which qty belongs to
+   which size. Weight and the Total line stay combined across everything. */
+function t2BuildConsolidatedDimensionBox(items) {
+  var lines = [];
+  var weightSum = 0;
+  var unitSums = {};
+  var any = false;
+
+  var groupOrder = [];
+  var groups = {}; // key (dimsText|unit) -> { dimsText, unit, qty }
+
+  for (var i = 0; i < items.length; i++) {
+    var it = items[i];
+    if (!it.unit) continue;
+    any = true;
+
+    var qn = parseFloat(trim(it.qty));
+    var effQty = (!isNaN(qn) && qn > 0) ? qn : 1;
+    var w = parseFloat(it.weight);
+    if (!isNaN(w)) weightSum += w * effQty;
+
+    var dimsText = t2DisplayDims(it) + " Cm";
+    var key = dimsText + "|" + it.unit;
+    if (!groups.hasOwnProperty(key)) {
+      groups[key] = { dimsText: dimsText, unit: it.unit, qty: 0 };
+      groupOrder.push(key);
+    }
+    groups[key].qty += effQty;
+
+    if (!unitSums.hasOwnProperty(it.unit)) unitSums[it.unit] = 0;
+    unitSums[it.unit] += effQty;
+  }
+
+  if (!any) return null;
+
+  var needsClarifier = groupOrder.length > 1;
+  for (var g = 0; g < groupOrder.length; g++) {
+    var grp = groups[groupOrder[g]];
+    lines.push(needsClarifier
+      ? grp.dimsText + " (" + grp.qty + " " + pluralizedUnit(grp.qty, grp.unit) + ")"
+      : grp.dimsText);
+  }
+
+  lines.push("Weight : " + formatWeightSum(weightSum) + " Kgs");
+  lines.push("Total : " + joinWithAmpersand(t2SortUnitPartsByPriority(unitSums)));
+
+  var html = lines.join("<br>");
+  return { subtitle: "", html: html, plain: htmlBrToPlain(html) };
+}
+
+function t2RenderDimTemplate() {
+  var grid = document.getElementById("t2DimensionsGrid");
+  if (!grid) return;
+  grid.innerHTML = "";
+
+  if (state2.consolidate) {
+    var box = t2BuildConsolidatedDimensionBox(state2.items);
+    if (!box) { grid.appendChild(buildPlaceholderTile("no dimensions yet")); return; }
+    grid.appendChild(buildDimensionTile(box));
+    return;
+  }
+
+  var boxes = t2BuildDimensionBoxes(state2.items);
+  if (boxes.length === 0) {
+    grid.appendChild(buildPlaceholderTile("no dimensions yet"));
+    return;
+  }
+  for (var i = 0; i < boxes.length; i++) {
+    grid.appendChild(buildDimensionTile(boxes[i]));
+  }
+}
+
+function t2Recalculate() {
+  var hawbEl = document.getElementById("t2GeneratedHawb");
+  if (hawbEl) {
+    var methodCode = state2.method === "truck" ? "BY TRUCK" : state2.method === "hand" ? "HAND CARRY" : "";
+    var shipType = trim(state2.shipmentType);
+    var numsFormatted = t2FormatNumberList(state2.typeNumbers);
+    if (methodCode && shipType && numsFormatted) {
+      hawbEl.textContent = methodCode + "(" + shipType + "#" + numsFormatted + ")";
+      hawbEl.classList.remove("is-empty");
+      hawbEl.removeAttribute("data-copy-value");
+    } else {
+      hawbEl.textContent = "\u2014";
+      hawbEl.classList.add("is-empty");
+    }
+  }
+  t2UpdateTypeNumCardVisibility();
+  t2RenderDimTemplate();
+  t2UpdateFolderPreview();
+}
+
+/* Naming convention: shipment type + # + processed shipment type number
+   + destination + processed qty and unit + " - " + processed pickslip
+   e.g. "S2#5-7 LOSARI 4 Cartons - 12-15" */
+function t2BuildFolderName() {
+  var dest = trim(state2.destination);
+  var shipType = trim(state2.shipmentType);
+  var numsFormatted = t2FormatNumberList(state2.typeNumbers);
+  var qtyParts = t2AggregateQtyUnits(state2.items);
+  var pickFormatted = t2FormatNumberList(state2.pickslips);
+
+  var parts = [];
+  if (shipType) parts.push(shipType + (numsFormatted ? "#" + numsFormatted : ""));
+  if (dest) parts.push(dest);
+  if (qtyParts.length) parts.push(qtyParts.join(" "));
+
+  var name = parts.join(" ");
+  if (pickFormatted) name += (name ? " - " : "") + pickFormatted;
+  return name;
+}
+
+function t2UpdateFolderPreview() {
+  var el = document.getElementById("t2OutFolderName");
+  if (!el) return;
+  var name = t2BuildFolderName();
+  if (name) { el.textContent = name; el.classList.remove("is-empty"); }
+  else { el.textContent = "\u2014"; el.classList.add("is-empty"); }
+}
+
+/* ============================================================
+   Tool 2 — Item cards (appendable, same pattern as Tool 1's
+   item cards: box length/width/height, box weight, qty + unit)
+   ============================================================ */
+
+function t2RenderItemCards() {
+  var list = document.getElementById("t2ItemCardsList");
+  if (!list) return;
+  list.innerHTML = "";
+  for (var index = 0; index < state2.items.length; index++) {
+    list.appendChild(t2BuildItemCard(state2.items[index], index, state2.items.length === 1));
+  }
+}
+
+function t2BuildItemCard(item, index, isOnlyCard) {
+  var card = document.createElement("div");
+  card.className = "card item-card";
+  card.setAttribute("data-index", String(index));
+
+  var header = document.createElement("div");
+  header.className = "item-card-header";
+
+  var title = document.createElement("h3");
+  title.className = "card-title";
+  title.textContent = state2.items.length > 1 ? ("Item " + (index + 1)) : "Item";
+  header.appendChild(title);
+
+  if (!isOnlyCard) {
+    var closeBtn = document.createElement("button");
+    closeBtn.className = "item-delete-btn";
+    closeBtn.innerHTML = "&#10005;";
+    closeBtn.title = "Remove this item";
+    closeBtn.setAttribute("type", "button");
+    closeBtn.addEventListener("click", function () {
+      var idx = Number(card.getAttribute("data-index"));
+      if (state2.items.length <= 1) return;
+      state2.items.splice(idx, 1);
+      t2RenderItemCards();
+      t2Recalculate();
+    });
+    header.appendChild(closeBtn);
+  }
+
+  card.appendChild(header);
+
+  function makeBoxField(labelText, key) {
+    var field = document.createElement("div");
+    field.className = "field";
+    var label = document.createElement("label");
+    label.textContent = labelText;
+    var input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = "0";
+    input.style.textAlign = "center";
+    input.autocomplete = "off";
+    input.value = item[key];
+    input.addEventListener("input", function (e) {
+      var idx = Number(card.getAttribute("data-index"));
+      var clean = sanitizeWeight(e.target.value);
+      e.target.value = clean;
+      state2.items[idx][key] = clean;
+      t2Recalculate();
+    });
+    field.appendChild(label);
+    field.appendChild(input);
+    return field;
+  }
+
+  var dimRow = document.createElement("div");
+  dimRow.className = "field-row";
+  dimRow.appendChild(makeBoxField("Length :", "length"));
+  dimRow.appendChild(makeBoxField("Width :", "width"));
+  dimRow.appendChild(makeBoxField("Height :", "height"));
+  card.appendChild(dimRow);
+
+  var weightField = document.createElement("div");
+  weightField.className = "field";
+  var weightLabel = document.createElement("label");
+  weightLabel.textContent = "Box Weight :";
+  var weightInput = document.createElement("input");
+  weightInput.type = "text";
+  weightInput.placeholder = "0.0";
+  weightInput.style.textAlign = "center";
+  weightInput.autocomplete = "off";
+  weightInput.value = item.weight;
+  weightInput.addEventListener("input", function (e) {
+    var idx = Number(card.getAttribute("data-index"));
+    var clean = sanitizeWeight(e.target.value);
+    e.target.value = clean;
+    state2.items[idx].weight = clean;
+    t2Recalculate();
+  });
+  weightInput.addEventListener("blur", function (e) {
+    var idx = Number(card.getAttribute("data-index"));
+    var formatted = formatWeightValue(e.target.value);
+    e.target.value = formatted;
+    state2.items[idx].weight = formatted;
+    t2Recalculate();
+  });
+  weightInput.addEventListener("keydown", function (e) {
+    if (e.keyCode === 13 || e.key === "Enter") e.target.blur();
+  });
+  weightField.appendChild(weightLabel);
+  weightField.appendChild(weightInput);
+  card.appendChild(weightField);
+
+  var qtyUnitRow = document.createElement("div");
+  qtyUnitRow.className = "qty-unit-inline";
+
+  var qtyField = document.createElement("div");
+  qtyField.className = "field-qty-inline";
+  var qtyLabel = document.createElement("label");
+  qtyLabel.textContent = "Qty :";
+  var qtyInputWrap = document.createElement("div");
+  qtyInputWrap.className = "qty-input-wrap";
+
+  var qtyInput = document.createElement("input");
+  qtyInput.type = "text";
+  qtyInput.setAttribute("inputmode", "numeric");
+  qtyInput.setAttribute("pattern", "[0-9]*");
+  qtyInput.placeholder = "1";
+  qtyInput.style.textAlign = "center";
+  qtyInput.autocomplete = "off";
+  qtyInput.value = item.qty;
+  qtyInput.addEventListener("input", function (e) {
+    var idx = Number(card.getAttribute("data-index"));
+    var clean = sanitizeQty(e.target.value);
+    e.target.value = clean;
+    state2.items[idx].qty = clean;
+    t2Recalculate();
+  });
+  qtyInput.addEventListener("blur", function (e) {
+    var idx = Number(card.getAttribute("data-index"));
+    var clean = sanitizeQty(e.target.value) || "1";
+    e.target.value = clean;
+    state2.items[idx].qty = clean;
+    t2Recalculate();
+  });
+  qtyInput.addEventListener("keydown", function (e) {
+    if (e.keyCode === 13 || e.key === "Enter") e.target.blur();
+  });
+
+  function stepQty(delta) {
+    var idx = Number(card.getAttribute("data-index"));
+    var current = parseInt(sanitizeQty(state2.items[idx].qty), 10);
+    if (isNaN(current) || current < 1) current = 1;
+    var next = current + delta;
+    if (next < 1) next = 1;
+    var val = String(next);
+    qtyInput.value = val;
+    state2.items[idx].qty = val;
+    t2Recalculate();
+  }
+
+  var qtySteppers = document.createElement("div");
+  qtySteppers.className = "qty-steppers";
+
+  var qtyUpBtn = document.createElement("button");
+  qtyUpBtn.type = "button";
+  qtyUpBtn.className = "qty-step qty-step-up";
+  qtyUpBtn.innerHTML = "&#9650;";
+  qtyUpBtn.title = "Increase qty";
+  qtyUpBtn.addEventListener("click", function () { stepQty(1); });
+
+  var qtyDownBtn = document.createElement("button");
+  qtyDownBtn.type = "button";
+  qtyDownBtn.className = "qty-step qty-step-down";
+  qtyDownBtn.innerHTML = "&#9660;";
+  qtyDownBtn.title = "Decrease qty";
+  qtyDownBtn.addEventListener("click", function () { stepQty(-1); });
+
+  qtySteppers.appendChild(qtyUpBtn);
+  qtySteppers.appendChild(qtyDownBtn);
+
+  qtyInputWrap.appendChild(qtyInput);
+  qtyInputWrap.appendChild(qtySteppers);
+
+  qtyField.appendChild(qtyLabel);
+  qtyField.appendChild(qtyInputWrap);
+
+  var unitGroup = document.createElement("div");
+  unitGroup.className = "radio-group";
+
+  var unitOptions = [
+    { value: "Carton", text: "Carton" },
+    { value: "Pallet", text: "Pallet" },
+    { value: "Crate", text: "Crate" }
+  ];
+  for (var u = 0; u < unitOptions.length; u++) {
+    var pill = document.createElement("label");
+    pill.className = "radio-pill";
+    var radio = document.createElement("input");
+    radio.type = "radio";
+    radio.name = "t2-unit-" + index;
+    radio.value = unitOptions[u].value;
+    if (item.unit === unitOptions[u].value) radio.checked = true;
+    radio.addEventListener("change", function (e) {
+      var idx = Number(card.getAttribute("data-index"));
+      if (e.target.checked) {
+        state2.items[idx].unit = e.target.value;
+        t2Recalculate();
+      }
+    });
+    var span = document.createElement("span");
+    span.textContent = unitOptions[u].text;
+    pill.appendChild(radio);
+    pill.appendChild(span);
+    unitGroup.appendChild(pill);
+  }
+
+  qtyUnitRow.appendChild(qtyField);
+  qtyUnitRow.appendChild(unitGroup);
+  card.appendChild(qtyUnitRow);
+
+  return card;
+}
+
+function t2HandleAddItem() {
+  state2.items.push(t2DefaultItem());
+  t2RenderItemCards();
+  t2Recalculate();
+  var newIndex = state2.items.length - 1;
+  var list = document.getElementById("t2ItemCardsList");
+  var newCard = list ? list.querySelector('.item-card[data-index="' + newIndex + '"]') : null;
+  if (newCard) {
+    var firstInput = newCard.querySelector("input[type=text]");
+    focusSoon(firstInput);
+  }
+}
+
+var t2LogLineTimer = null;
+
+function t2Log(text, kind) {
+  var log = document.getElementById("t2SorterLog");
+  if (!log) return;
+  if (t2LogLineTimer) { clearTimeout(t2LogLineTimer); t2LogLineTimer = null; }
+  log.innerHTML = "";
+  var line = document.createElement("div");
+  line.className = "log-line" + (kind ? " " + kind : "");
+  line.textContent = text;
+  log.appendChild(line);
+  log.className = "sorter-log show";
+  log.scrollTop = log.scrollHeight;
+
+  t2LogLineTimer = setTimeout(function () {
+    line.classList.add("fade-out");
+    setTimeout(function () {
+      log.innerHTML = "";
+      log.className = "sorter-log";
+      t2LogLineTimer = null;
+    }, 300); // matches .log-line's opacity transition
+  }, LOG_LINE_LIFETIME_MS);
+}
+
+function t2ClearLog() {
+  var log = document.getElementById("t2SorterLog");
+  if (!log) return;
+  if (t2LogLineTimer) { clearTimeout(t2LogLineTimer); t2LogLineTimer = null; }
+  log.innerHTML = "";
+  log.className = "sorter-log";
+}
+
+/* Same visual language as Tool 1's file sorter: a pulsing Choose Folder
+   button while nothing is connected yet, and Sort into Folder rendered
+   in its disabled/"needs attention" red style until a folder is picked. */
+function t2GetSavedWorkingDirName() {
+  try { return localStorage.getItem(T2_WORKDIR_KEY) || ""; } catch (err) { return ""; }
+}
+function t2SetSavedWorkingDirName(name) {
+  try {
+    if (name) localStorage.setItem(T2_WORKDIR_KEY, name);
+    else localStorage.removeItem(T2_WORKDIR_KEY);
+  } catch (err) {}
+}
+
+function t2RenderWorkingDir() {
+  var liveHandle = webWorkingDirHandleLive();
+  var connected = !!liveHandle;
+  var savedName = t2GetSavedWorkingDirName();
+  var pathEl = document.getElementById("t2WorkDirPath");
+  var sortBtn = document.getElementById("t2SortBtn");
+  var sortBtnIcon = document.getElementById("t2SortBtnIcon");
+  var chooseFolderBtn = document.getElementById("t2ChooseFolderBtn");
+  var sorterCard = document.getElementById("t2SorterCard");
+
+  if (pathEl) {
+    if (connected) {
+      pathEl.textContent = liveHandle.name;
+      pathEl.className = "workdir-path is-set";
+    } else if (savedName) {
+      pathEl.textContent = savedName + " — not connected!";
+      pathEl.className = "workdir-path is-stale";
+    } else {
+      pathEl.textContent = "No working folder selected";
+      pathEl.className = "workdir-path";
+    }
+  }
+  if (sortBtn) sortBtn.disabled = !connected;
+  if (sortBtnIcon) sortBtnIcon.innerHTML = connected ? "&#128193;" : "!";
+  if (chooseFolderBtn) {
+    var needsFolder = !connected && !chooseFolderBtn.disabled;
+    chooseFolderBtn.classList.toggle("needs-folder", needsFolder);
+  }
+  if (sorterCard) {
+    sorterCard.className = "card sorter-card" + (connected ? " wd-connected" : "");
+  }
+
+  t2UpdateFsNote();
+}
+
+function t2UpdateFsNote() {
+  var fsNote = document.getElementById("t2FsNote");
+  if (!fsNote) return;
+  if (!T2_FS_SUPPORTED) {
+    fsNote.className = "fs-note show";
+    fsNote.innerHTML = "This browser doesn't support local file access (File System Access API). Use Chrome or Edge for the File Sorter.";
+    return;
+  }
+  if (!webWorkingDirHandleLive()) {
+    var savedName = t2GetSavedWorkingDirName();
+    fsNote.className = "fs-note fs-note-info show";
+    fsNote.innerHTML = savedName ?
+      "Folder access isn't kept between sessions. Click <b>Choose Folder&hellip;</b> to reconnect to <b>" + escapeHtml(savedName) + "</b> (or pick a different one)." :
+      "Click <b>Choose Folder&hellip;</b> to grant this tab access to a folder on your computer (you'll be asked again next time you open the page).";
+    return;
+  }
+  fsNote.className = "fs-note";
+  fsNote.innerHTML = "";
+}
+
+function t2HandleChooseFolder() {
+  if (!T2_FS_SUPPORTED) return;
+  window.showDirectoryPicker({ mode: "readwrite" }).then(function (handle) {
+    if (typeof window.setWebWorkingDirHandle === "function") window.setWebWorkingDirHandle(handle);
+    t2SetSavedWorkingDirName(handle.name);
+    if (typeof appState !== "undefined" && appState.tabs) {
+      for (var i = 0; i < appState.tabs.length; i++) appState.tabs[i].workingDir = handle.name;
+      if (typeof saveState === "function") saveState();
+    }
+    t2RenderWorkingDir();
+    if (typeof renderWorkingDir === "function") renderWorkingDir();
+  }).catch(function (err) {
+    if (err && err.name !== "AbortError") {
+      t2Log("Could not get folder access: " + (err.message || err), "err");
+      t2FlashChooseFolderBtn();
+    }
+  });
+}
+
+/* Simplified sorter: no BOL/EDI/HAWB sweep — Intersite has neither EDI
+   nor BOL, and HAWB here doesn't need a file sweep either. It just
+   creates the destination folder, ready for files to be dropped in. */
+function t2HandleSort() {
+  var liveHandle = webWorkingDirHandleLive();
+  if (!liveHandle) {
+    t2Log("Choose a working folder first.", "err");
+    t2FlashChooseFolderBtn();
+    flashSortBtnError("t2SortBtn");
+    return;
+  }
+  var folderName = t2BuildFolderName();
+  if (!folderName) {
+    t2Log("Fill in Destination and Shipment Type / Number / Qty first.", "err");
+    flashSortBtnError("t2SortBtn");
+    return;
+  }
+  var safeName = folderName.replace(/[\\/:*?"<>|]/g, "-");
+  liveHandle.getDirectoryHandle(safeName, { create: true }).then(function () {
+    t2Log("Folder \"" + safeName + "\" ready.", "ok");
+  }).catch(function (err) {
+    t2Log("Could not create folder: " + (err.message || err), "err");
+  });
+}
+
+function t2ClearAll() {
+  state2.destination = "";
+  state2.method = "";
+  state2.shipmentType = "";
+  state2.typeNumbers = [""];
+  state2.pickslips = [""];
+  state2.items = [t2DefaultItem()];
+
+  var destEl = document.getElementById("t2Destination");
+  if (destEl) destEl.value = "";
+  var truckEl = document.getElementById("t2MethodTruck");
+  if (truckEl) truckEl.checked = false;
+  var handEl = document.getElementById("t2MethodHand");
+  if (handEl) handEl.checked = false;
+  var typeEl = document.getElementById("t2ShipType");
+  if (typeEl) typeEl.value = "";
+
+  t2RenderTypeNumList();
+  t2RenderPickslipList();
+  t2RenderItemCards();
+  t2Recalculate();
+  t2ClearLog();
+}
+
+function initTool2() {
+  t2RenderTypeNumList();
+  t2RenderPickslipList();
+  t2RenderItemCards();
+  t2Recalculate();
+
+  var destEl = document.getElementById("t2Destination");
+  if (destEl) destEl.addEventListener("input", function (e) {
+    state2.destination = uppercaseInPlace(e.target);
+    t2UpdateFolderPreview();
+  });
+
+  var truckEl = document.getElementById("t2MethodTruck");
+  var handEl = document.getElementById("t2MethodHand");
+  if (truckEl && handEl) {
+    truckEl.addEventListener("change", function () {
+      if (truckEl.checked) { handEl.checked = false; state2.method = "truck"; }
+      else { state2.method = ""; }
+      t2Recalculate();
+    });
+    handEl.addEventListener("change", function () {
+      if (handEl.checked) { truckEl.checked = false; state2.method = "hand"; }
+      else { state2.method = ""; }
+      t2Recalculate();
+    });
+  }
+
+  var typeEl = document.getElementById("t2ShipType");
+  if (typeEl) typeEl.addEventListener("input", function (e) {
+    e.target.value = e.target.value.replace(/\s+/g, "");
+    state2.shipmentType = uppercaseInPlace(e.target);
+    t2Recalculate();
+  });
+
+  var addItemBtn = document.getElementById("t2AddItemBtn");
+  if (addItemBtn) addItemBtn.addEventListener("click", t2HandleAddItem);
+
+  var consolidateToggle = document.getElementById("t2ConsolidateToggle");
+  if (consolidateToggle) {
+    consolidateToggle.checked = state2.consolidate;
+    consolidateToggle.addEventListener("change", function (e) {
+      state2.consolidate = e.target.checked;
+      t2RenderDimTemplate();
+    });
+  }
+
+  var clearBtn = document.getElementById("t2ClearAllBtn");
+  var clearModal = document.getElementById("t2ClearAllModal");
+  var clearCancelBtn = document.getElementById("t2ClearAllCancelBtn");
+  var clearConfirmBtn = document.getElementById("t2ClearAllConfirmBtn");
+  if (clearBtn && clearModal) {
+    clearBtn.addEventListener("click", function () {
+      clearModal.className = "modal-overlay show";
+    });
+  }
+  if (clearCancelBtn && clearModal) {
+    clearCancelBtn.addEventListener("click", function () {
+      clearModal.className = "modal-overlay";
+    });
+  }
+  if (clearConfirmBtn && clearModal) {
+    clearConfirmBtn.addEventListener("click", function () {
+      clearModal.className = "modal-overlay";
+      t2ClearAll();
+    });
+  }
+
+  var chooseFolderBtn = document.getElementById("t2ChooseFolderBtn");
+  if (!T2_FS_SUPPORTED) {
+    if (chooseFolderBtn) chooseFolderBtn.disabled = true;
+  } else if (chooseFolderBtn) {
+    chooseFolderBtn.addEventListener("click", t2HandleChooseFolder);
+  }
+  t2RenderWorkingDir();
+
+  var sortBtn = document.getElementById("t2SortBtn");
+  if (sortBtn) sortBtn.addEventListener("click", t2HandleSort);
+}
+
+
 function init() {
   safeStep(loadState, "loadState");
   safeStep(bindTabBar, "bindTabBar");
@@ -3605,11 +4975,45 @@ function init() {
   safeStep(bindStandaloneCopyButtons, "bindStandaloneCopyButtons");
   safeStep(bindClearAll, "bindClearAll");
   safeStep(initFileSorter, "initFileSorter");
+  safeStep(initTool2, "initTool2");
   safeStep(initPinButton, "initPinButton");
   safeStep(initRefreshDataButton, "initRefreshDataButton");
+  safeStep(initLandingCardTilt, "initLandingCardTilt");
   safeStep(recalculate, "recalculate");
   safeStep(setInitialWindowSize, "setInitialWindowSize");
   safeStep(initTabLayoutBridgeResize, "initTabLayoutBridgeResize");
+}
+
+/* Pointer-reactive tilt for the landing page's two big tool buttons — the
+   card rotates in 3D toward the cursor as it moves, on top of the existing
+   hover scale/glow/shimmer effects, then eases back flat on mouse leave. */
+function initLandingCardTilt() {
+  var cards = document.querySelectorAll(".landing-card");
+  var MAX_TILT_DEG = 7;
+  var HOVER_SCALE = 1.03;
+
+  for (var i = 0; i < cards.length; i++) {
+    (function (card) {
+      function applyTilt(e) {
+        var rect = card.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        var px = (e.clientX - rect.left) / rect.width;  // 0 (left) .. 1 (right)
+        var py = (e.clientY - rect.top) / rect.height;  // 0 (top) .. 1 (bottom)
+        var rotateY = (px - 0.5) * 2 * MAX_TILT_DEG;
+        var rotateX = (0.5 - py) * 2 * MAX_TILT_DEG;
+        card.style.transform =
+          "perspective(700px) rotateX(" + rotateX.toFixed(2) + "deg) rotateY(" +
+          rotateY.toFixed(2) + "deg) scale(" + HOVER_SCALE + ")";
+      }
+      function resetTilt() {
+        card.style.transform = "";
+      }
+      card.addEventListener("mouseenter", applyTilt);
+      card.addEventListener("mousemove", applyTilt);
+      card.addEventListener("mouseleave", resetTilt);
+      card.addEventListener("blur", resetTilt);
+    })(cards[i]);
+  }
 }
 
 function initTabLayoutBridgeResize() {
@@ -3628,7 +5032,10 @@ window.addEventListener("load", init);
 
   window.getPinnedWindow = function () { return pinPipWindow; };
 
-  function notify(msg) { (pinPipWindow || window).alert(msg); }
+  /* Was a native alert() popup — switched to the same inline sorter-log
+     text Tool 2 already uses, so both File Sorters give the same subtle,
+     non-blocking feedback instead of a jarring browser dialog. */
+  function notify(msg) { logLine(msg, "err"); }
   function confirmDialog(msg) { return (pinPipWindow || window).confirm(msg); }
 
   function showPinPlaceholder() {
@@ -3809,7 +5216,9 @@ window.addEventListener("load", init);
       for (var i = 0; i < appState.tabs.length; i++) {
         appState.tabs[i].workingDir = handle.name; // browsers never expose a real filesystem path
       }
+      if (typeof t2SetSavedWorkingDirName === "function") t2SetSavedWorkingDirName(handle.name);
       renderWorkingDir();
+      if (typeof t2RenderWorkingDir === "function") t2RenderWorkingDir();
       saveState();
     }).catch(function (err) {
       if (err && err.name !== "AbortError") notify("Could not get folder access: " + (err.message || err));
@@ -3820,6 +5229,7 @@ window.addEventListener("load", init);
 
   window.getWebWorkingDirHandle = function () { return webWorkingDirHandle; };
   window.clearWebWorkingDirHandle = function () { webWorkingDirHandle = null; };
+  window.setWebWorkingDirHandle = function (handle) { webWorkingDirHandle = handle; };
 
   function listFileEntries(dirHandle) {
     var out = [];
@@ -3908,6 +5318,8 @@ window.addEventListener("load", init);
   window.handleSortClickWeb = function () {
     if (!webWorkingDirHandle) {
       notify("Choose a working folder first — that's where your source files live.");
+      flashChooseFolderBtn();
+      flashSortBtnError("sortBtn");
       return;
     }
 
@@ -3915,6 +5327,7 @@ window.addEventListener("load", init);
     var folderName = buildFolderName(computedPickSlip, getActiveItems());
     if (!folderName) {
       notify("Fill in Destination, PN, Qty and at least one Pick Slip before sorting.");
+      flashSortBtnError("sortBtn");
       return;
     }
 
@@ -4095,6 +5508,49 @@ window.addEventListener("load", init);
 <!-- ============================================================ -->
 <script>
 (function () {
+  var BACK_INTERCEPT_KEY = "quickslip_back_intercept";
+  function getBackInterceptEnabled() {
+    try {
+      var v = localStorage.getItem(BACK_INTERCEPT_KEY);
+      if (v === null) return true; // no saved preference yet — on by default
+      return v === "1";
+    } catch (err) { return true; }
+  }
+  function setBackInterceptEnabled(val) {
+    try { localStorage.setItem(BACK_INTERCEPT_KEY, val ? "1" : "0"); } catch (err) {}
+  }
+  var backInterceptEnabled = getBackInterceptEnabled();
+
+  // Pushes a throwaway history entry so there's something for the browser's
+  // Back button to consume — that's what lets popstate below "catch" it.
+  function armBackTrap() {
+    if (!backInterceptEnabled) return;
+    try { history.pushState({ qsTrap: true }, "", location.href); } catch (err) {}
+  }
+
+  // Icon colour pool — matches the palette used across the landing page's
+  // own icons (purple/blue/orange-yellow/green) plus cyan, so the spinner
+  // feels like it belongs to the same visual family.
+  var NAV_SPINNER_COLORS = ["#3B82F6", "#10B981", "#8B5CF6", "#FACC15", "#22D3EE"];
+  function showNavLoading() {
+    var overlay = document.getElementById("navLoadingOverlay");
+    if (!overlay) return;
+    var color = NAV_SPINNER_COLORS[Math.floor(Math.random() * NAV_SPINNER_COLORS.length)];
+    overlay.style.setProperty("--nav-spinner-color", color);
+    overlay.classList.add("show");
+  }
+  function hideNavLoading() {
+    var overlay = document.getElementById("navLoadingOverlay");
+    if (overlay) overlay.classList.remove("show");
+  }
+  function fakeLoadThenShowWindow(name) {
+    showNavLoading();
+    var fakeDelay = 400 + Math.floor(Math.random() * 300); // random 0.4s–0.7s
+    setTimeout(function () {
+      showWindow(name);
+      hideNavLoading();
+    }, fakeDelay);
+  }
   function showWindow(name) {
     var appRoot = document.getElementById("appRoot");
     if (appRoot) appRoot.setAttribute("data-window", name);
@@ -4108,16 +5564,28 @@ window.addEventListener("load", init);
       if (typeof renderTabBar === "function") renderTabBar();
       if (typeof updateTabLayoutBridge === "function") updateTabLayoutBridge();
     }
+    // Trap is armed everywhere while the toggle is on — including Home —
+    // so a stray double Back-press can't slip through and leave the page.
+    armBackTrap();
   }
   function bind(id, name) {
     var el = document.getElementById(id);
     if (!el) return;
     el.addEventListener("click", function () {
+      // No-op if this button already represents the current window — clicking
+      // the active nav button (e.g. "Home" while already on Home) shouldn't
+      // re-trigger the fake loading / re-render.
+      var appRoot = document.getElementById("appRoot");
+      var current = appRoot ? appRoot.getAttribute("data-window") : null;
+      if (current === name) return;
+
       el.classList.add("btn-pressed");
       setTimeout(function () {
         el.classList.remove("btn-pressed");
-        setTimeout(function () { showWindow(name); }, 40);
       }, 30);
+
+      // Fake loading — purely cosmetic, no real work happens during this delay.
+      fakeLoadThenShowWindow(name);
     });
   }
   bind("gotoTool1Btn", "tool1");
@@ -4126,6 +5594,61 @@ window.addEventListener("load", init);
   bind("navTool1Btn", "tool1");
   bind("navTool2Btn", "tool2");
   showWindow("landing");
+
+  // "Back is locked" toast → bold/scale/flash the "Lock Back" label
+  // several times and shake the toggle, so the lock feels like it's
+  // actively reacting and grabs more attention.
+  function pulseBackLockedFeedback() {
+    var label = document.querySelector(".back-intercept-label");
+    var toggle = document.getElementById("backInterceptToggle");
+    if (label) {
+      label.classList.remove("flash-white");
+      void label.offsetWidth; // restart animation if already mid-flash
+      label.classList.add("flash-white");
+      setTimeout(function () { label.classList.remove("flash-white"); }, 1200); // 4 x 0.3s
+    }
+    if (toggle) {
+      toggle.classList.remove("shake");
+      void toggle.offsetWidth;
+      toggle.classList.add("shake");
+      setTimeout(function () { toggle.classList.remove("shake"); }, 500);
+    }
+  }
+
+  window.addEventListener("popstate", function () {
+    if (!backInterceptEnabled) return;
+    var appRoot = document.getElementById("appRoot");
+    var current = appRoot ? appRoot.getAttribute("data-window") : "landing";
+    if (current !== "landing") {
+      // Catch it — go Home instead of leaving the page, through the same
+      // fake loading overlay used for normal nav clicks.
+      fakeLoadThenShowWindow("landing");
+    } else {
+      // Already on Home and still caught it — likely a misclick. Re-arm so
+      // a second stray Back press doesn't slip through, and nudge the user
+      // toward the toggle if they actually meant to leave.
+      armBackTrap();
+      if (typeof showToast === "function") {
+        showToast("Back is locked — turn off \"Lock Back\" to leave this page.");
+      }
+      pulseBackLockedFeedback();
+    }
+  });
+
+  var backToggleBtn = document.getElementById("backInterceptToggle");
+  if (backToggleBtn) {
+    backToggleBtn.classList.toggle("on", backInterceptEnabled);
+    backToggleBtn.setAttribute("aria-checked", backInterceptEnabled ? "true" : "false");
+    backToggleBtn.addEventListener("click", function () {
+      backInterceptEnabled = !backInterceptEnabled;
+      setBackInterceptEnabled(backInterceptEnabled);
+      backToggleBtn.classList.toggle("on", backInterceptEnabled);
+      backToggleBtn.setAttribute("aria-checked", backInterceptEnabled ? "true" : "false");
+      if (backInterceptEnabled) {
+        armBackTrap();
+      }
+    });
+  }
 })();
 </script>
 

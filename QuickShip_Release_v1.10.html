@@ -1186,22 +1186,6 @@ input.input-warn, input.input-warn:focus {
   transition: transform 0.04s ease-out !important;
 }
 
-/* ============ Landing page ============ */
-
-/* ============ Landing page background wallpaper ============
-   A couple of large, heavily-blurred dark-purple circles sitting
-   behind the landing content only — #windowLanding is display:none
-   for tool1/tool2, so this never bleeds into those windows. Kept
-   very low-opacity so it reads as a faint "wallpaper" texture
-   rather than a visible shape. */
-/* ============ Landing page background wallpaper ============
-   A single large, heavily-blurred dark-purple circle centered on
-   the screen, sitting behind the landing content only —
-   #windowLanding is display:none for tool1/tool2, so this never
-   bleeds into those windows. The circle's own color sits close to
-   the page background near its center and fades out to the plain
-   background color toward its edge, so it barely reads as a shape —
-   just a faint "wallpaper" glow. */
 #windowLanding::before {
   content: "";
   position: fixed;
@@ -1211,8 +1195,8 @@ input.input-warn, input.input-warn:focus {
   height: 68vmax;
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(107, 70, 193, 0.16) 0%, rgba(107, 70, 193, 0.08) 32%, rgba(30, 30, 30, 0) 66%);
-  filter: blur(90px);
+  background: radial-gradient(circle, rgba(20, 30, 160, 0.07) 0%, rgba(20, 30, 140, 0.05) 32%, rgba(20, 30, 200, 0) 50%);
+  filter: blur(30px);
   pointer-events: none;
   z-index: 0;
 }

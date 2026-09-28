@@ -8082,7 +8082,17 @@ window.addEventListener("load", init);
   // writes fail on the network drive: Windows refuses to replace an open file).
   var BOARD_REV_DIR = "_board_data";
   var BOARD_REV_RE = /^board_rev_(\d{9})_([a-z0-9]+)\.json$/i;
-  var BOARD_PRESENCE_RE = /^user_([a-z0-9]+)\.json$/i;
+  // v1.24: presence + lock are EMPTY marker files whose NAME carries the info.
+  // They are only ever created/deleted, never rewritten -> no "file in use" clashes
+  // between PCs on the network drive, and readers never even open them.
+  var BOARD_PRESENCE_RE = /^p_([a-z0-9]+)_(\d{9})_([0-9a-f]*)\.json$/;
+  var BOARD_LOCK_DIR = "_board_lock";
+  var BOARD_LOCK_RE = /^l_(\d{9})_([a-z0-9]+)_(\d{9})_([0-9a-f]*)\.json$/;
+  var boardSubDirs = {};
+  var boardMyPresenceFiles = [];
+  var boardMyLockFiles = [];
+  var boardMyGen = 0;
+  var boardNetErr = {};
   var BOARD_KEEP_REVS = 15;
   var boardLoadedName = "";
   var boardLatestListedRev = 0;
@@ -8537,14 +8547,66 @@ window.addEventListener("load", init);
   function removeBoardSmallFile(dir, name) {
     return dir.removeEntry(name).catch(function () {});
   }
-  function getPresenceDir() {
+  function getBoardSubDir(name) {
+    var c = boardSubDirs[name];
+    if (c && c.owner === boardDirHandle) return Promise.resolve(c.dir);
     if (!boardDirHandle) return Promise.reject(new Error("No shared board folder"));
-    if (boardPresenceDirHandle && boardPresenceDirOwner === boardDirHandle) return Promise.resolve(boardPresenceDirHandle);
     var owner = boardDirHandle;
-    return owner.getDirectoryHandle(BOARD_PRESENCE_DIR, { create: true }).then(function (d) {
-      boardPresenceDirHandle = d;
-      boardPresenceDirOwner = owner;
+    return owner.getDirectoryHandle(name, { create: true }).then(function (d) {
+      boardSubDirs[name] = { owner: owner, dir: d };
       return d;
+    });
+  }
+  function getPresenceDir() { return getBoardSubDir(BOARD_PRESENCE_DIR); }
+  function pad9(n) { return String(n).padStart(9, "0"); }
+  function encBoardName(s) {
+    var bytes = new TextEncoder().encode(String(s || "Unnamed").slice(0, 40));
+    return Array.prototype.map.call(bytes, function (b) { return ("0" + b.toString(16)).slice(-2); }).join("");
+  }
+  function decBoardName(h) {
+    try {
+      var a = [];
+      for (var i = 0; i + 1 < h.length; i += 2) a.push(parseInt(h.substr(i, 2), 16));
+      return new TextDecoder().decode(new Uint8Array(a));
+    } catch (e) { return "Unnamed"; }
+  }
+  function boardNetNote(key, err) {
+    if (err) boardNetErr[key] = (err.name || err.message || "error"); else delete boardNetErr[key];
+  }
+  function netErrText() {
+    var k = Object.keys(boardNetErr);
+    return k.map(function (x) { return x + ": " + boardNetErr[x]; }).join(", ");
+  }
+  function listBoardDirNames(dir) {
+    var names = [];
+    var it = dir.entries();
+    function next() {
+      return it.next().then(function (r) {
+        if (r.done) return names;
+        if (r.value[1].kind === "file") names.push(r.value[0]);
+        return next();
+      });
+    }
+    return next();
+  }
+  function createBoardMarker(dir, name) {
+    return retryBoardOperation(function () { return dir.getFileHandle(name, { create: true }); }, 3);
+  }
+  function removeBoardMarkers(dir, list, keepName) {
+    list.slice().forEach(function (n) {
+      if (n === keepName) return;
+      dir.removeEntry(n).then(function () {
+        var i = list.indexOf(n); if (i >= 0) list.splice(i, 1);
+      }, function (err) {
+        if (err && err.name === "NotFoundError") { var i = list.indexOf(n); if (i >= 0) list.splice(i, 1); }
+      });
+    });
+  }
+  function sweepOwnMarkers(dir, re, idGroup) {
+    return listBoardDirNames(dir).then(function (names) {
+      return Promise.all(names.filter(function (n) {
+        var m = re.exec(n); return m && m[idGroup] === ensureClientId();
+      }).map(function (n) { return dir.removeEntry(n).catch(function () {}); }));
     });
   }
   function presenceFileName() { return BOARD_PRESENCE_PREFIX + ensureClientId() + ".json"; }
@@ -8553,51 +8615,82 @@ window.addEventListener("load", init);
   function writeBoardPresence() {
     if (boardMode !== "shared" || !boardDirHandle || boardPresenceBusy) return Promise.resolve();
     boardPresenceBusy = true;
+    var name = "p_" + ensureClientId() + "_" + pad9(++boardHbCounter) + "_" + encBoardName(boardUserName || "Unnamed") + ".json";
     return boardTimeout(getPresenceDir().then(function (dir) {
-      return writeBoardSmallFile(dir, presenceFileName(), { clientId: ensureClientId(), name: boardUserName || "Unnamed", hb: nextHb() });
-    }), 10000, "Presence write").catch(function (err) {
-      boardPresenceDirHandle = null; // re-acquire the folder handle next time
+      return createBoardMarker(dir, name).then(function () {
+        boardMyPresenceFiles.push(name);
+        removeBoardMarkers(dir, boardMyPresenceFiles, name);
+      });
+    }), 10000, "Presence").then(function () {
+      boardNetNote("presence");
+    }, function (err) {
+      boardSubDirs = {}; // re-acquire folder handles next time
+      boardNetNote("presence", err);
       console.warn("Presence write failed:", err);
     }).then(function () { boardPresenceBusy = false; });
   }
   function leaveBoardPresence() {
     boardPresenceList = [];
     if (!boardDirHandle) return Promise.resolve();
-    return getPresenceDir().then(function (dir) {
-      return removeBoardSmallFile(dir, presenceFileName());
-    }).catch(function () {});
+    return boardTimeout(Promise.all([getBoardSubDir(BOARD_PRESENCE_DIR), getBoardSubDir(BOARD_LOCK_DIR)]).then(function (d) {
+      return Promise.all([sweepOwnMarkers(d[0], BOARD_PRESENCE_RE, 1), sweepOwnMarkers(d[1], BOARD_LOCK_RE, 2)]);
+    }), 8000, "Leave board").catch(function () {}).then(function () {
+      boardMyPresenceFiles = []; boardMyLockFiles = []; boardMyGen = 0;
+    });
+  }
+  function dropBoardLock() {
+    boardMyGen = 0;
+    if (!boardDirHandle) return Promise.resolve();
+    return boardTimeout(getBoardSubDir(BOARD_LOCK_DIR).then(function (dir) {
+      return sweepOwnMarkers(dir, BOARD_LOCK_RE, 2);
+    }), 8000, "Release lock").catch(function () {}).then(function () { boardMyLockFiles = []; });
   }
   function readBoardPresenceList(dir) {
-    var names = [];
-    var it = dir.entries();
-    function next() {
-      return it.next().then(function (r) {
-        if (r.done) return;
-        if (r.value[1].kind === "file" && BOARD_PRESENCE_RE.test(r.value[0])) names.push(r.value[0]);
-        return next();
+    return listBoardDirNames(dir).then(function (names) {
+      var best = {}, all = {};
+      names.forEach(function (n) {
+        var m = BOARD_PRESENCE_RE.exec(n); if (!m) return;
+        var id = m[1], seq = parseInt(m[2], 10);
+        (all[id] = all[id] || []).push(n);
+        if (!best[id] || seq > best[id].seq) best[id] = { seq: seq, name: decBoardName(m[3]) };
       });
-    }
-    return next().then(function () {
-      return Promise.all(names.map(function (name) {
-        // A read that fails/returns half-written data must NOT make that user vanish:
-        // fall back to the last good copy; only "heartbeat stopped changing" removes a user.
-        return readBoardSmallFile(dir, name).then(function (d) {
-          if (d && d.clientId) boardPresenceLast[name] = d;
-          return { name: name, data: boardPresenceLast[name] || null };
-        }, function () { return { name: name, data: boardPresenceLast[name] || null }; });
-      }));
-    }).then(function (arr) {
-      var out = [], myId = ensureClientId(), present = {};
-      arr.forEach(function (x) {
-        present[x.name] = 1;
-        if (!x.data) return;
-        var age = boardObserve("p:" + x.name, x.data.hb);
-        if (x.data.clientId === myId || age <= BOARD_LIVE_STALE_MS) out.push({ id: x.data.clientId, name: x.data.name || "Unnamed" });
-        else if (age > BOARD_ORPHAN_MS) removeBoardSmallFile(dir, x.name);
+      var out = [], myId = ensureClientId();
+      Object.keys(best).forEach(function (id) {
+        var b = best[id];
+        var age = boardObserve("p:" + id, b.seq); // alive = its counter keeps changing
+        if (id === myId || age <= BOARD_LIVE_STALE_MS) out.push({ id: id, name: b.name || "Unnamed" });
+        else if (age > BOARD_ORPHAN_MS) all[id].forEach(function (n) { dir.removeEntry(n).catch(function () {}); });
       });
-      Object.keys(boardPresenceLast).forEach(function (n) { if (!present[n]) delete boardPresenceLast[n]; });
       out.sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
       return out;
+    });
+  }
+  // Lock arbitration: highest "generation" among ALIVE lock holders wins (tie -> larger client id).
+  // Taking over = create a lock with generation+1, so the old editor deterministically loses.
+  function readBoardLockOwner() {
+    return getBoardSubDir(BOARD_LOCK_DIR).then(function (dir) {
+      return listBoardDirNames(dir).then(function (names) {
+        var groups = {}, maxGen = 0, myId = ensureClientId(), owner = null;
+        names.forEach(function (n) {
+          var m = BOARD_LOCK_RE.exec(n); if (!m) return;
+          var gen = parseInt(m[1], 10), seq = parseInt(m[3], 10), k = m[1] + "|" + m[2];
+          var g = groups[k] || (groups[k] = { gen: gen, id: m[2], seq: -1, name: "", files: [] });
+          g.files.push(n);
+          if (seq > g.seq) { g.seq = seq; g.name = decBoardName(m[4]); }
+          if (gen > maxGen) maxGen = gen;
+        });
+        Object.keys(groups).forEach(function (k) {
+          var g = groups[k];
+          var age = boardObserve("l:" + k, g.seq);
+          var alive = g.id === myId || age <= BOARD_LIVE_STALE_MS;
+          if (!alive) {
+            if (age > BOARD_ORPHAN_MS) g.files.forEach(function (n) { dir.removeEntry(n).catch(function () {}); });
+            return;
+          }
+          if (!owner || g.gen > owner.gen || (g.gen === owner.gen && g.id > owner.id)) owner = g;
+        });
+        return { owner: owner ? { clientId: owner.id, name: owner.name || "Unnamed", gen: owner.gen } : null, maxGen: maxGen };
+      });
     });
   }
   function refreshBoardInfo() {
@@ -8606,15 +8699,15 @@ window.addEventListener("load", init);
     var myId = ensureClientId();
     function done() { boardInfoPromise = null; }
     boardInfoPromise = boardTimeout(Promise.all([
-      readBoardSmallFile(boardDirHandle, BOARD_LOCK_FILE).catch(function () { return undefined; }),
-      getPresenceDir().then(readBoardPresenceList).catch(function () { boardPresenceDirHandle = null; return undefined; })
+      readBoardLockOwner().then(function (r) { boardNetNote("lock-read"); return r; },
+        function (err) { boardSubDirs = {}; boardNetNote("lock-read", err); return undefined; }),
+      getPresenceDir().then(readBoardPresenceList).then(function (r) { boardNetNote("presence-read"); return r; },
+        function (err) { boardSubDirs = {}; boardNetNote("presence-read", err); return undefined; })
     ]), 15000, "Board info").then(function (res) {
-      var lock = res[0], users = res[1];
-      if (lock !== undefined) {
-        var alive = !!(lock && lock.clientId) &&
-          (lock.clientId === myId || boardObserve("lock", lock.clientId + "|" + lock.hb) <= BOARD_LIVE_STALE_MS);
-        boardLock = alive ? { clientId: lock.clientId, name: lock.name || "Unnamed" } : null;
-        if (boardIsEditor && alive && lock.clientId !== myId) boardLostEditor(lock);
+      var lk = res[0], users = res[1];
+      if (lk !== undefined) {
+        boardLock = lk.owner;
+        if (boardIsEditor && lk.owner && lk.owner.clientId !== myId) boardLostEditor(lk.owner);
       }
       if (users !== undefined) {
         if (!users.some(function (u) { return u.id === myId; })) users.push({ id: myId, name: boardUserName || "Unnamed" });
@@ -8624,25 +8717,33 @@ window.addEventListener("load", init);
     }).then(done, done);
     return boardInfoPromise;
   }
-  function writeBoardLock() {
-    return writeBoardSmallFile(boardDirHandle, BOARD_LOCK_FILE, { clientId: ensureClientId(), name: boardUserName || "Unnamed", hb: nextHb() });
+  function writeBoardLockHb() {
+    var name = "l_" + pad9(boardMyGen) + "_" + ensureClientId() + "_" + pad9(++boardHbCounter) + "_" + encBoardName(boardUserName || "Unnamed") + ".json";
+    return getBoardSubDir(BOARD_LOCK_DIR).then(function (dir) {
+      return createBoardMarker(dir, name).then(function () {
+        boardMyLockFiles.push(name);
+        removeBoardMarkers(dir, boardMyLockFiles, name);
+      });
+    });
   }
   function boardLostEditor(cur) {
     boardIsEditor = false;
     boardPendingSave = null; // otherwise a stuck pending save blocks syncing forever
     boardDirty = false;
     boardLock = { clientId: cur && cur.clientId, name: (cur && cur.name) || "another user" };
+    dropBoardLock();
     setEditorUi();
   }
   function lockHeartbeat() {
     if (boardMode !== "shared" || !boardIsEditor || !boardDirHandle || boardLockBusy) return;
     boardLockBusy = true;
-    var myId = ensureClientId();
-    boardTimeout(readBoardSmallFile(boardDirHandle, BOARD_LOCK_FILE).then(function (cur) {
-      if (cur && cur.clientId && cur.clientId !== myId) { boardLostEditor(cur); return; }
-      return writeBoardLock();
-    }), 10000, "Editor heartbeat").catch(function (err) { console.warn("Editor heartbeat failed:", err); })
-      .then(function () { boardLockBusy = false; });
+    boardTimeout(writeBoardLockHb(), 10000, "Editor heartbeat").then(function () {
+      boardNetNote("lock-hb");
+    }, function (err) {
+      boardSubDirs = {};
+      boardNetNote("lock-hb", err);
+      console.warn("Editor heartbeat failed:", err);
+    }).then(function () { boardLockBusy = false; });
   }
   function boardTick() {
     boardTickCount++;
@@ -8713,7 +8814,7 @@ window.addEventListener("load", init);
       }
     }
     if (statusEl) statusEl.textContent = boardMode === "shared"
-      ? "Shared board" + (boardStatusDetail ? " \u00B7 " + boardStatusDetail : "")
+      ? "Shared board" + (boardStatusDetail ? " \u00B7 " + boardStatusDetail : "") + (netErrText() ? " \u00B7 \u26A0 " + netErrText() : "")
       : "Personal / Local";
     setEditorUi(doc);
   }
@@ -8745,34 +8846,34 @@ window.addEventListener("load", init);
     if (boardMode !== "shared" || boardEditInFlight || boardIsEditor) return Promise.resolve(boardIsEditor);
     boardEditInFlight = true;
     var myId = ensureClientId();
-    return refreshBoardInfo().then(function () {
+    return boardTimeout(refreshBoardInfo().then(function () {
       var ed = currentEditor();
       if (ed && ed.clientId !== myId && !force) throw new Error("Board is currently being edited by " + (ed.name || "another user") + ".");
-      return writeBoardLock();
+      return readBoardLockOwner();
+    }).then(function (lk) {
+      boardMyGen = Math.max(lk.maxGen, boardMyGen) + 1;
+      return writeBoardLockHb();
     }).then(function () {
-      // Two PCs may write at the same moment: last write wins. Wait a beat,
-      // then re-read; only the one whose id is really in the file is editor.
-      return boardSleep(700);
-    }).then(function () {
-      return readBoardSmallFile(boardDirHandle, BOARD_LOCK_FILE);
-    }).then(function (cur) {
-      if (!cur || cur.clientId !== myId) throw new Error("Another user claimed edit mode first.");
+      // give a simultaneous claimer time to show up, then let the arbitration decide
+      return boardSleep(1500);
+    }).then(readBoardLockOwner).then(function (lk) {
+      if (!lk.owner || lk.owner.clientId !== myId) throw new Error("Another user claimed edit mode first.");
       boardIsEditor = true;
-      boardLock = { clientId: myId, name: boardUserName || "Unnamed" };
+      boardLock = lk.owner;
       setEditorUi();
       return true;
+    }), 25000, "Enter edit mode").catch(function (err) {
+      if (!boardIsEditor) dropBoardLock();
+      throw err;
     }).finally(function () { boardEditInFlight = false; });
   }
   function releaseBoardEditor() {
     if (boardMode !== "shared" || !boardIsEditor) return Promise.resolve();
-    var myId = ensureClientId();
     return waitForBoardSaves(8000).then(function () {
       boardIsEditor = false; // stops the lock heartbeat
       boardPendingSave = null;
       boardDirty = false;
-      return boardTimeout(readBoardSmallFile(boardDirHandle, BOARD_LOCK_FILE).then(function (cur) {
-        if (cur && cur.clientId === myId) return removeBoardSmallFile(boardDirHandle, BOARD_LOCK_FILE);
-      }), 10000, "Release lock");
+      return dropBoardLock();
     }).catch(function (err) {
       console.warn("Could not release board editor:", err);
     }).then(function () {
@@ -8894,13 +8995,7 @@ window.addEventListener("load", init);
     boardFileHandle = null;
     boardWriteInFlight = false;
     if (wasShared && boardDirHandle) {
-      if (wasEditor) {
-        var myIdOut = ensureClientId();
-        readBoardSmallFile(boardDirHandle, BOARD_LOCK_FILE).then(function (cur) {
-          if (cur && cur.clientId === myIdOut) return removeBoardSmallFile(boardDirHandle, BOARD_LOCK_FILE);
-        }).catch(function () {});
-      }
-      leaveBoardPresence();
+      leaveBoardPresence(); // removes our presence + lock markers
     }
     boardLock = null;
     // Keep the directory handle in IndexedDB even after logout. `removeHandle`
@@ -9876,8 +9971,11 @@ window.addEventListener("load", init);
   window.addEventListener("pagehide", function () {
     if (boardMode !== "shared" || !boardDirHandle) return;
     try {
-      if (boardIsEditor) boardDirHandle.removeEntry(BOARD_LOCK_FILE).catch(function () {});
-      if (boardPresenceDirHandle) boardPresenceDirHandle.removeEntry(presenceFileName()).catch(function () {});
+      [[BOARD_PRESENCE_DIR, boardMyPresenceFiles], [BOARD_LOCK_DIR, boardMyLockFiles]].forEach(function (p) {
+        var e = boardSubDirs[p[0]];
+        if (!e || !e.dir) return;
+        p[1].forEach(function (n) { e.dir.removeEntry(n).catch(function () {}); });
+      });
     } catch (e) {}
   });
   overlay.addEventListener("click", function (e) {

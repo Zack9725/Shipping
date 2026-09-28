@@ -8037,6 +8037,7 @@ window.addEventListener("load", init);
   var BOARD_POLL_MS = 2000;
   var BOARD_HEARTBEAT_MS = 8000;
   var BOARD_STALE_MS = 24000;
+  var BOARD_IO_RETRIES = 2;
   var boardDate = new Date().toISOString().slice(0, 10);
   var boardMode = "setup";
   var boardDirHandle = null;
@@ -8050,109 +8051,60 @@ window.addEventListener("load", init);
   var lastSyncedItems = [];
   var lastSharedDocument = null;
 
-  function cloneBoardValue(value) {
-    return JSON.parse(JSON.stringify(value));
-  }
+  function cloneBoardValue(value) { return JSON.parse(JSON.stringify(value)); }
   function todayIso() {
-    var d = new Date();
-    var m = String(d.getMonth() + 1).padStart(2, "0");
-    var day = String(d.getDate()).padStart(2, "0");
+    var d = new Date(), m = String(d.getMonth() + 1).padStart(2, "0"), day = String(d.getDate()).padStart(2, "0");
     return d.getFullYear() + "-" + m + "-" + day;
   }
-  function makeClientId() {
-    return "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
-  }
-  function getBoardSettings() {
-    try { return JSON.parse(localStorage.getItem(BOARD_SETTINGS_KEY) || "{}") || {}; }
-    catch (e) { return {}; }
-  }
+  function makeClientId() { return "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); }
+  function getBoardSettings() { try { return JSON.parse(localStorage.getItem(BOARD_SETTINGS_KEY) || "{}") || {}; } catch (e) { return {}; } }
   function setBoardSettings(patch) {
-    var current = getBoardSettings();
-    Object.keys(patch).forEach(function (k) { current[k] = patch[k]; });
+    var current = getBoardSettings(); Object.keys(patch).forEach(function (k) { current[k] = patch[k]; });
     try { localStorage.setItem(BOARD_SETTINGS_KEY, JSON.stringify(current)); } catch (e) {}
   }
   function openBoardDb() {
     return new Promise(function (resolve, reject) {
       if (!window.indexedDB) { reject(new Error("IndexedDB is unavailable")); return; }
       var req = indexedDB.open(BOARD_DB_NAME, 1);
-      req.onupgradeneeded = function () {
-        if (!req.result.objectStoreNames.contains(BOARD_DB_STORE)) req.result.createObjectStore(BOARD_DB_STORE);
-      };
+      req.onupgradeneeded = function () { if (!req.result.objectStoreNames.contains(BOARD_DB_STORE)) req.result.createObjectStore(BOARD_DB_STORE); };
       req.onsuccess = function () { resolve(req.result); };
       req.onerror = function () { reject(req.error || new Error("Could not open board storage")); };
     });
   }
   function idbGetHandle() {
-    return openBoardDb().then(function (db) {
-      return new Promise(function (resolve, reject) {
-        var tx = db.transaction(BOARD_DB_STORE, "readonly");
-        var req = tx.objectStore(BOARD_DB_STORE).get("directory");
-        req.onsuccess = function () { resolve(req.result || null); };
-        req.onerror = function () { reject(req.error); };
-      });
-    });
+    return openBoardDb().then(function (db) { return new Promise(function (resolve, reject) {
+      var tx = db.transaction(BOARD_DB_STORE, "readonly"), req = tx.objectStore(BOARD_DB_STORE).get("directory");
+      req.onsuccess = function () { resolve(req.result || null); }; req.onerror = function () { reject(req.error); };
+    }); });
   }
   function idbPutHandle(handle) {
-    return openBoardDb().then(function (db) {
-      return new Promise(function (resolve, reject) {
-        var tx = db.transaction(BOARD_DB_STORE, "readwrite");
-        tx.objectStore(BOARD_DB_STORE).put(handle, "directory");
-        tx.oncomplete = function () { resolve(); };
-        tx.onerror = function () { reject(tx.error); };
-      });
-    });
+    return openBoardDb().then(function (db) { return new Promise(function (resolve, reject) {
+      var tx = db.transaction(BOARD_DB_STORE, "readwrite"); tx.objectStore(BOARD_DB_STORE).put(handle, "directory");
+      tx.oncomplete = function () { resolve(); }; tx.onerror = function () { reject(tx.error); };
+    }); });
   }
   function idbDeleteHandle() {
-    return openBoardDb().then(function (db) {
-      return new Promise(function (resolve, reject) {
-        var tx = db.transaction(BOARD_DB_STORE, "readwrite");
-        tx.objectStore(BOARD_DB_STORE).delete("directory");
-        tx.oncomplete = function () { resolve(); };
-        tx.onerror = function () { reject(tx.error); };
-      });
-    });
+    return openBoardDb().then(function (db) { return new Promise(function (resolve, reject) {
+      var tx = db.transaction(BOARD_DB_STORE, "readwrite"); tx.objectStore(BOARD_DB_STORE).delete("directory");
+      tx.oncomplete = function () { resolve(); }; tx.onerror = function () { reject(tx.error); };
+    }); });
   }
   function ensureClientId() {
-    if (!boardClientId) {
-      var s = getBoardSettings();
-      boardClientId = s.clientId || makeClientId();
-      setBoardSettings({ clientId: boardClientId });
-    }
+    if (!boardClientId) { var s = getBoardSettings(); boardClientId = s.clientId || makeClientId(); setBoardSettings({ clientId: boardClientId }); }
     return boardClientId;
   }
   function getLocalStore() {
-    try {
-      var raw = localStorage.getItem(LOCAL_BOARD_KEY);
-      var parsed = raw ? JSON.parse(raw) : {};
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) parsed = {};
-      return parsed;
-    } catch (e) { return {}; }
+    try { var raw = localStorage.getItem(LOCAL_BOARD_KEY), parsed = raw ? JSON.parse(raw) : {}; if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) parsed = {}; return parsed; }
+    catch (e) { return {}; }
   }
-  function saveLocalStore(store) {
-    try { localStorage.setItem(LOCAL_BOARD_KEY, JSON.stringify(store)); } catch (e) {}
-  }
+  function saveLocalStore(store) { try { localStorage.setItem(LOCAL_BOARD_KEY, JSON.stringify(store)); } catch (e) {} }
   function migrateLegacyLocalBoard() {
-    var store = getLocalStore();
-    if (Object.keys(store).length) return store;
-    try {
-      var raw = localStorage.getItem(STORAGE_KEY);
-      var legacy = raw ? JSON.parse(raw) : null;
-      if (Array.isArray(legacy) && legacy.length) {
-        store[todayIso()] = legacy;
-        saveLocalStore(store);
-      }
-    } catch (e) {}
+    var store = getLocalStore(); if (Object.keys(store).length) return store;
+    try { var raw = localStorage.getItem(STORAGE_KEY), legacy = raw ? JSON.parse(raw) : null; if (Array.isArray(legacy) && legacy.length) { store[todayIso()] = legacy; saveLocalStore(store); } } catch (e) {}
     return store;
   }
-  function readLocalItems(dateKey) {
-    var store = migrateLegacyLocalBoard();
-    return Array.isArray(store[dateKey]) ? cloneBoardValue(store[dateKey]) : [];
-  }
-  function writeLocalItems(dateKey, value) {
-    var store = getLocalStore();
-    store[dateKey] = cloneBoardValue(value);
-    saveLocalStore(store);
-  }
+  function readLocalItems(dateKey) { var store = migrateLegacyLocalBoard(); return Array.isArray(store[dateKey]) ? cloneBoardValue(store[dateKey]) : []; }
+  function writeLocalItems(dateKey, value) { var store = getLocalStore(); store[dateKey] = cloneBoardValue(value); saveLocalStore(store); }
   function normaliseBoardDocument(doc) {
     if (!doc || typeof doc !== "object" || Array.isArray(doc)) doc = {};
     if (!doc.version) doc.version = 1;
@@ -8160,276 +8112,9 @@ window.addEventListener("load", init);
     if (!doc.connections || typeof doc.connections !== "object" || Array.isArray(doc.connections)) doc.connections = {};
     return doc;
   }
-  function readSharedDocument() {
-    if (!boardFileHandle) return Promise.reject(new Error("No shared board file"));
-    return boardFileHandle.getFile().then(function (file) {
-      return file.text().then(function (raw) {
-        if (!raw.trim()) return normaliseBoardDocument({});
-        try { return normaliseBoardDocument(JSON.parse(raw)); }
-        catch (e) { throw new Error("shipment_data_board.json contains invalid JSON"); }
-      });
-    });
-  }
-  function writeSharedDocument(doc) {
-    if (!boardFileHandle) return Promise.reject(new Error("No shared board file"));
-    var payload = JSON.stringify(doc, null, 2);
-    return boardFileHandle.createWritable().then(function (writable) {
-      return writable.write(payload).then(function () { return writable.close(); });
-    });
-  }
-  function withBoardWriteLock(task) {
-    if (navigator.locks && navigator.locks.request) {
-      return navigator.locks.request("quickship-shipment-data-board", { mode: "exclusive" }, task);
-    }
-    return boardWriteQueue = boardWriteQueue.then(task, task);
-  }
-  function applyBoardDiff(remote, base, desired) {
-    remote = Array.isArray(remote) ? cloneBoardValue(remote) : [];
-    base = Array.isArray(base) ? base : [];
-    desired = Array.isArray(desired) ? desired : [];
-    var baseMap = {}, desiredMap = {}, remoteMap = {};
-    base.forEach(function (x) { if (x && x.id) baseMap[x.id] = x; });
-    desired.forEach(function (x) { if (x && x.id) desiredMap[x.id] = x; });
-    remote.forEach(function (x) { if (x && x.id) remoteMap[x.id] = x; });
-
-    Object.keys(baseMap).forEach(function (id) {
-      if (!desiredMap[id] && remoteMap[id]) {
-        remote = remote.filter(function (x) { return x.id !== id; });
-        delete remoteMap[id];
-      }
-    });
-    Object.keys(desiredMap).forEach(function (id) {
-      var wanted = desiredMap[id], original = baseMap[id], current = remoteMap[id];
-      if (!original) {
-        if (!current) {
-          remote.push(cloneBoardValue(wanted));
-          remoteMap[id] = remote[remote.length - 1];
-        }
-        return;
-      }
-      if (!current) {
-        remote.push(cloneBoardValue(wanted));
-        remoteMap[id] = remote[remote.length - 1];
-        return;
-      }
-      Object.keys(wanted).forEach(function (key) {
-        if (key === "children") return;
-        if (JSON.stringify(wanted[key]) !== JSON.stringify(original[key])) current[key] = cloneBoardValue(wanted[key]);
-      });
-      var bChildren = {}, dChildren = {}, rChildren = {};
-      (original.children || []).forEach(function (c) { if (c && c.id) bChildren[c.id] = c; });
-      (wanted.children || []).forEach(function (c) { if (c && c.id) dChildren[c.id] = c; });
-      (current.children || []).forEach(function (c) { if (c && c.id) rChildren[c.id] = c; });
-      Object.keys(bChildren).forEach(function (cid) {
-        if (!dChildren[cid]) current.children = (current.children || []).filter(function (c) { return c.id !== cid; });
-      });
-      Object.keys(dChildren).forEach(function (cid) {
-        var wc = dChildren[cid], bc = bChildren[cid], rc = rChildren[cid];
-        if (!bc) {
-          if (!rc) (current.children || (current.children = [])).push(cloneBoardValue(wc));
-          return;
-        }
-        if (!rc) {
-          (current.children || (current.children = [])).push(cloneBoardValue(wc));
-          return;
-        }
-        Object.keys(wc).forEach(function (key) {
-          if (JSON.stringify(wc[key]) !== JSON.stringify(bc[key])) rc[key] = cloneBoardValue(wc[key]);
-        });
-      });
-    });
-    return remote;
-  }
-  function applyConnection(doc) {
-    var now = Date.now();
-    var changed = false;
-    Object.keys(doc.connections).forEach(function (id) {
-      if (!doc.connections[id] || now - (doc.connections[id].lastSeen || 0) > BOARD_STALE_MS) {
-        delete doc.connections[id];
-        changed = true;
-      }
-    });
-    doc.connections[ensureClientId()] = { name: boardUserName || "Unnamed", lastSeen: now };
-    changed = true;
-    return changed;
-  }
-  function boardUserList(doc) {
-    var now = Date.now();
-    return Object.keys(doc.connections || {}).map(function (id) {
-      return doc.connections[id];
-    }).filter(function (x) {
-      return x && now - (x.lastSeen || 0) <= BOARD_STALE_MS;
-    }).map(function (x) { return x.name || "Unnamed"; });
-  }
-  function setSetupMessage(message) {
-    var el = document.getElementById("boardSetupMessage");
-    if (el) el.textContent = message || "";
-  }
-  function formatBoardDate(dateKey) {
-    try {
-      var d = new Date(dateKey + "T00:00:00");
-      return d.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-    } catch (e) { return dateKey; }
-  }
-  function updateBoardDateUi() {
-    var input = document.getElementById("boardDateInput");
-    var title = document.getElementById("boardDateTitle");
-    if (input) input.value = boardDate;
-    if (title) title.textContent = formatBoardDate(boardDate);
-  }
-  function showBoardSetup() {
-    boardMode = "setup";
-    stopSharedSync();
-    document.getElementById("boardSetupView").style.display = "flex";
-    document.getElementById("boardContentView").style.display = "none";
-    document.getElementById("boardLogoutBtn").style.display = "none";
-    document.getElementById("boardConnectedUsers").textContent = "";
-    var settings = getBoardSettings();
-    boardUserName = settings.name || "";
-    document.getElementById("boardConnectionName").value = boardUserName;
-    document.getElementById("boardPathDisplay").textContent = boardDirHandle ? boardDirHandle.name : "No shared path selected";
-    setSetupMessage("");
-  }
-  function showBoardContent() {
-    document.getElementById("boardSetupView").style.display = "none";
-    document.getElementById("boardContentView").style.display = "flex";
-    document.getElementById("boardLogoutBtn").style.display = boardMode === "shared" ? "inline-block" : "none";
-    updateBoardDateUi();
-  }
-  function updateConnectionUi(doc) {
-    var users = boardUserList(doc || lastSharedDocument || { connections: {} });
-    var unique = [];
-    users.forEach(function (n) { if (unique.indexOf(n) === -1) unique.push(n); });
-    var usersEl = document.getElementById("boardConnectedUsers");
-    var statusEl = document.getElementById("boardConnectionStatus");
-    if (usersEl) usersEl.textContent = boardMode === "shared" && unique.length ? "Connected: " + unique.join(", ") : "";
-    if (statusEl) statusEl.textContent = boardMode === "shared"
-      ? (boardDirHandle ? boardDirHandle.name : "Shared")
-      : "Personal / Local";
-  }
-  function enterLocalBoard() {
-    boardMode = "local";
-    stopSharedSync();
-    items = readLocalItems(boardDate);
-    lastSyncedItems = cloneBoardValue(items);
-    lastSharedDocument = null;
-    showBoardContent();
-    updateConnectionUi();
-    renderList();
-  }
-  function loadSharedDateFromDocument(doc) {
-    doc = normaliseBoardDocument(doc);
-    var loaded = Array.isArray(doc.dates[boardDate]) ? doc.dates[boardDate] : [];
-    items = cloneBoardValue(loaded);
-    lastSyncedItems = cloneBoardValue(items);
-    lastSharedDocument = doc;
-    updateConnectionUi(doc);
-    renderList();
-  }
-  function saveItemsLocal() {
-    writeLocalItems(boardDate, items);
-    lastSyncedItems = cloneBoardValue(items);
-  }
-  function saveItemsShared() {
-    if (boardMode !== "shared" || !boardFileHandle) return;
-    var desired = cloneBoardValue(items);
-    var base = cloneBoardValue(lastSyncedItems);
-    var dateKey = boardDate;
-    var fileHandle = boardFileHandle;
-    boardWriteQueue = boardWriteQueue.then(function () {
-      return withBoardWriteLock(function () {
-        if (!fileHandle) return Promise.resolve();
-        return fileHandle.getFile().then(function (file) {
-          return file.text().then(function (raw) {
-            var doc;
-            try { doc = normaliseBoardDocument(raw.trim() ? JSON.parse(raw) : {}); }
-            catch (e) { throw new Error("shipment_data_board.json contains invalid JSON"); }
-            var remote = Array.isArray(doc.dates[dateKey]) ? doc.dates[dateKey] : [];
-            doc.dates[dateKey] = applyBoardDiff(remote, base, desired);
-            doc.updatedAt = Date.now();
-            doc.updatedBy = ensureClientId();
-            return fileHandle.createWritable().then(function (writable) {
-              return writable.write(JSON.stringify(doc, null, 2)).then(function () {
-                return writable.close();
-              }).then(function () {
-                if (boardMode === "shared" && boardDate === dateKey) lastSyncedItems = cloneBoardValue(desired);
-                lastSharedDocument = doc;
-              });
-            });
-          });
-        });
-      });
-    }).catch(function (err) {
-      console.warn("Shared board save failed:", err);
-      setSetupMessage("Shared board write failed: " + (err.message || err));
-    });
-  }
-  function syncSharedBoard(force) {
-    if (boardMode !== "shared" || !boardFileHandle || boardSyncing) return Promise.resolve();
-    boardSyncing = true;
-    return readSharedDocument().then(function (doc) {
-      doc = normaliseBoardDocument(doc);
-      var remoteItems = Array.isArray(doc.dates[boardDate]) ? doc.dates[boardDate] : [];
-      var changed = JSON.stringify(remoteItems) !== JSON.stringify(items);
-      lastSharedDocument = doc;
-      if (changed || force) {
-        items = cloneBoardValue(remoteItems);
-        lastSyncedItems = cloneBoardValue(remoteItems);
-        renderList();
-      } else {
-        lastSyncedItems = cloneBoardValue(remoteItems);
-      }
-      updateConnectionUi(doc);
-    }).catch(function (err) {
-      console.warn("Shared board read failed:", err);
-      var status = document.getElementById("boardConnectionStatus");
-      if (status) status.textContent = "Shared board unavailable";
-    }).then(function () { boardSyncing = false; });
-  }
-  function startSharedSync() {
-    stopSharedSync();
-    boardPollTimer = setInterval(function () { syncSharedBoard(false); }, BOARD_POLL_MS);
-    boardHeartbeatTimer = setInterval(function () {
-      withBoardWriteLock(function () {
-        if (boardMode !== "shared" || !boardFileHandle) return Promise.resolve();
-        return readSharedDocument().then(function (doc) {
-          doc = normaliseBoardDocument(doc);
-          applyConnection(doc);
-          return writeSharedDocument(doc).then(function () {
-            lastSharedDocument = doc;
-            updateConnectionUi(doc);
-          });
-        });
-      }).catch(function (err) { console.warn("Board heartbeat failed:", err); });
-    }, BOARD_HEARTBEAT_MS);
-  }
-  function stopSharedSync() {
-    if (boardPollTimer) { clearInterval(boardPollTimer); boardPollTimer = null; }
-    if (boardHeartbeatTimer) { clearInterval(boardHeartbeatTimer); boardHeartbeatTimer = null; }
-  }
-  function disconnectSharedBoard(removeHandle) {
-    stopSharedSync();
-    var fileHandle = boardFileHandle;
-    var wasShared = boardMode === "shared";
-    if (wasShared && fileHandle) {
-      boardWriteQueue = boardWriteQueue.then(function () {
-        return withBoardWriteLock(function () {
-          return fileHandle.getFile().then(function (file) {
-            return file.text().then(function (raw) {
-              var doc = normaliseBoardDocument(raw.trim() ? JSON.parse(raw) : {});
-              if (doc.connections) delete doc.connections[ensureClientId()];
-              return fileHandle.createWritable().then(function (writable) {
-                return writable.write(JSON.stringify(doc, null, 2)).then(function () { return writable.close(); });
-              });
-            });
-          }).catch(function () {});
-        });
-      });
-    }
-    boardFileHandle = null;
-    boardDirHandle = removeHandle ? null : boardDirHandle;
-    boardMode = "setup";
-    if (removeHandle) idbDeleteHandle().catch(function () {});
+  function isRetryableFsError(err) {
+    if (!err) return false;
+    return ["InvalidStateError", "NotFoundError", "NotReadableError", "AbortError", "OperationError"].indexOf(err.name) !== -1 || /state had changed|cached in an interface object|file.*changed|directory.*changed/i.test(String(err.message || ""));
   }
   function getPermission(handle, request) {
     if (!handle || !handle.queryPermission) return Promise.resolve("denied");
@@ -8438,89 +8123,150 @@ window.addEventListener("load", init);
       return handle.requestPermission({ mode: "readwrite" });
     });
   }
-  function connectSharedBoard() {
-    if (!boardDirHandle) { setSetupMessage("Choose a shared path first."); return; }
-    boardUserName = (document.getElementById("boardConnectionName").value || "").trim();
-    if (!boardUserName) { setSetupMessage("Enter your name before connecting."); return; }
-    setSetupMessage("Connecting...");
-    ensureClientId();
-    setBoardSettings({ name: boardUserName });
-    getPermission(boardDirHandle, true).then(function (permission) {
-      if (permission !== "granted") throw new Error("Folder permission was not granted.");
-      return boardDirHandle.getFileHandle(BOARD_FILE_NAME, { create: true });
-    }).then(function (fileHandle) {
-      boardFileHandle = fileHandle;
-      return readSharedDocument();
-    }).then(function (doc) {
-      doc = normaliseBoardDocument(doc);
-      applyConnection(doc);
-      doc.updatedAt = Date.now();
-      doc.updatedBy = ensureClientId();
-      return writeSharedDocument(doc).then(function () { return doc; });
-    }).then(function (doc) {
-      return idbPutHandle(boardDirHandle).then(function () {
-        boardMode = "shared";
-        loadSharedDateFromDocument(doc);
-        showBoardContent();
-        startSharedSync();
-        setSetupMessage("");
-      });
-    }).catch(function (err) {
-      boardFileHandle = null;
-      setSetupMessage(err.message || "Could not connect to the shared board.");
-    });
-  }
-  function chooseBoardPath() {
-    if (!window.showDirectoryPicker) {
-      setSetupMessage("This browser does not support folder access. Use a Chromium-based browser with File System Access support.");
-      return;
-    }
-    window.showDirectoryPicker({ mode: "readwrite" }).then(function (handle) {
-      boardDirHandle = handle;
-      document.getElementById("boardPathDisplay").textContent = handle.name;
-      setSetupMessage("");
-    }).catch(function (err) {
-      if (err && err.name !== "AbortError") setSetupMessage(err.message || "Could not choose the path.");
-    });
-  }
-  function tryRestoreSharedPath() {
-    return idbGetHandle().then(function (handle) {
-      if (!handle) return false;
-      boardDirHandle = handle;
+  function acquireFreshDirectoryHandle() {
+    return idbGetHandle().then(function (stored) {
+      var handle = stored || boardDirHandle;
+      if (!handle) throw new Error("No shared folder is connected.");
       return getPermission(handle, false).then(function (permission) {
-        if (permission !== "granted") return false;
-        return handle.getFileHandle(BOARD_FILE_NAME, { create: true }).then(function (fh) {
-          boardFileHandle = fh;
-          var settings = getBoardSettings();
-          boardUserName = settings.name || "";
-          if (!boardUserName) return false;
-          return readSharedDocument().then(function (doc) {
-            boardMode = "shared";
-            applyConnection(doc);
-            return writeSharedDocument(doc).then(function () {
-              loadSharedDateFromDocument(doc);
-              showBoardContent();
-              startSharedSync();
-              return true;
-            });
-          });
+        if (permission !== "granted") throw new Error("Shared folder permission is no longer granted.");
+        boardDirHandle = handle;
+        return handle;
+      });
+    });
+  }
+  function acquireFreshFileHandle() {
+    return acquireFreshDirectoryHandle().then(function (dir) {
+      return dir.getFileHandle(BOARD_FILE_NAME, { create: true }).then(function (fileHandle) {
+        boardFileHandle = fileHandle;
+        return fileHandle;
+      });
+    });
+  }
+  function readSharedDocumentOnce() {
+    return acquireFreshFileHandle().then(function (fileHandle) {
+      return fileHandle.getFile().then(function (file) { return file.text(); }).then(function (raw) {
+        if (!raw.trim()) return normaliseBoardDocument({});
+        try { return normaliseBoardDocument(JSON.parse(raw)); }
+        catch (e) { throw new Error("shipment_data_board.json contains invalid JSON"); }
+      });
+    });
+  }
+  function readSharedDocumentWithRetry() {
+    var attempt = 0;
+    function run() { return readSharedDocumentOnce().catch(function (err) { if (attempt++ < BOARD_IO_RETRIES && isRetryableFsError(err)) return run(); throw err; }); }
+    return run();
+  }
+  function writeSharedDocumentOnce(doc) {
+    return acquireFreshFileHandle().then(function (fileHandle) {
+      var payload = JSON.stringify(doc, null, 2);
+      return fileHandle.createWritable().then(function (writable) {
+        return writable.write(payload).then(function () { return writable.close(); }, function (err) {
+          try { writable.abort(); } catch (ignore) {}
+          throw err;
         });
       });
-    }).catch(function () { return false; });
+    });
+  }
+  function writeSharedDocumentWithRetry(doc) {
+    var attempt = 0;
+    function run() { return writeSharedDocumentOnce(doc).catch(function (err) { if (attempt++ < BOARD_IO_RETRIES && isRetryableFsError(err)) return run(); throw err; }); }
+    return run();
+  }
+  function withBoardWriteLock(task) {
+    if (navigator.locks && navigator.locks.request) return navigator.locks.request("quickship-shipment-data-board", { mode: "exclusive" }, task);
+    var next = boardWriteQueue.then(task, task); boardWriteQueue = next.catch(function () {}); return next;
+  }
+  function applyBoardDiff(remote, base, desired) {
+    remote = Array.isArray(remote) ? cloneBoardValue(remote) : []; base = Array.isArray(base) ? base : []; desired = Array.isArray(desired) ? desired : [];
+    var baseMap = {}, desiredMap = {}, remoteMap = {};
+    base.forEach(function (x) { if (x && x.id) baseMap[x.id] = x; }); desired.forEach(function (x) { if (x && x.id) desiredMap[x.id] = x; }); remote.forEach(function (x) { if (x && x.id) remoteMap[x.id] = x; });
+    Object.keys(baseMap).forEach(function (id) { if (!desiredMap[id] && remoteMap[id]) { remote = remote.filter(function (x) { return x.id !== id; }); delete remoteMap[id]; } });
+    Object.keys(desiredMap).forEach(function (id) {
+      var wanted = desiredMap[id], original = baseMap[id], current = remoteMap[id];
+      if (!original) { if (!current) { remote.push(cloneBoardValue(wanted)); remoteMap[id] = remote[remote.length - 1]; } return; }
+      if (!current) { remote.push(cloneBoardValue(wanted)); remoteMap[id] = remote[remote.length - 1]; return; }
+      Object.keys(wanted).forEach(function (key) { if (key !== "children" && JSON.stringify(wanted[key]) !== JSON.stringify(original[key])) current[key] = cloneBoardValue(wanted[key]); });
+      var bChildren = {}, dChildren = {}, rChildren = {};
+      (original.children || []).forEach(function (c) { if (c && c.id) bChildren[c.id] = c; }); (wanted.children || []).forEach(function (c) { if (c && c.id) dChildren[c.id] = c; }); (current.children || []).forEach(function (c) { if (c && c.id) rChildren[c.id] = c; });
+      Object.keys(bChildren).forEach(function (cid) { if (!dChildren[cid]) current.children = (current.children || []).filter(function (c) { return c.id !== cid; }); });
+      Object.keys(dChildren).forEach(function (cid) { var wc = dChildren[cid], bc = bChildren[cid], rc = rChildren[cid]; if (!bc) { if (!rc) (current.children || (current.children = [])).push(cloneBoardValue(wc)); return; } if (!rc) { (current.children || (current.children = [])).push(cloneBoardValue(wc)); return; } Object.keys(wc).forEach(function (key) { if (JSON.stringify(wc[key]) !== JSON.stringify(bc[key])) rc[key] = cloneBoardValue(wc[key]); }); });
+    });
+    return remote;
+  }
+  function applyConnection(doc) {
+    var now = Date.now(); Object.keys(doc.connections).forEach(function (id) { if (!doc.connections[id] || now - (doc.connections[id].lastSeen || 0) > BOARD_STALE_MS) delete doc.connections[id]; });
+    doc.connections[ensureClientId()] = { name: boardUserName || "Unnamed", lastSeen: now }; return true;
+  }
+  function boardUserList(doc) { var now = Date.now(); return Object.keys(doc.connections || {}).map(function (id) { return doc.connections[id]; }).filter(function (x) { return x && now - (x.lastSeen || 0) <= BOARD_STALE_MS; }).map(function (x) { return x.name || "Unnamed"; }); }
+  function setSetupMessage(message) { var el = document.getElementById("boardSetupMessage"); if (el) el.textContent = message || ""; }
+  function formatBoardDate(dateKey) { try { return new Date(dateKey + "T00:00:00").toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" }); } catch (e) { return dateKey; } }
+  function updateBoardDateUi() { var input = document.getElementById("boardDateInput"), title = document.getElementById("boardDateTitle"); if (input) input.value = boardDate; if (title) title.textContent = formatBoardDate(boardDate); }
+  function showBoardSetup() {
+    boardMode = "setup"; stopSharedSync(); document.getElementById("boardSetupView").style.display = "flex"; document.getElementById("boardContentView").style.display = "none"; document.getElementById("boardLogoutBtn").style.display = "none"; document.getElementById("boardConnectedUsers").textContent = "";
+    var settings = getBoardSettings(); boardUserName = settings.name || ""; document.getElementById("boardConnectionName").value = boardUserName; document.getElementById("boardPathDisplay").textContent = boardDirHandle ? boardDirHandle.name : "No shared path selected"; setSetupMessage("");
+  }
+  function showBoardContent() { document.getElementById("boardSetupView").style.display = "none"; document.getElementById("boardContentView").style.display = "flex"; document.getElementById("boardLogoutBtn").style.display = boardMode === "shared" ? "inline-block" : "none"; updateBoardDateUi(); }
+  function updateConnectionUi(doc) { var users = boardUserList(doc || lastSharedDocument || { connections: {} }), unique = []; users.forEach(function (n) { if (unique.indexOf(n) === -1) unique.push(n); }); var usersEl = document.getElementById("boardConnectedUsers"), statusEl = document.getElementById("boardConnectionStatus"); if (usersEl) usersEl.textContent = boardMode === "shared" && unique.length ? "Connected: " + unique.join(", ") : ""; if (statusEl) statusEl.textContent = boardMode === "shared" ? (boardDirHandle ? boardDirHandle.name : "Shared") : "Personal / Local"; }
+  function enterLocalBoard() { boardMode = "local"; stopSharedSync(); items = readLocalItems(boardDate); lastSyncedItems = cloneBoardValue(items); lastSharedDocument = null; showBoardContent(); updateConnectionUi(); renderList(); }
+  function loadSharedDateFromDocument(doc) { doc = normaliseBoardDocument(doc); var loaded = Array.isArray(doc.dates[boardDate]) ? doc.dates[boardDate] : []; items = cloneBoardValue(loaded); lastSyncedItems = cloneBoardValue(items); lastSharedDocument = doc; updateConnectionUi(doc); renderList(); }
+  function saveItemsLocal() { writeLocalItems(boardDate, items); lastSyncedItems = cloneBoardValue(items); }
+  function saveItemsShared() {
+    if (boardMode !== "shared") return;
+    var desired = cloneBoardValue(items), base = cloneBoardValue(lastSyncedItems), dateKey = boardDate;
+    withBoardWriteLock(function () {
+      return readSharedDocumentWithRetry().then(function (doc) {
+        doc = normaliseBoardDocument(doc);
+        doc.dates[dateKey] = applyBoardDiff(doc.dates[dateKey] || [], base, desired);
+        doc.updatedAt = Date.now(); doc.updatedBy = ensureClientId();
+        return writeSharedDocumentWithRetry(doc).then(function () { if (boardMode === "shared" && boardDate === dateKey) { items = cloneBoardValue(doc.dates[dateKey]); lastSyncedItems = cloneBoardValue(doc.dates[dateKey]); } lastSharedDocument = doc; updateConnectionUi(doc); });
+      });
+    }).catch(function (err) { console.warn("Shared board save failed:", err); var status = document.getElementById("boardConnectionStatus"); if (status) status.textContent = "Shared board write retry needed"; });
+  }
+  function syncSharedBoard(force) {
+    if (boardMode !== "shared" || boardSyncing) return Promise.resolve();
+    boardSyncing = true;
+    return readSharedDocumentWithRetry().then(function (doc) {
+      doc = normaliseBoardDocument(doc); var remoteItems = Array.isArray(doc.dates[boardDate]) ? doc.dates[boardDate] : [];
+      lastSharedDocument = doc; if (force || JSON.stringify(remoteItems) !== JSON.stringify(items)) { items = cloneBoardValue(remoteItems); lastSyncedItems = cloneBoardValue(remoteItems); renderList(); } else lastSyncedItems = cloneBoardValue(remoteItems); updateConnectionUi(doc);
+    }).catch(function (err) { console.warn("Shared board read failed:", err); var status = document.getElementById("boardConnectionStatus"); if (status) status.textContent = "Shared board unavailable"; }).then(function () { boardSyncing = false; });
+  }
+  function startSharedSync() {
+    stopSharedSync(); boardPollTimer = setInterval(function () { syncSharedBoard(false); }, BOARD_POLL_MS);
+    boardHeartbeatTimer = setInterval(function () {
+      if (boardMode !== "shared") return;
+      withBoardWriteLock(function () {
+        return readSharedDocumentWithRetry().then(function (doc) { doc = normaliseBoardDocument(doc); applyConnection(doc); doc.updatedAt = Date.now(); doc.updatedBy = ensureClientId(); return writeSharedDocumentWithRetry(doc).then(function () { lastSharedDocument = doc; updateConnectionUi(doc); }); });
+      }).catch(function (err) { console.warn("Board heartbeat failed:", err); });
+    }, BOARD_HEARTBEAT_MS);
+  }
+  function stopSharedSync() { if (boardPollTimer) { clearInterval(boardPollTimer); boardPollTimer = null; } if (boardHeartbeatTimer) { clearInterval(boardHeartbeatTimer); boardHeartbeatTimer = null; } }
+  function disconnectSharedBoard(removeHandle) {
+    stopSharedSync(); var wasShared = boardMode === "shared";
+    if (wasShared) {
+      withBoardWriteLock(function () { return readSharedDocumentWithRetry().then(function (doc) { doc = normaliseBoardDocument(doc); delete doc.connections[ensureClientId()]; return writeSharedDocumentWithRetry(doc); }).catch(function () {}); });
+    }
+    boardFileHandle = null; boardDirHandle = removeHandle ? null : boardDirHandle; boardMode = "setup"; if (removeHandle) idbDeleteHandle().catch(function () {});
+  }
+  function connectSharedBoard() {
+    if (!boardDirHandle) { setSetupMessage("Choose a shared path first."); return; }
+    boardUserName = (document.getElementById("boardConnectionName").value || "").trim(); if (!boardUserName) { setSetupMessage("Enter your name before connecting."); return; }
+    setSetupMessage("Connecting..."); ensureClientId(); setBoardSettings({ name: boardUserName });
+    getPermission(boardDirHandle, true).then(function (permission) { if (permission !== "granted") throw new Error("Folder permission was not granted."); return idbPutHandle(boardDirHandle); }).then(function () { return readSharedDocumentWithRetry(); }).then(function (doc) {
+      doc = normaliseBoardDocument(doc); applyConnection(doc); doc.updatedAt = Date.now(); doc.updatedBy = ensureClientId(); return writeSharedDocumentWithRetry(doc).then(function () { return doc; });
+    }).then(function (doc) { boardMode = "shared"; loadSharedDateFromDocument(doc); showBoardContent(); startSharedSync(); setSetupMessage(""); }).catch(function (err) { boardFileHandle = null; setSetupMessage(err.message || "Could not connect to the shared board."); });
+  }
+  function chooseBoardPath() {
+    if (!window.showDirectoryPicker) { setSetupMessage("This browser does not support folder access. Use a Chromium-based browser with File System Access support."); return; }
+    window.showDirectoryPicker({ mode: "readwrite" }).then(function (handle) { boardDirHandle = handle; document.getElementById("boardPathDisplay").textContent = handle.name; setSetupMessage(""); }).catch(function (err) { if (err && err.name !== "AbortError") setSetupMessage(err.message || "Could not choose the path."); });
+  }
+  function tryRestoreSharedPath() {
+    return idbGetHandle().then(function (handle) { if (!handle) return false; boardDirHandle = handle; return getPermission(handle, false).then(function (permission) { if (permission !== "granted") return false; var settings = getBoardSettings(); boardUserName = settings.name || ""; if (!boardUserName) return false; return readSharedDocumentWithRetry().then(function (doc) { boardMode = "shared"; applyConnection(doc); return writeSharedDocumentWithRetry(doc).then(function () { loadSharedDateFromDocument(doc); showBoardContent(); startSharedSync(); return true; }); }); }); }).catch(function () { return false; });
   }
   function changeBoardDate(nextDate) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(nextDate)) return;
-    boardDate = nextDate;
-    if (boardMode === "shared") {
-      syncSharedBoard(true);
-    } else if (boardMode === "local") {
-      items = readLocalItems(boardDate);
-      lastSyncedItems = cloneBoardValue(items);
-      renderList();
-    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(nextDate)) return; boardDate = nextDate;
+    if (boardMode === "shared") syncSharedBoard(true); else if (boardMode === "local") { items = readLocalItems(boardDate); lastSyncedItems = cloneBoardValue(items); renderList(); }
     updateBoardDateUi();
   }
-
   function loadItems() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);

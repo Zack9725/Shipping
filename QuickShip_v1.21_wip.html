@@ -8050,7 +8050,7 @@ window.addEventListener("load", init);
   var BOARD_DB_STORE = "handles";
   var BOARD_FILE_NAME = "shipment_data_board.json";
   var BOARD_DEFAULT_PATH = "Q:\\BRG\\Shipping\\_Operations\\SHIPPING_DATA";
-  var BOARD_POLL_MS = 1500;
+  var BOARD_POLL_MS = 400;
   var BOARD_HEARTBEAT_MS = 10000;
   var BOARD_STALE_MS = 30000;
   var boardDate = new Date().toISOString().slice(0, 10);
@@ -8366,10 +8366,8 @@ window.addEventListener("load", init);
     if (el) el.textContent = message || "";
   }
   function formatBoardDate(dateKey) {
-    try {
-      var d = new Date(dateKey + "T00:00:00");
-      return d.toLocaleDateString(undefined, { day: "2-digit", month: "long", year: "numeric" });
-    } catch (e) { return dateKey; }
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey || "");
+    return m ? (m[3] + "/" + m[2] + "/" + m[1]) : (dateKey || "");
   }
   function updateBoardDateUi() {
     var input = document.getElementById("boardDateInput");
@@ -8432,14 +8430,16 @@ window.addEventListener("load", init);
     setEditorUi(lastSharedDocument);
   }
   function updateConnectionUi(doc) {
-    var users = boardUserList(doc || lastSharedDocument || { connections: {} });
-    var unique = [];
-    users.forEach(function (n) { if (unique.indexOf(n) === -1) unique.push(n); });
     var usersEl = document.getElementById("boardConnectedUsers");
     var statusEl = document.getElementById("boardConnectionStatus");
-    if (usersEl) usersEl.textContent = boardMode === "shared" && unique.length ? "Connected: " + unique.join(", ") : "";
+    var ed = currentEditor(doc || lastSharedDocument);
+    if (usersEl) {
+      if (boardMode !== "shared") usersEl.textContent = "";
+      else if (ed) usersEl.textContent = "Editor: " + (ed.name || "Unnamed");
+      else usersEl.textContent = "Connected: " + (boardUserName || "Unnamed");
+    }
     if (statusEl) statusEl.textContent = boardMode === "shared"
-      ? (boardDirHandle ? boardDirHandle.name : "Shared")
+      ? "Shared board"
       : "Personal / Local";
     setEditorUi(doc);
   }
@@ -8587,22 +8587,9 @@ window.addEventListener("load", init);
   }
   function startSharedSync() {
     stopSharedSync();
-    boardLastHeartbeatAt = 0;
     boardPollTimer = setInterval(function () {
       if (boardMode !== "shared" || !boardDirHandle) return;
-      var now = Date.now();
-      if (!boardWriteInFlight && !boardPendingSave && !boardDirty && boardIsEditor && now - boardLastHeartbeatAt >= BOARD_HEARTBEAT_MS) {
-        boardLastHeartbeatAt = now;
-        mutateSharedDocument(function (doc) {
-          if (doc.editor && doc.editor.clientId === ensureClientId()) doc.editor.lastSeen = Date.now();
-          return doc;
-        }, function (after) { return !!(after.editor && after.editor.clientId === ensureClientId()); }, 4).then(function (doc) {
-          lastSharedDocument = doc;
-          updateConnectionUi(doc);
-        }).catch(function (err) { console.warn("Editor heartbeat failed:", err); });
-      } else {
-        syncSharedBoard(false);
-      }
+      syncSharedBoard(false);
     }, BOARD_POLL_MS);
     syncSharedBoard(true);
   }
@@ -8644,30 +8631,30 @@ window.addEventListener("load", init);
   }
   function connectSharedBoard() {
     if (boardConnectInFlight) return;
+    boardUserName = (document.getElementById("boardConnectionName").value || "").trim();
+    if (!boardUserName) { setSetupMessage("Enter your name before connecting."); return; }
     if (!boardDirHandle) {
       setSetupMessage("Use Choose Path once to authorize the shared folder.");
       return;
     }
-    boardUserName = (document.getElementById("boardConnectionName").value || "").trim();
-    if (!boardUserName) { setSetupMessage("Enter your name before connecting."); return; }
+
     boardConnectInFlight = true;
     var epoch = ++boardConnectionEpoch;
     var btn = document.getElementById("boardConnectBtn");
     if (btn) { btn.disabled = true; btn.textContent = "Connecting..."; }
-    setSetupMessage("Connecting to shared board...");
-    ensureClientId();
+    setSetupMessage("Checking shared board...");
+
     setBoardSettings({ name: boardUserName, defaultPath: BOARD_DEFAULT_PATH });
     getPermission(boardDirHandle, true).then(function (permission) {
       if (permission !== "granted") throw new Error("Folder permission was not granted.");
-      return mutateSharedDocument(function (doc) {
-        applyConnection(doc);
-        return doc;
-      }, function (after) {
-        return !!(after.connections && after.connections[ensureClientId()]);
-      }, 6);
+      // Connecting is intentionally READ-ONLY. Do not write presence/heartbeat
+      // data just to establish a connection; that used to create needless
+      // cross-PC JSON races and made connection itself unreliable.
+      return readSharedDocument();
     }).then(function (doc) {
       if (epoch !== boardConnectionEpoch) return;
       return idbPutHandle(boardDirHandle).then(function () {
+        if (epoch !== boardConnectionEpoch) return;
         boardMode = "shared";
         boardDirty = false;
         boardPendingSave = null;
@@ -8679,7 +8666,7 @@ window.addEventListener("load", init);
     }).catch(function (err) {
       if (epoch !== boardConnectionEpoch) return;
       boardFileHandle = null;
-      setSetupMessage(err.message || "Could not connect to the shared board.");
+      setSetupMessage(err && err.message ? err.message : "Could not connect to the shared board.");
     }).then(function () {
       if (btn) { btn.disabled = false; btn.textContent = "Connect"; }
       boardConnectInFlight = false;
@@ -8694,7 +8681,7 @@ window.addEventListener("load", init);
       boardDirHandle = handle;
       boardFileHandle = null;
       ++boardConnectionEpoch;
-      document.getElementById("boardPathDisplay").textContent = handle.name;
+      document.getElementById("boardPathDisplay").textContent = handle.name + " (authorized)";
       idbPutHandle(handle).catch(function (err) { console.warn("Could not cache shared folder:", err); });
       setSetupMessage("");
     }).catch(function (err) {
@@ -8713,15 +8700,9 @@ window.addEventListener("load", init);
         var settings = getBoardSettings();
         boardUserName = settings.name || "";
         if (!boardUserName) return false;
-        return withBoardWriteLock(function () {
-          return readSharedDocument().then(function (doc) {
-            doc = normaliseBoardDocument(doc);
-            applyConnection(doc);
-            doc.updatedAt = Date.now();
-            doc.updatedBy = ensureClientId();
-            return writeSharedDocument(doc).then(function () { return doc; });
-          });
-        }).then(function (doc) {
+        // Auto-restore is also READ-ONLY. The first actual write only happens
+        // when the user explicitly enters Edit Board.
+        return readSharedDocument().then(function (doc) {
           if (epoch !== boardConnectionEpoch) return false;
           boardMode = "shared";
           boardDirty = false;
@@ -9538,6 +9519,7 @@ window.addEventListener("load", init);
     setSetupMessage("");
     if (boardMode === "shared") {
       showBoardContent();
+      startSharedSync();
       return;
     }
     tryRestoreSharedPath().then(function (restored) {
@@ -9545,6 +9527,7 @@ window.addEventListener("load", init);
     });
   }
   function closeBoard() {
+    stopSharedSync();
     overlay.classList.remove("open");
     overlay.setAttribute("aria-hidden", "true");
     if (openBtn) openBtn.classList.remove("active");

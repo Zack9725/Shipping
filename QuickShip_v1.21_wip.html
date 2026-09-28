@@ -8050,7 +8050,7 @@ window.addEventListener("load", init);
   var BOARD_DB_STORE = "handles";
   var BOARD_FILE_NAME = "shipment_data_board.json";
   var BOARD_DEFAULT_PATH = "Q:\\BRG\\Shipping\\_Operations\\SHIPPING_DATA";
-  var BOARD_POLL_MS = 400;
+  var BOARD_POLL_MS = 800;
   var BOARD_HEARTBEAT_MS = 10000;
   var BOARD_STALE_MS = 30000;
   var boardDate = new Date().toISOString().slice(0, 10);
@@ -8077,6 +8077,18 @@ window.addEventListener("load", init);
   var boardIsEditor = false;
   var boardEditorHeartbeatTimer = null;
   var boardEditInFlight = false;
+  // v1.23: data is stored as IMMUTABLE revision files in _board_data/.
+  // Nobody ever overwrites a file another PC may be reading (that is what made
+  // writes fail on the network drive: Windows refuses to replace an open file).
+  var BOARD_REV_DIR = "_board_data";
+  var BOARD_REV_RE = /^board_rev_(\d{9})_([a-z0-9]+)\.json$/i;
+  var BOARD_PRESENCE_RE = /^user_([a-z0-9]+)\.json$/i;
+  var BOARD_KEEP_REVS = 15;
+  var boardLoadedName = "";
+  var boardLatestListedRev = 0;
+  var boardLastWrittenRev = 0;
+  var boardStatusDetail = "";
+  var boardPresenceLast = {};
 
   function cloneBoardValue(value) {
     return JSON.parse(JSON.stringify(value));
@@ -8214,31 +8226,93 @@ window.addEventListener("load", init);
         .then(function () { return retryBoardOperation(operation, attempts - 1); });
     });
   }
-  function readSharedDocument() {
-    return retryBoardOperation(function () {
-      return getFreshBoardFileHandle().then(function (fh) {
-        return fh.getFile().then(function (file) {
-          return file.text().then(function (raw) {
-            if (!raw.trim()) return normaliseBoardDocument({});
-            try { return normaliseBoardDocument(JSON.parse(raw)); }
-            catch (e) { throw new Error("shipment_data_board.json contains invalid JSON"); }
-          });
-        });
-      });
-    }, 4);
+  function boardTimeout(p, ms, label) {
+    // A hung network-drive call must never leave a "busy" flag stuck forever.
+    return new Promise(function (resolve, reject) {
+      var t = setTimeout(function () { reject(new Error((label || "Operation") + " timed out")); }, ms);
+      Promise.resolve(p).then(function (v) { clearTimeout(t); resolve(v); },
+                              function (e) { clearTimeout(t); reject(e); });
+    });
   }
-  function writeSharedDocument(doc) {
-    var payload = JSON.stringify(doc, null, 2);
-    return retryBoardOperation(function () {
-      return getFreshBoardFileHandle().then(function (fh) {
-        return fh.createWritable({ keepExistingData: false }).then(function (writable) {
-          return writable.write(payload).then(function () {
-            return writable.close();
-          });
+  function listBoardRevisions() {
+    return boardDirHandle.getDirectoryHandle(BOARD_REV_DIR).then(function (dir) {
+      var out = [];
+      var it = dir.entries();
+      function next() {
+        return it.next().then(function (r) {
+          if (r.done) return;
+          var m = r.value[1].kind === "file" && BOARD_REV_RE.exec(r.value[0]);
+          if (m) out.push({ name: r.value[0], rev: parseInt(m[1], 10) });
+          return next();
         });
+      }
+      return next().then(function () {
+        out.sort(function (a, b) { return (b.rev - a.rev) || (a.name < b.name ? 1 : (a.name > b.name ? -1 : 0)); });
+        return { dir: dir, list: out };
       });
-    }, 4).then(function () {
-      boardLastWriteAt = Date.now();
+    }, function (err) {
+      if (err && err.name === "NotFoundError") return { dir: null, list: [] };
+      throw err;
+    });
+  }
+  function peekLatestBoardName() {
+    return listBoardRevisions().then(function (info) { return info.list.length ? info.list[0].name : "legacy"; });
+  }
+  function readLegacyDocument() {
+    // Old single-file format (v1.21/v1.22). Only used until the first revision is written.
+    return boardDirHandle.getFileHandle(BOARD_FILE_NAME).then(function (fh) {
+      return retryBoardOperation(function () { return fh.getFile().then(function (f) { return f.text(); }); }, 4);
+    }, function (err) {
+      if (err && err.name === "NotFoundError") return "";
+      throw err;
+    }).then(function (raw) {
+      if (!raw || !raw.trim()) return normaliseBoardDocument({});
+      try { return normaliseBoardDocument(JSON.parse(raw)); }
+      catch (e) { throw new Error(BOARD_FILE_NAME + " contains invalid JSON"); }
+    });
+  }
+  function readSharedDocumentInner() {
+    if (!boardDirHandle) return Promise.reject(new Error("No shared board folder"));
+    return listBoardRevisions().then(function (info) {
+      boardLatestListedRev = info.list.length ? info.list[0].rev : 0;
+      if (!info.list.length) {
+        return readLegacyDocument().then(function (doc) { boardLoadedName = "legacy"; return doc; });
+      }
+      var tries = info.list.slice(0, 4);
+      function tryAt(i) {
+        if (i >= tries.length) throw new Error("No readable board revision found");
+        var entry = tries[i];
+        return info.dir.getFileHandle(entry.name).then(function (fh) {
+          return retryBoardOperation(function () { return fh.getFile().then(function (f) { return f.text(); }); }, 3);
+        }).then(function (raw) {
+          var parsed = parseBoardJson(raw);
+          if (!parsed) return tryAt(i + 1); // still being written -> use previous revision for now
+          boardLoadedName = entry.name;
+          return normaliseBoardDocument(parsed);
+        }, function () { return tryAt(i + 1); });
+      }
+      return tryAt(0);
+    });
+  }
+  function readSharedDocument() {
+    return boardTimeout(readSharedDocumentInner(), 20000, "Reading shared board");
+  }
+  function pruneBoardRevisions(dir, keepName) {
+    listBoardRevisions().then(function (info) {
+      info.list.slice(BOARD_KEEP_REVS).forEach(function (e) {
+        if (e.name !== keepName) dir.removeEntry(e.name).catch(function () {}); // open by a viewer? just skip
+      });
+    }).catch(function () {});
+  }
+  function writeBoardRevision(doc) {
+    var name = "board_rev_" + String(doc.revision).padStart(9, "0") + "_" + ensureClientId() + ".json";
+    return boardDirHandle.getDirectoryHandle(BOARD_REV_DIR, { create: true }).then(function (dir) {
+      return writeBoardSmallFile(dir, name, doc).then(function () {
+        boardLastWrittenRev = doc.revision;
+        boardLoadedName = name;
+        boardLastWriteAt = Date.now();
+        pruneBoardRevisions(dir, name);
+      });
     });
   }
   function withBoardWriteLock(task) {
@@ -8253,27 +8327,23 @@ window.addEventListener("load", init);
     return run;
   }
   function mutateSharedDocument(mutator, verifyFn, attempts) {
-    attempts = attempts || 4;
+    // read latest -> apply change -> write as a NEW revision file.
+    attempts = attempts || 3;
     if (!boardDirHandle) return Promise.reject(new Error("No shared board folder"));
     return withBoardWriteLock(function () {
       function attempt(n) {
-        return readSharedDocument().then(function (before) {
+        return boardTimeout(readSharedDocumentInner().then(function (before) {
           var base = cloneBoardValue(before);
-          var result = mutator(base) || base;
-          result = normaliseBoardDocument(result);
-          result.revision = (Number(before.revision) || 0) + 1;
+          var result = normaliseBoardDocument(mutator(base) || base);
+          result.connections = {};
+          delete result.editor;
+          result.revision = Math.max(Number(before.revision) || 0, boardLatestListedRev, boardLastWrittenRev) + 1;
           result.updatedAt = Date.now();
           result.updatedBy = ensureClientId();
-          return writeSharedDocument(result).then(function () {
-            return readSharedDocument().then(function (after) {
-              var ok = verifyFn ? verifyFn(after, result, before) :
-                Number(after.revision) === Number(result.revision) && after.updatedBy === result.updatedBy;
-              if (ok) return after;
-              if (n >= attempts) throw new Error("Shared board changed during write; retry limit reached.");
-              return new Promise(function (resolve) { setTimeout(resolve, 120 + Math.random() * 220); })
-                .then(function () { return attempt(n + 1); });
-            });
-          });
+          return writeBoardRevision(result).then(function () { return result; });
+        }), 30000, "Writing shared board").catch(function (err) {
+          if (n >= attempts) throw err;
+          return boardSleep(250 + Math.random() * 400).then(function () { return attempt(n + 1); });
         });
       }
       return attempt(1);
@@ -8399,7 +8469,7 @@ window.addEventListener("load", init);
   var BOARD_PRESENCE_DIR = "_board_presence";
   var BOARD_PRESENCE_PREFIX = "user_";
   var BOARD_TICK_MS = 1500;          // background tick (presence 4.5s, lock 4.5s)
-  var BOARD_LIVE_STALE_MS = 20000;   // no heartbeat change seen for this long = gone
+  var BOARD_LIVE_STALE_MS = 30000;   // no heartbeat change seen for this long = gone
   var BOARD_ORPHAN_MS = 300000;      // crashed-PC presence files older than this get deleted
   var boardTicker = null;
   var boardTickCount = 0;
@@ -8483,10 +8553,12 @@ window.addEventListener("load", init);
   function writeBoardPresence() {
     if (boardMode !== "shared" || !boardDirHandle || boardPresenceBusy) return Promise.resolve();
     boardPresenceBusy = true;
-    return getPresenceDir().then(function (dir) {
+    return boardTimeout(getPresenceDir().then(function (dir) {
       return writeBoardSmallFile(dir, presenceFileName(), { clientId: ensureClientId(), name: boardUserName || "Unnamed", hb: nextHb() });
-    }).catch(function (err) { console.warn("Presence write failed:", err); })
-      .then(function () { boardPresenceBusy = false; });
+    }), 10000, "Presence write").catch(function (err) {
+      boardPresenceDirHandle = null; // re-acquire the folder handle next time
+      console.warn("Presence write failed:", err);
+    }).then(function () { boardPresenceBusy = false; });
   }
   function leaveBoardPresence() {
     boardPresenceList = [];
@@ -8501,22 +8573,29 @@ window.addEventListener("load", init);
     function next() {
       return it.next().then(function (r) {
         if (r.done) return;
-        if (r.value[1].kind === "file" && r.value[0].indexOf(BOARD_PRESENCE_PREFIX) === 0) names.push(r.value[0]);
+        if (r.value[1].kind === "file" && BOARD_PRESENCE_RE.test(r.value[0])) names.push(r.value[0]);
         return next();
       });
     }
     return next().then(function () {
       return Promise.all(names.map(function (name) {
-        return readBoardSmallFile(dir, name).then(function (d) { return { name: name, data: d }; }, function () { return null; });
+        // A read that fails/returns half-written data must NOT make that user vanish:
+        // fall back to the last good copy; only "heartbeat stopped changing" removes a user.
+        return readBoardSmallFile(dir, name).then(function (d) {
+          if (d && d.clientId) boardPresenceLast[name] = d;
+          return { name: name, data: boardPresenceLast[name] || null };
+        }, function () { return { name: name, data: boardPresenceLast[name] || null }; });
       }));
     }).then(function (arr) {
-      var out = [], myId = ensureClientId();
+      var out = [], myId = ensureClientId(), present = {};
       arr.forEach(function (x) {
-        if (!x || !x.data || !x.data.clientId) return;
+        present[x.name] = 1;
+        if (!x.data) return;
         var age = boardObserve("p:" + x.name, x.data.hb);
         if (x.data.clientId === myId || age <= BOARD_LIVE_STALE_MS) out.push({ id: x.data.clientId, name: x.data.name || "Unnamed" });
         else if (age > BOARD_ORPHAN_MS) removeBoardSmallFile(dir, x.name);
       });
+      Object.keys(boardPresenceLast).forEach(function (n) { if (!present[n]) delete boardPresenceLast[n]; });
       out.sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
       return out;
     });
@@ -8526,10 +8605,10 @@ window.addEventListener("load", init);
     if (boardInfoPromise) return boardInfoPromise;
     var myId = ensureClientId();
     function done() { boardInfoPromise = null; }
-    boardInfoPromise = Promise.all([
+    boardInfoPromise = boardTimeout(Promise.all([
       readBoardSmallFile(boardDirHandle, BOARD_LOCK_FILE).catch(function () { return undefined; }),
-      getPresenceDir().then(readBoardPresenceList).catch(function () { return undefined; })
-    ]).then(function (res) {
+      getPresenceDir().then(readBoardPresenceList).catch(function () { boardPresenceDirHandle = null; return undefined; })
+    ]), 15000, "Board info").then(function (res) {
       var lock = res[0], users = res[1];
       if (lock !== undefined) {
         var alive = !!(lock && lock.clientId) &&
@@ -8550,6 +8629,8 @@ window.addEventListener("load", init);
   }
   function boardLostEditor(cur) {
     boardIsEditor = false;
+    boardPendingSave = null; // otherwise a stuck pending save blocks syncing forever
+    boardDirty = false;
     boardLock = { clientId: cur && cur.clientId, name: (cur && cur.name) || "another user" };
     setEditorUi();
   }
@@ -8557,10 +8638,10 @@ window.addEventListener("load", init);
     if (boardMode !== "shared" || !boardIsEditor || !boardDirHandle || boardLockBusy) return;
     boardLockBusy = true;
     var myId = ensureClientId();
-    readBoardSmallFile(boardDirHandle, BOARD_LOCK_FILE).then(function (cur) {
+    boardTimeout(readBoardSmallFile(boardDirHandle, BOARD_LOCK_FILE).then(function (cur) {
       if (cur && cur.clientId && cur.clientId !== myId) { boardLostEditor(cur); return; }
       return writeBoardLock();
-    }).catch(function (err) { console.warn("Editor heartbeat failed:", err); })
+    }), 10000, "Editor heartbeat").catch(function (err) { console.warn("Editor heartbeat failed:", err); })
       .then(function () { boardLockBusy = false; });
   }
   function boardTick() {
@@ -8632,7 +8713,7 @@ window.addEventListener("load", init);
       }
     }
     if (statusEl) statusEl.textContent = boardMode === "shared"
-      ? "Shared board"
+      ? "Shared board" + (boardStatusDetail ? " \u00B7 " + boardStatusDetail : "")
       : "Personal / Local";
     setEditorUi(doc);
   }
@@ -8685,18 +8766,20 @@ window.addEventListener("load", init);
   function releaseBoardEditor() {
     if (boardMode !== "shared" || !boardIsEditor) return Promise.resolve();
     var myId = ensureClientId();
-    return waitForBoardSaves(6000).then(function () {
+    return waitForBoardSaves(8000).then(function () {
       boardIsEditor = false; // stops the lock heartbeat
-      return readBoardSmallFile(boardDirHandle, BOARD_LOCK_FILE).then(function (cur) {
+      boardPendingSave = null;
+      boardDirty = false;
+      return boardTimeout(readBoardSmallFile(boardDirHandle, BOARD_LOCK_FILE).then(function (cur) {
         if (cur && cur.clientId === myId) return removeBoardSmallFile(boardDirHandle, BOARD_LOCK_FILE);
-      });
+      }), 10000, "Release lock");
     }).catch(function (err) {
       console.warn("Could not release board editor:", err);
     }).then(function () {
       boardIsEditor = false;
       boardLock = null;
       setEditorUi();
-      syncSharedBoard(true);
+      return syncSharedBoard(true);
     });
   }
   function startEditorHeartbeat() {} // now driven by boardTick()
@@ -8712,15 +8795,12 @@ window.addEventListener("load", init);
     if (boardWriteInFlight) return;
     boardWriteInFlight = true;
     var run = boardPendingSave;
+    var failed = false;
     mutateSharedDocument(function (doc) {
       var remote = Array.isArray(doc.dates[run.dateKey]) ? doc.dates[run.dateKey] : [];
       doc.dates[run.dateKey] = applyBoardDiff(remote, run.base, run.desired);
       return doc;
-    }, function (after, written) {
-      var wanted = Array.isArray(written.dates[run.dateKey]) ? written.dates[run.dateKey] : [];
-      var actual = Array.isArray(after.dates[run.dateKey]) ? after.dates[run.dateKey] : [];
-      return JSON.stringify(wanted) === JSON.stringify(actual);
-    }, 5).then(function (doc) {
+    }, null, 3).then(function (doc) {
       if (boardPendingSave === run) {
         boardPendingSave = null;
         boardDirty = false;
@@ -8733,37 +8813,54 @@ window.addEventListener("load", init);
           renderList();
         }
       }
+      boardStatusDetail = "rev " + (doc.revision || 0) + " \u00B7 saved " + boardClock();
+      updateConnectionUi(lastSharedDocument);
     }).catch(function (err) {
+      failed = true;
       console.warn("Shared board save failed:", err);
-      var status = document.getElementById("boardConnectionStatus");
-      if (status) status.textContent = "Shared board write failed — retrying";
+      boardStatusDetail = "SAVE FAILED (" + ((err && (err.name || err.message)) || "error") + ") - retrying";
+      updateConnectionUi(lastSharedDocument);
     }).then(function () {
       boardWriteInFlight = false;
-      if (boardPendingSave) saveItemsShared();
+      if (!boardPendingSave) return;
+      if (!boardIsEditor || boardMode !== "shared") { boardPendingSave = null; boardDirty = false; return; }
+      setTimeout(saveItemsShared, failed ? 2000 : 0);
     });
+  }
+  function boardClock() {
+    var d = new Date();
+    function p(n) { return String(n).padStart(2, "0"); }
+    return p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
   }
   function syncSharedBoard(force) {
     if (boardMode !== "shared" || !boardDirHandle || boardSyncing) return Promise.resolve();
     if (boardWriteInFlight || boardPendingSave || boardDirty) return Promise.resolve();
     boardSyncing = true;
-    return readSharedDocument().then(function (doc) {
-      doc = normaliseBoardDocument(doc);
-      var remoteItems = Array.isArray(doc.dates[boardDate]) ? doc.dates[boardDate] : [];
-      boardLastRemoteItems = cloneBoardValue(remoteItems);
-      lastSharedDocument = doc;
-      updateConnectionUi(doc);
-      var changed = JSON.stringify(remoteItems) !== JSON.stringify(items);
-      if (changed || force) {
-        items = cloneBoardValue(remoteItems);
-        lastSyncedItems = cloneBoardValue(remoteItems);
-        renderList();
-      } else {
-        lastSyncedItems = cloneBoardValue(remoteItems);
+    return boardTimeout(peekLatestBoardName().then(function (name) {
+      if (!force && name === boardLoadedName) return null; // nothing new: skip the read
+      return readSharedDocument();
+    }), 30000, "Sync").then(function (doc) {
+      if (boardMode !== "shared") return;
+      if (doc) {
+        doc = normaliseBoardDocument(doc);
+        var remoteItems = Array.isArray(doc.dates[boardDate]) ? doc.dates[boardDate] : [];
+        boardLastRemoteItems = cloneBoardValue(remoteItems);
+        lastSharedDocument = doc;
+        var changed = JSON.stringify(remoteItems) !== JSON.stringify(items);
+        if (changed || force) {
+          items = cloneBoardValue(remoteItems);
+          lastSyncedItems = cloneBoardValue(remoteItems);
+          renderList();
+        } else {
+          lastSyncedItems = cloneBoardValue(remoteItems);
+        }
       }
+      boardStatusDetail = "rev " + ((lastSharedDocument && lastSharedDocument.revision) || 0) + " \u00B7 synced " + boardClock();
+      updateConnectionUi(lastSharedDocument);
     }).catch(function (err) {
       console.warn("Board poll failed:", err);
-      var status = document.getElementById("boardConnectionStatus");
-      if (status) status.textContent = "Shared board unavailable — retrying";
+      boardStatusDetail = "unavailable (" + ((err && (err.name || err.message)) || "error") + ") - retrying";
+      updateConnectionUi(lastSharedDocument);
     }).then(function () { boardSyncing = false; });
   }
   function startSharedSync() {
@@ -8773,6 +8870,7 @@ window.addEventListener("load", init);
       syncSharedBoard(false);
     }, BOARD_POLL_MS);
     boardTickCount = 0;
+    boardStatusDetail = "";
     boardTicker = makeBoardTicker(BOARD_TICK_MS, boardTick);
     writeBoardPresence();
     refreshBoardInfo();

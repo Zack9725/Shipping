@@ -343,9 +343,9 @@ html, body {
   pointer-events: auto;
 }
 .board-modal {
-  width: 80%;
+  width: 96%;
   height: 90%;
-  max-width: 1100px;
+  max-width: 1600px;
   background: #252526;
   border: 1px solid #3c3c3c;
   border-radius: 16px;
@@ -556,7 +556,17 @@ html, body {
 
 .board-empty { grid-column: 1 / -1; margin: 20px 0; font-size: 12.5px; color: #6a6a6a; text-align: center; }
 
-.board-list { display: grid; grid-template-columns: repeat(2, 1fr); align-items: start; gap: 8px; }
+/* v1.22: one card per row in BOTH edit and view mode, so switching modes never reflows the layout. */
+.board-list { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: 8px; }
+/* Cards alternate between two independent stacks (odd = left, even = right), so a short
+   right-hand card lets the next right-hand card tuck up under it regardless of how tall
+   the left-hand card is. */
+.board-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+@media (max-width: 640px) {
+  /* Phone-narrow only: flatten back to one list in original order (cards carry inline `order`). */
+  .board-list { display: flex; flex-direction: column; }
+  .board-col { display: contents; }
+}
 .board-item-group {
   background: #1e1e1e;
   border: 1px solid #3c3c3c;
@@ -1542,11 +1552,9 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
 }
 
 /* Shared board: one editor, many viewers. */
-#boardContentView.board-view-mode .board-modal-body {
-  pointer-events: none;
-  user-select: none;
-}
-#boardContentView.board-view-mode .board-modal-body { opacity: 0.96; }
+/* v1.22: view mode is a real read-only table now (no inputs/steppers), so the
+   old "disable everything" trick is gone — only the add row is hidden. */
+#boardContentView.board-view-mode .board-add-row { display: none; }
 .board-editor-status {
   font-size: 12px;
   font-weight: 600;
@@ -2256,6 +2264,240 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
 
 .output-value-multiline { line-height: 1.5; }
 
+
+/* ============================================================ */
+/* v1.22 patches                                                */
+/* ============================================================ */
+
+/* ---- Board date: d/m/yyyy text over an invisible native picker ---- */
+.board-date-left .board-date-field {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  min-width: 100px; height: 30px; padding: 0 12px;
+  background: #1e1e1e; border: 1px solid #3c3c3c; border-radius: 6px; cursor: pointer;
+  transition: border-color .15s ease, background .15s ease;
+}
+.board-date-left .board-date-field:hover { border-color: #5a5a5a; }
+.board-date-left .board-date-field:focus-within { border-color: #007acc; }
+.board-date-text {
+  font: 12px "Segoe UI", Tahoma, Arial, sans-serif; color: #a3a3a3;
+  font-variant-numeric: tabular-nums; white-space: nowrap; transition: color .15s ease;
+}
+.board-date-left .board-date-field input[type="date"] {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  margin: 0; padding: 0; border: 0; background: transparent; opacity: 0; cursor: pointer;
+}
+.board-date-lock {
+  position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+  color: #b4b4b4; pointer-events: none;
+}
+.board-date-lock svg { background: #1a1a1a; border-radius: 5px; padding: 3px; box-sizing: content-box; }
+.board-date-left .board-date-field.locked { cursor: not-allowed; background: #1a1a1a; border-color: #2b2b2b; }
+.board-date-left .board-date-field.locked:hover { border-color: #2b2b2b; }
+.board-date-field.locked .board-date-text { color: #3d3d3d; opacity: .55; filter: blur(.4px); }
+.board-date-field.locked .board-date-lock { display: flex; }
+.board-date-left .board-date-field.locked input[type="date"] { cursor: not-allowed; }
+
+/* ---- Board title: bigger + bold ---- */
+.board-date-title { font-size: 20px; font-weight: 800; letter-spacing: .2px; line-height: 1.2; }
+
+/* ---- Board date: icon-only picker (no label, no text) ---- */
+.board-date-left .board-date-field { min-width: 0; width: 38px; height: 38px; padding: 0; }
+.board-date-cal { color: #a3a3a3; transition: color .15s ease, opacity .15s ease; }
+.board-date-left .board-date-field:hover .board-date-cal { color: #d4d4d4; }
+.board-date-field.locked .board-date-cal { opacity: .2; }
+
+/* ---- Connected users = same font/colour as the "View mode" status ---- */
+.board-editor-status, .board-connected-users { font-size: 12px; font-weight: 600; color: #d4d4d4; }
+.board-connected-users .board-user-editor { color: #f5c542; }
+.board-editor-status.is-editing { color: #f5c542; animation: boardEditingPulse 1.6s ease-in-out infinite; }
+@keyframes boardEditingPulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .board-editor-status.is-editing { animation: none; } }
+
+/* ---- Completed box: yellow while < balance, green when = balance ---- */
+.board-child-qty-group.completed.tone-warn .board-child-qty-wrap input[type="text"] {
+  background: rgba(217,164,65,.16); border-color: #d9a441; color: #f3d17f;
+}
+.board-child-qty-group.completed.tone-ok .board-child-qty-wrap input[type="text"] {
+  background: rgba(16,185,129,.16); border-color: #10B981; color: #5fe0b0;
+}
+
+/* ---- Editable names (edit mode) ---- */
+.board-item input.board-item-name-input[type="text"] {
+  flex: 1 1 auto; min-width: 0; width: auto; margin: -4px 0; padding: 4px 8px;
+  background: transparent; border: 1px solid transparent; border-radius: 6px;
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif; font-size: 13px; font-weight: 700;
+  letter-spacing: .3px; color: #d4d4d4; text-overflow: ellipsis;
+}
+.board-child-name { display: flex; align-items: center; gap: 4px; }
+.board-child-name .board-child-qty-suffix { flex-shrink: 0; white-space: nowrap; }
+.board-child-name input.board-child-name-input[type="text"] {
+  flex: 0 1 140px; width: 140px; min-width: 60px; padding: 3px 6px;
+  background: transparent; border: 1px solid transparent; border-radius: 5px;
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif; font-size: 12.5px; font-weight: 700; color: #eaeaea;
+}
+.board-item input.board-item-name-input[type="text"]:hover,
+.board-child-name input.board-child-name-input[type="text"]:hover { border-color: #3c3c3c; }
+.board-item input.board-item-name-input[type="text"]:focus,
+.board-child-name input.board-child-name-input[type="text"]:focus { border-color: #007acc; background: #1e1e1e; }
+.board-item input.board-item-name-input[type="text"].board-input-invalid,
+.board-child-name input.board-child-name-input[type="text"].board-input-invalid {
+  border-color: #f14c4c; animation: toggleShake .4s ease-in-out;
+}
+
+/* ---- Action button: Pending document / Pending pickup / Fulfilled ---- */
+.board-child-pickup-btn.is-idle:disabled { opacity: .62; }
+.board-child-pickup-btn.is-fulfilled:disabled,
+.board-child-pickup-btn.is-fulfilled:disabled:hover {
+  opacity: 1; cursor: default; border-color: #10B981; color: #10B981; background: rgba(16,185,129,.10);
+}
+
+/* ---- View mode: read-only table ---- */
+
+.board-item-group.is-table .board-item { padding: 12px 14px 8px; }
+.board-view-table {
+  width: calc(100% - 28px); margin: 0 14px 14px; table-layout: fixed;
+  border-collapse: separate; border-spacing: 0;
+  background: #1a1a1a; border: 1px solid #303030; border-radius: 8px; overflow: hidden;
+  font-size: 12.5px; color: #d4d4d4;
+}
+.board-view-table th {
+  padding: 8px 8px; font-size: 11px; font-weight: 600; color: #8f8f8f; text-align: center;
+  background: #202020; border-bottom: 1px solid #303030; white-space: nowrap;
+}
+.board-view-table td {
+  padding: 8px 8px; text-align: center; border-top: 1px solid #262626;
+  font-variant-numeric: tabular-nums; vertical-align: middle;
+}
+.board-view-table thead tr:first-child th { border-top: 0; }
+.board-view-table tbody tr:first-child td { border-top: 0; }
+.board-view-table tbody tr:hover td { background: rgba(255,255,255,.025); }
+.board-view-table .bv-pn { text-align: left; width: 32%; }
+.board-view-table th.bv-pn { text-align: left; }
+.board-view-table .bv-num { width: 10.5%; }
+.board-view-table .bv-comp { width: 11.5%; }
+.board-view-table .bv-act { width: 24%; text-align: center; }
+.board-view-table .bv-ship { width: 11%; text-align: center; }
+.bv-pn-cell { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.bv-pn-cell .board-child-status { width: 18px; height: 18px; }
+.bv-pn-name { font-weight: 700; color: #eaeaea; overflow-wrap: anywhere; }
+.bv-muted { color: #9d9d9d; }
+.bv-strong { font-weight: 700; color: #eaeaea; }
+.bv-pill {
+  display: inline-block; min-width: 30px; padding: 2px 9px; border-radius: 6px;
+  border: 1px solid transparent; font-weight: 700;
+}
+.bv-pill.tone-warn { background: rgba(217,164,65,.16); border-color: #d9a441; color: #f3d17f; }
+.bv-pill.tone-ok   { background: rgba(16,185,129,.16); border-color: #10B981; color: #5fe0b0; }
+.bv-action { font-size: 12px; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; }
+.bv-action.prepare { color: #8f8f8f; }
+.bv-action.pending { color: #d9a441; }
+.bv-action.fulfilled { color: #10B981; }
+.board-view-empty { padding: 12px 8px; text-align: center; color: #6a6a6a; font-size: 11.5px; }
+
+/* ---- Edit mode: same table as view mode, editable values boxed ---- */
+.board-item-group.is-edit .board-item input.board-item-name-input[type="text"] {
+  margin: 0; padding: 6px 10px; background: #1e1e1e; border-color: #3c3c3c;
+}
+.board-item-group.is-edit .board-item input.board-item-name-input[type="text"]:hover { border-color: #5a5a5a; }
+.board-item-group.is-edit .board-item input.board-item-name-input[type="text"]:focus { border-color: #007acc; }
+.bv-pn-cell .board-child-name { flex: 1 1 auto; min-width: 0; }
+.bv-pn-cell .board-child-name input.board-child-name-input[type="text"] {
+  flex: 1 1 auto; width: 100%; min-width: 0; padding: 5px 8px;
+  background: #1e1e1e; border-color: #3c3c3c;
+}
+.bv-pn-cell .board-child-name input.board-child-name-input[type="text"]:hover { border-color: #5a5a5a; }
+.bv-pn-cell .board-child-name input.board-child-name-input[type="text"]:focus { border-color: #007acc; }
+.bv-pn-cell .board-child-delete { margin-left: auto; }
+.bv-edit-cell .board-child-qty-wrap { width: 54px; margin: 0 auto; }
+.bv-edit-cell .board-child-qty-wrap input[type="text"] { padding: 5px 18px 5px 2px; }
+.bv-comp.tone-warn .board-child-qty-wrap input[type="text"] { background: rgba(217,164,65,.16); border-color: #d9a441; color: #f3d17f; }
+.bv-comp.tone-ok .board-child-qty-wrap input[type="text"] { background: rgba(16,185,129,.16); border-color: #10B981; color: #5fe0b0; }
+.board-item-group.is-edit .board-view-table { margin-bottom: 8px; }
+.board-item-group.is-edit .board-child-add-row { margin: 0 14px 14px; }
+
+/* Shipped cell as hold-to-confirm button (edit mode) */
+.bv-ship-btn {
+  position: relative; overflow: hidden; width: 128px; max-width: 100%; height: 30px; padding: 0 4px; white-space: nowrap;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #1e1e1e; border: 1px solid #3c3c3c; border-radius: 6px;
+  color: #eaeaea; font-family: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer;
+  -webkit-user-select: none; user-select: none; touch-action: none;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+.bv-ship-label { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 5px; }
+.bv-ship-btn:disabled { cursor: default; color: #8f8f8f; }
+.bv-ship-btn.has-pending { border-color: #d9a441; color: #d9a441; }
+.bv-ship-btn.has-pending:hover, .bv-ship-btn.has-pending:active {
+  background: rgba(16,185,129,.14); border-color: #10B981; color: #fff;
+}
+.bv-ship-btn.has-pending .hold-progress-fill { background: rgba(16,185,129,.6); }
+.bv-ship-btn.is-fulfilled:disabled { border-color: #10B981; color: #5fe0b0; background: rgba(16,185,129,.10); }
+.bv-ship-btn.is-ticked, .bv-ship-btn.is-ticked:disabled {
+  opacity: 1;
+  border-color: #10B981; color: #10B981; background: rgba(16,185,129,.14);
+}
+.bv-ship-label.swap-in { animation: bvLabelIn .28s ease-out; }
+@keyframes bvLabelIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .bv-ship-label.swap-in { animation: none; } }
+
+/* PN status circle colours (rows are <tr> now, not .board-child-row) */
+.board-view-table tr.status-partial .board-child-status { border-color: #d9a441; color: #d9a441; background: rgba(217,164,65,.12); }
+.board-view-table tr.status-done .board-child-status { border-color: #10B981; color: #10B981; background: rgba(16,185,129,.16); }
+.board-view-table tr.status-partial .bv-strong { color: #f3d17f; }
+.board-view-table tr.status-done .bv-strong { color: #5fe0b0; }
+
+/* Shipment header: title, green progress bar, percentage */
+.board-progress { flex: 0 0 190px; display: flex; align-items: center; gap: 8px; }
+.board-progress-track { flex: 1 1 auto; height: 10px; border-radius: 999px; background: #1a1a1a; border: 1px solid #303030; overflow: hidden; transition: border-color .3s ease, background .3s ease; }
+.board-progress-fill { height: 100%; border-radius: 999px; background: #10B981; transition: width .35s ease; }
+.board-progress.has-progress .board-progress-track { border-color: #10B981; background: rgba(16,185,129,.12); }
+.board-progress-pct { flex: 0 0 36px; text-align: right; font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; color: #6a6a6a; }
+.board-progress.has-progress .board-progress-pct { color: #5fe0b0; }
+.bv-zero { color: #5a5a5a; font-weight: 400; }
+
+/* ---- Compact cards: when a card gets narrow (2-per-row on smaller windows) the table
+   tightens up instead of overlapping. Driven by the CARD width, not the window. ---- */
+.board-item-group { container-type: inline-size; }
+@container (max-width: 500px) {
+  .board-item { padding: 10px 10px 6px !important; gap: 8px; }
+  .board-progress { flex-basis: 130px; gap: 6px; }
+  .board-progress-pct { flex-basis: 32px; font-size: 11.5px; }
+  .board-view-table { width: calc(100% - 20px); margin-left: 10px; margin-right: 10px; font-size: 11.5px; }
+  .board-item-group.is-edit .board-child-add-row { margin: 0 10px 10px; }
+  .board-view-table th { padding: 7px 2px; font-size: 9.5px; }
+  .board-view-table td { padding: 7px 2px; }
+  .board-view-table .bv-pn { width: 26%; }
+  .board-view-table .bv-num { width: 13%; }
+  .board-view-table .bv-comp { width: 15%; }
+  .board-view-table .bv-act { width: 22%; }
+  .board-view-table .bv-ship { width: 11%; }
+  .bv-pn-cell { gap: 4px; }
+  .bv-pn-cell .board-child-status { display: none; }
+  .bv-pn-cell .board-child-name input.board-child-name-input[type="text"] { padding: 5px 4px; font-size: 11.5px; }
+  .bv-pn-cell .board-child-delete { transform: scale(.85); margin-left: 0; }
+  .bv-edit-cell .board-child-qty-wrap { width: 42px; }
+  .bv-edit-cell .board-child-qty-wrap input[type="text"] { padding: 4px 14px 4px 1px; font-size: 11.5px; }
+  .bv-ship-btn { font-size: 10px; padding: 0 2px; height: 28px; white-space: normal; line-height: 1.05; }
+  .bv-pill { min-width: 24px; padding: 2px 6px; }
+  .bv-action { font-size: 10.5px; white-space: normal; }
+}
+
+
+/* ---- File sorter log: no scrollbar, triangle cues instead ---- */
+.sorter-log { scrollbar-width: none; -ms-overflow-style: none; }
+.sorter-log::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.sorter-log-wrap { position: relative; }
+.sorter-log-cue {
+  position: absolute; left: 50%; transform: translateX(-50%); z-index: 2;
+  display: none; align-items: center; justify-content: center;
+  width: 28px; height: 12px; padding: 0; border: 0; background: transparent;
+  color: #9d9d9d; cursor: pointer; opacity: .85;
+}
+.sorter-log-cue:hover { color: #ffffff; opacity: 1; }
+.sorter-log-cue.up { top: 3px; }
+.sorter-log-cue.down { bottom: 3px; }
+.sorter-log-cue.down svg { transform: rotate(180deg); }
+.sorter-log-cue.show { display: flex; }
 </style>
 </head>
 <body>
@@ -2386,7 +2628,7 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
       <div class="board-modal-header">
         <h2 id="boardModalTitle">
           <svg class="svg-icon" viewBox="0 0 24 24" width="18" height="18"><use href="#icon-board"></use></svg>
-          Shipment Board
+          Shipment Board - (EXPERIMENTAL: Jangan memandai2. Biarkan bro memasak dulu)
         </h2>
         <div class="board-header-actions">
           <span id="boardConnectionStatus" class="board-connection-status"></span>
@@ -2426,8 +2668,13 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
       <div id="boardContentView" class="board-content-view" style="display:none">
         <div class="board-date-bar">
           <div class="board-date-left">
-            <label for="boardDateInput">Board date</label>
-            <input type="date" id="boardDateInput">
+            <div class="board-date-field" id="boardDateField">
+              <svg class="board-date-cal" viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+              <input type="date" id="boardDateInput">
+              <span class="board-date-lock" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+              </span>
+            </div>
           </div>
           <div id="boardDateTitle" class="board-date-title"></div>
           <div id="boardEditorStatus" class="board-editor-status">View mode</div>
@@ -2658,7 +2905,7 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
   </div>
   
   <!-- ============================================================ -->
-  <!-- WINDOW: TOOL 1 (Normal Shipment)                             -->
+  <!-- WINDOW: TOOL 1 [NORMAL] (Normal Shipment)                    -->
   <!-- ============================================================ -->
   <div id="windowTool1" class="app-window">
 
@@ -2784,7 +3031,7 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
   </div><!-- #windowTool1 -->
 
   <!-- ============================================================ -->
-  <!-- WINDOW: TOOL 2 (Intersite Shipment) — soon to be built        -->
+  <!-- WINDOW: TOOL 2 [S2] (S2 / Intersite Shipment)                  -->
   <!-- Independent chunk. Build tool2's own markup/CSS/JS inside     -->
   <!-- this block only — it does not touch tool1 or the landing page.-->
   <!-- ============================================================ -->
@@ -2902,7 +3149,7 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
   </div><!-- #windowTool2 -->
 
   <!-- ============================================================ -->
-  <!-- WINDOW: TOOL 3 (SO Shipment) — mix of Tool 1 (shipment card,   -->
+  <!-- WINDOW: TOOL 3 [SO] (SO Shipment) — mix of Tool 1 (shipment card,-->
   <!-- EDI/BOL per item, Generated EDI, sweep-capable sorter) and     -->
   <!-- Tool 2 (Number/s + Pickslip grow-list cards, item card shape,  -->
   <!-- Generated Dimensions w/ consolidate). Own state (state3), own  -->
@@ -3044,6 +3291,18 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
   </div><!-- #appRoot -->
 
 <script>
+/* ==================================================================
+   CODE MAP — which code belongs to which tool
+   ------------------------------------------------------------------
+   UI label         window id      DOM id prefix   JS prefix / state
+   Normal Shipment  windowTool1    (none)          state, dom.*      [NORMAL]
+   S2 Shipment      windowTool2    t2*             state2, t2*()     [S2]
+   SO Shipment      windowTool3    t3*             state3, t3*()     [SO]
+   The names tool1/tool2/tool3 are internal only; search for the
+   [NORMAL] / [S2] / [SO] tags to jump between tools.
+   Shared by all three: the working-folder handle (webWorkingDirHandle,
+   syncAllWorkingDirUi), toSafeFsName, sanitizeQty, the sorter log.
+   ================================================================== */
 /* ---- Constants ---- */
 
 var MAX_TABS = 6;
@@ -5464,7 +5723,7 @@ function safeStep(fn, label) {
 }
 
 /* ============================================================
-   Tool 2 (Intersite Shipment) — self-contained, independent of
+   [S2] Tool 2 (S2 / Intersite Shipment) — self-contained, independent of
    Tool 1's tabs/PN-sheet/sweep machinery. Own state, own DOM ids
    (t2* prefix), own file sorter (create-folder only, no sweep).
    ============================================================ */
@@ -6373,6 +6632,10 @@ function initTool2() {
 }
 
 
+/* [SO] ============================================================
+   SO SHIPMENT (Tool 3) — everything below down to the shared window
+   switcher belongs to SO Shipment (t3* / state3).
+   ============================================================ */
 /* ============================================================
    Tool 3 (SO Shipment) — a mix of Tool 1 and Tool 2: Tool 1's
    Shipment card (Destination + optional HAWB) and per-item EDI/BOL
@@ -7193,6 +7456,7 @@ window.addEventListener("load", init);
       pinPipWindow.document.body.style.margin = "0";
       pinPipWindow.document.body.style.background = "#1e1e1e";
       pinPipWindow.document.body.appendChild(appRoot);
+      if (typeof window.__qsAttachTrim === "function") window.__qsAttachTrim(pinPipWindow.document);
       showPinPlaceholder();
 
       try {
@@ -7244,8 +7508,9 @@ window.addEventListener("load", init);
         appState.tabs[i].workingDir = handle.name; // browsers never expose a real filesystem path
       }
       if (typeof t2SetSavedWorkingDirName === "function") t2SetSavedWorkingDirName(handle.name);
-      renderWorkingDir();
-      if (typeof t2RenderWorkingDir === "function") t2RenderWorkingDir();
+      // v1.22: this used to refresh Normal + S2 only, so SO Shipment stayed red
+      // after the folder was granted from Normal. Refresh all three.
+      window.syncAllWorkingDirUi();
       saveState();
     }).catch(function (err) {
       if (err && err.name !== "AbortError") notify("Could not get folder access: " + (err.message || err));
@@ -7254,6 +7519,11 @@ window.addEventListener("load", init);
 
   var webWorkingDirHandle = null; // not persisted across reloads — the browser sandbox requires re-granting access each session
 
+  window.syncAllWorkingDirUi = function () {
+    try { if (typeof renderWorkingDir === "function") renderWorkingDir(); } catch (e) {}
+    try { if (typeof t2RenderWorkingDir === "function") t2RenderWorkingDir(); } catch (e) {}
+    try { if (typeof t3RenderWorkingDir === "function") t3RenderWorkingDir(); } catch (e) {}
+  };
   window.getWebWorkingDirHandle = function () { return webWorkingDirHandle; };
   window.clearWebWorkingDirHandle = function () { webWorkingDirHandle = null; };
   window.setWebWorkingDirHandle = function (handle) { webWorkingDirHandle = handle; };
@@ -7910,6 +8180,9 @@ window.addEventListener("load", init);
     }
     var brandTitleGroup = document.querySelector(".brand-title-group");
     if (brandTitleGroup) brandTitleGroup.classList.toggle("title-hidden", name === "landing");
+    // The folder handle is shared by all three tools — re-sync every tool's
+    // "connected / not connected" state whenever the window changes.
+    if (typeof window.syncAllWorkingDirUi === "function") window.syncAllWorkingDirUi();
     if (name === "tool1") {
       if (typeof renderTabBar === "function") renderTabBar();
       if (typeof updateTabLayoutBridge === "function") updateTabLayoutBridge();
@@ -8441,15 +8714,28 @@ window.addEventListener("load", init);
     var el = document.getElementById("boardSetupMessage");
     if (el) el.textContent = message || "";
   }
+  // 1/9/2026 (no zero padding)
   function formatBoardDate(dateKey) {
     var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey || "");
-    return m ? (m[3] + "/" + m[2] + "/" + m[1]) : (dateKey || "");
+    return m ? (parseInt(m[3], 10) + "/" + parseInt(m[2], 10) + "/" + m[1]) : (dateKey || "");
+  }
+  var BOARD_MONTHS = ["January", "February", "March", "April", "May", "June", "July",
+    "August", "September", "October", "November", "December"];
+  // 1 September 2026
+  var BOARD_WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  function formatBoardDateLong(dateKey) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey || "");
+    if (!m) return dateKey || "";
+    var wd = BOARD_WEEKDAYS[new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10)).getDay()];
+    return wd + " - " + parseInt(m[3], 10) + " " + (BOARD_MONTHS[parseInt(m[2], 10) - 1] || m[2]) + " " + m[1];
   }
   function updateBoardDateUi() {
     var input = document.getElementById("boardDateInput");
     var title = document.getElementById("boardDateTitle");
+    var text = document.getElementById("boardDateText");
     if (input) input.value = boardDate;
-    if (title) title.textContent = formatBoardDate(boardDate);
+    if (text) text.textContent = formatBoardDate(boardDate);
+    if (title) title.textContent = formatBoardDateLong(boardDate);
   }
   function showBoardSetup() {
     boardMode = "setup";
@@ -8782,16 +9068,27 @@ window.addEventListener("load", init);
     if (doneBtn) doneBtn.style.display = boardMode === "shared" && boardIsEditor ? "inline-block" : "none";
     if (editorStatus) {
       if (boardMode !== "shared") editorStatus.textContent = "Local board";
-      else if (boardIsEditor) editorStatus.textContent = "Editing: " + (boardUserName || "You");
-      else if (otherEd) editorStatus.textContent = "Editing: " + (ed.name || "another user");
+      else if (boardIsEditor || otherEd) editorStatus.textContent = "Editing mode"; // who is editing = the highlighted name in the user list
       else editorStatus.textContent = "View mode";
+      editorStatus.classList.toggle("is-editing", boardMode === "shared" && (boardIsEditor || otherEd));
     }
     var dateInput = document.getElementById("boardDateInput");
-    if (dateInput) dateInput.disabled = boardMode === "shared" && boardIsEditor;
-    if (body) {
-      var controls = body.querySelectorAll("input, button, select, textarea");
-      controls.forEach(function (el) { el.disabled = boardMode === "shared" && !boardIsEditor; });
+    var dateLocked = boardMode === "shared" && boardIsEditor;
+    if (dateInput) dateInput.disabled = dateLocked;
+    var dateField = document.getElementById("boardDateField");
+    if (dateField) {
+      dateField.classList.toggle("locked", dateLocked);
+      dateField.title = dateLocked ? "Locked while editing" : "";
     }
+    var viewNow = boardMode === "shared" && !boardIsEditor;
+    if (body) {
+      // Only the static add-row lives in the body now — the list is rebuilt
+      // per mode (table in view mode, inputs in edit mode), so we must NOT
+      // blanket-toggle every control here or the action buttons lose their
+      // own disabled state on every sync tick.
+      body.querySelectorAll(".board-add-row input, .board-add-row button").forEach(function (el) { el.disabled = viewNow; });
+    }
+    if (listEl && viewNow !== lastRenderedViewMode) renderList();
   }
     function showBoardContent() {
     document.getElementById("boardSetupView").style.display = "none";
@@ -8808,9 +9105,16 @@ window.addEventListener("load", init);
       if (boardMode !== "shared") usersEl.textContent = "";
       else {
         var list = boardPresenceList.length ? boardPresenceList : [{ id: ensureClientId(), name: boardUserName || "Unnamed" }];
-        usersEl.textContent = "Connected (" + list.length + "): " + list.map(function (u) {
-          return (u.name || "Unnamed") + (ed && ed.clientId === u.id ? " \u270E" : "");
-        }).join(", ");
+        usersEl.textContent = "";
+        usersEl.appendChild(document.createTextNode("Connected (" + list.length + "): "));
+        list.forEach(function (u, idx) {
+          if (idx) usersEl.appendChild(document.createTextNode(", "));
+          var isEd = !!(ed && ed.clientId === u.id);
+          var span = document.createElement("span");
+          span.textContent = (u.name || "Unnamed") + (isEd ? " \u270E" : "");
+          if (isEd) { span.className = "board-user-editor"; span.title = "Currently editing"; }
+          usersEl.appendChild(span);
+        });
       }
     }
     if (statusEl) statusEl.textContent = boardMode === "shared"
@@ -9207,6 +9511,7 @@ window.addEventListener("load", init);
   };
 
   var items = [];
+  var lastRenderedViewMode = null;
   migrateLegacyLocalBoard();
   // Session-only (not persisted): which shipment's "add PN" input should
   // get focus back after the next re-render.
@@ -9227,6 +9532,380 @@ window.addEventListener("load", init);
     });
   }
 
+
+  // ---- v1.22 helpers ----------------------------------------------------
+  // Trim + collapse inner whitespace.
+  function cleanText(s) { return String(s == null ? "" : s).replace(/\s+/g, " ").trim(); }
+  // PN format: UPPERCASE, single spaces, and a space wherever a letter
+  // meets a digit — "ssr002" -> "SSR 002", "a1" -> "A 1".
+  function formatPnName(s) {
+    var t = String(s == null ? "" : s).toUpperCase().replace(/^\s+/, "").replace(/\s{2,}/g, " ");
+    return t.replace(/([A-Z])(?=\d)/g, "$1 ");
+  }
+  // Live version for an <input>; keeps the caret after the same character
+  // even when a space gets inserted before it.
+  function livePnFormat(input) {
+    input.addEventListener("input", function (e) {
+      var el = e.target;
+      var pos = el.selectionStart;
+      var solidBefore = el.value.slice(0, pos == null ? el.value.length : pos).replace(/\s/g, "").length;
+      var v = formatPnName(el.value);
+      if (v === el.value) return;
+      el.value = v;
+      var np = 0, cnt = 0;
+      while (np < v.length && cnt < solidBefore) { if (!/\s/.test(v.charAt(np))) cnt++; np++; }
+      try { el.setSelectionRange(np, np); } catch (err) {}
+    });
+  }
+  function flashInvalidInput(input) {
+    input.classList.remove("board-input-invalid");
+    void input.offsetWidth;
+    input.classList.add("board-input-invalid");
+    setTimeout(function () { input.classList.remove("board-input-invalid"); }, 700);
+  }
+  // Text input that commits on blur/Enter (Esc reverts). onCommit(raw) returns
+  // the accepted string, null (revert quietly) or false (revert + shake).
+  function buildCommitInput(className, value, liveFn, onCommit) {
+    var input = document.createElement("input");
+    input.type = "text";
+    input.className = className;
+    input.value = value;
+    input.autocomplete = "off";
+    input.spellcheck = false;
+    input.setAttribute("data-orig", value);
+    liveFn(input);
+    input.addEventListener("keydown", function (e) {
+      if (e.isComposing) return;
+      if (e.key === "Enter") { e.preventDefault(); input.blur(); }
+      else if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation(); // don't let Esc also close the whole board
+        input.value = input.getAttribute("data-orig");
+        input.blur();
+      }
+    });
+    input.addEventListener("blur", function () {
+      var res = onCommit(input.value);
+      if (typeof res === "string") { input.value = res; input.setAttribute("data-orig", res); return; }
+      input.value = input.getAttribute("data-orig");
+      if (res === false) flashInvalidInput(input);
+    });
+    return input;
+  }
+  function buildShipmentNameInput(it) {
+    return buildCommitInput("board-item-name-input", it.name, liveUppercase, function (raw) {
+      var name = cleanText(raw).toUpperCase();
+      if (!name) return null;
+      if (name === it.name) return name;
+      var dup = items.some(function (x) { return x.id !== it.id && x.name.trim().toUpperCase() === name; });
+      if (dup) return false;
+      it.name = name;
+      saveItems();
+      return name;
+    });
+  }
+  function buildPnNameInput(it, child) {
+    return buildCommitInput("board-child-name-input", child.name, livePnFormat, function (raw) {
+      var name = cleanText(formatPnName(cleanText(raw)));
+      if (!name) return null;
+      if (name === child.name) return name;
+      var dup = it.children.some(function (c) { return c.id !== child.id && c.name.trim().toUpperCase() === name; });
+      if (dup) return false;
+      child.name = name;
+      saveItems();
+      return name;
+    });
+  }
+  // Completed box colour: green when it equals Balance, yellow when some
+  // (but not all) of Balance is completed, neutral when nothing is
+  // (including 0/0 once the PN is fully shipped).
+  function completedTone(completed, balance) {
+    if (balance <= 0) return ""; // 0/0 (fulfilled) stays neutral
+    if (completed === balance) return "ok";
+    if (completed > 0 && completed < balance) return "warn";
+    return "";
+  }
+  function isBoardViewMode() { return boardMode === "shared" && !boardIsEditor; }
+  function shipmentCountText(it) {
+    var doneCount = it.children.filter(function (c) { return computeChildStatus(c) === "done"; }).length;
+    var planSum = it.children.reduce(function (s, c) { return s + (parseInt(c.planQty, 10) || 0); }, 0);
+    var shippedSum = it.children.reduce(function (s, c) { return s + Math.min(parseInt(c.shippedQty, 10) || 0, parseInt(c.planQty, 10) || 0); }, 0);
+    return doneCount + "/" + it.children.length + " PN \u00B7 " + shippedSum + "/" + planSum + " pcs";
+  }
+  function viewCell(tag, cls, text) {
+    var c = document.createElement(tag);
+    if (cls) c.className = cls;
+    if (text != null) c.textContent = text;
+    return c;
+  }
+  // Shipment progress = shipped pcs / planned pcs. Plain green bar (fill + outline)
+  // with the percentage beside it; grey/empty at 0%.
+  function shipmentProgress(it, status) {
+    var planSum = it.children.reduce(function (n, c) { return n + (parseInt(c.planQty, 10) || 0); }, 0);
+    var shippedSum = it.children.reduce(function (n, c) { return n + Math.min(parseInt(c.shippedQty, 10) || 0, parseInt(c.planQty, 10) || 0); }, 0);
+    var pct = planSum > 0 ? Math.round(shippedSum / planSum * 100) : 0;
+    if (status === "done") pct = 100; else if (pct > 99) pct = 99; // 100% is reserved for truly fulfilled
+    return { pct: pct };
+  }
+  function buildProgress(it, pr) {
+    var wrap = document.createElement("div");
+    wrap.className = "board-progress" + (pr.pct > 0 ? " has-progress" : "");
+    wrap.title = shipmentCountText(it);
+    var track = document.createElement("div");
+    track.className = "board-progress-track";
+    var fill = document.createElement("div");
+    fill.className = "board-progress-fill";
+    fill.style.width = pr.pct + "%";
+    track.appendChild(fill);
+    var label = document.createElement("span");
+    label.className = "board-progress-pct";
+    label.textContent = pr.pct + "%";
+    wrap.appendChild(track);
+    wrap.appendChild(label);
+    return wrap;
+  }
+  // Zero reads as a distracting "8" in dense columns — show a quiet dash instead.
+  var ZERO_DASH = "\u2013";
+
+  // One card layout for BOTH modes. View mode = plain read-only table.
+  // Edit mode = the exact same table, but the editable values are boxed
+  // (name inputs, Plan/Completed steppers), rows get a hold-to-remove
+  // button, and the Shipped cell (last column, after Status) becomes the
+  // hold-to-confirm pickup button. Nothing moves between modes.
+  function buildViewGroup(it, editable) {
+    var status = computeStatus(it);
+    var group = document.createElement("div");
+    group.className = "board-item-group is-table" + (editable ? " is-edit" : " is-view") + " status-" + status;
+    group.setAttribute("data-shipment-id", it.id);
+
+    var row = document.createElement("div");
+    row.className = "board-item";
+    var pr = shipmentProgress(it, status);
+    var nameEl = editable ? buildShipmentNameInput(it) : viewCell("span", "board-item-name", it.name);
+    row.appendChild(nameEl);
+    row.appendChild(buildProgress(it, pr));
+    if (editable) {
+      var delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.className = "board-item-delete";
+      delBtn.setAttribute("aria-label", "Hold to remove shipment " + it.name);
+      delBtn.title = "Hold to remove";
+      var delRing = document.createElement("span");
+      delRing.className = "hold-ring";
+      var delGlyph = document.createElement("span");
+      delGlyph.className = "board-item-delete-glyph";
+      delGlyph.textContent = "\u2715";
+      delBtn.appendChild(delRing);
+      delBtn.appendChild(delGlyph);
+      attachRadialHoldToConfirm(delBtn, delRing, HOLD_DURATION, function () {
+        items = items.filter(function (x) { return x.id !== it.id; });
+        saveItems();
+        renderList();
+      });
+      row.appendChild(delBtn);
+    }
+    group.appendChild(row);
+
+    var table = document.createElement("table");
+    table.className = "board-view-table";
+    var thead = document.createElement("thead");
+    var hr = document.createElement("tr");
+    [["PN", "bv-pn"], ["Plan", "bv-num"], ["Balance", "bv-num"], ["Completed", "bv-comp"], ["Status", "bv-act"], ["Shipped", "bv-ship"]]
+      .forEach(function (h) { hr.appendChild(viewCell("th", h[1], h[0])); });
+    thead.appendChild(hr);
+    table.appendChild(thead);
+
+    var tbody = document.createElement("tbody");
+    if (!it.children.length) {
+      var er = document.createElement("tr");
+      var ec = viewCell("td", "board-view-empty", editable ? "No PNs added yet \u2014 add the part numbers to be shipped below." : "No PNs added yet.");
+      ec.colSpan = 6;
+      er.appendChild(ec);
+      tbody.appendChild(er);
+    }
+    it.children.forEach(function (child) {
+      var st = computeChildStatus(child);
+      var plan = parseInt(child.planQty, 10) || 1;
+      var shipped = parseInt(child.shippedQty, 10) || 0;
+      var balance = Math.max(0, plan - shipped);
+      var completed = Math.min(parseInt(child.completedQty, 10) || 0, balance);
+      if (editable) child.completedQty = String(completed); // reclamp: Balance may have shrunk
+
+      var tr = document.createElement("tr");
+      tr.className = "status-" + st;
+
+      // ---- PN ----
+      var tdPn = viewCell("td", "bv-pn");
+      var wrap = document.createElement("div");
+      wrap.className = "bv-pn-cell";
+      var ic = document.createElement("span");
+      ic.className = "board-child-status";
+      ic.title = statusTitle(st, true);
+      ic.innerHTML = STATUS_ICONS[st] || STATUS_ICONS.pending;
+      wrap.appendChild(ic);
+      if (editable) {
+        var nameWrap = document.createElement("span");
+        nameWrap.className = "board-child-name";
+        nameWrap.appendChild(buildPnNameInput(it, child));
+        wrap.appendChild(nameWrap);
+        var childDel = document.createElement("button");
+        childDel.type = "button";
+        childDel.className = "board-child-delete";
+        childDel.setAttribute("aria-label", "Hold to remove PN " + child.name);
+        childDel.title = "Hold to remove";
+        var childDelRing = document.createElement("span");
+        childDelRing.className = "hold-ring";
+        var childDelGlyph = document.createElement("span");
+        childDelGlyph.className = "board-child-delete-glyph";
+        childDelGlyph.textContent = "\u2715";
+        childDel.appendChild(childDelRing);
+        childDel.appendChild(childDelGlyph);
+        attachRadialHoldToConfirm(childDel, childDelRing, HOLD_DURATION, function () {
+          it.children = it.children.filter(function (x) { return x.id !== child.id; });
+          saveItems();
+          renderList();
+        });
+        wrap.appendChild(childDel);
+      } else {
+        wrap.appendChild(viewCell("span", "bv-pn-name", child.name));
+      }
+      tdPn.appendChild(wrap);
+      tr.appendChild(tdPn);
+
+      // ---- Plan (stepper in edit; can't go below what's already Shipped) ----
+      var tdPlan = viewCell("td", "bv-num");
+      if (editable) {
+        tdPlan.classList.add("bv-edit-cell");
+        tdPlan.appendChild(buildQtyStepper(child.planQty, function (newQty) {
+          child.planQty = newQty;
+          var planN = parseInt(newQty, 10) || 0;
+          var shippedN = parseInt(child.shippedQty, 10) || 0;
+          var balN = Math.max(0, planN - shippedN);
+          if ((parseInt(child.completedQty, 10) || 0) > balN) child.completedQty = String(balN);
+          saveItems();
+          renderList();
+        }, Math.max(1, shipped)));
+      } else {
+        tdPlan.textContent = String(plan);
+      }
+      tr.appendChild(tdPlan);
+
+      // ---- Balance (always plain text — derived, never editable) ----
+      tr.appendChild(viewCell("td", balance > 0 ? "bv-num bv-muted" : "bv-num bv-zero", balance > 0 ? String(balance) : ZERO_DASH));
+
+      // ---- Completed (stepper in edit, capped to Balance) ----
+      var tone = completedTone(completed, balance);
+      var tdComp = viewCell("td", "bv-comp");
+      if (editable) {
+        tdComp.classList.add("bv-edit-cell");
+        if (tone) tdComp.classList.add("tone-" + tone);
+        tdComp.appendChild(buildQtyStepper(child.completedQty, function (newQty) {
+          child.completedQty = newQty;
+          saveItems();
+          renderList();
+        }, 0, balance));
+      } else {
+        tdComp.appendChild(completed > 0
+          ? viewCell("span", "bv-pill" + (tone ? " tone-" + tone : " bv-muted"), String(completed))
+          : viewCell("span", "bv-zero", ZERO_DASH));
+      }
+      tr.appendChild(tdComp);
+
+      // ---- Status. View: text. Edit: the hold-to-confirm pickup button (same slot, same label) ----
+      var tdAct = viewCell("td", "bv-act");
+      if (editable) {
+        tdAct.classList.add("bv-edit-cell");
+        tdAct.appendChild(buildPickupButton(child, completed, st));
+      } else {
+        var act = document.createElement("span");
+        if (st === "done") { act.className = "bv-action fulfilled"; act.innerHTML = STATUS_ICONS.done + "<span>Fulfilled</span>"; }
+        else if (completed > 0) { act.className = "bv-action pending"; act.textContent = "Pending pickup"; }
+        else { act.className = "bv-action prepare"; act.textContent = "Pending document"; }
+        tdAct.appendChild(act);
+      }
+      tr.appendChild(tdAct);
+
+      // ---- Shipped (last column): just the qty, both modes ----
+      tr.appendChild(shipped > 0 ? viewCell("td", "bv-ship bv-strong", String(shipped)) : viewCell("td", "bv-ship bv-zero", ZERO_DASH));
+
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    group.appendChild(table);
+    if (editable) group.appendChild(buildChildAddRow(it));
+    return group;
+  }
+
+  // Status cell in edit mode = the pickup button. States:
+  // "Pending document" (Completed = 0, disabled) -> "Pending pickup" (Completed > 0, armed)
+  // -> hover "Pickup?" -> holding "Picking Up" -> tick (then fades) -> "Fulfilled" when all shipped.
+  function buildPickupButton(child, completed, childStatus) {
+    var isTicked = pickupAnimState[child.id] === "ticked";
+    var hasPending = !isTicked && completed > 0;
+    var isFulfilled = !isTicked && childStatus === "done";
+
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.setAttribute("data-pickup-btn", child.id);
+    btn.className = "bv-ship-btn"
+      + (hasPending ? " has-pending" : "")
+      + (isTicked ? " is-ticked" : "")
+      + (isFulfilled ? " is-fulfilled" : "");
+    btn.disabled = !hasPending;
+    btn.title = isTicked ? "Picked up"
+      : hasPending ? "Hold to confirm " + completed + " picked up"
+      : isFulfilled ? "Fulfilled - nothing left to pick up"
+      : "Nothing completed yet";
+    var fill = document.createElement("span");
+    fill.className = "hold-progress-fill";
+    var label = document.createElement("span");
+    label.className = "bv-ship-label";
+    label.innerHTML = isTicked ? STATUS_ICONS.done : (isFulfilled ? "Fulfilled" : (hasPending ? "Pending pickup" : "Pending document"));
+    // Only the text animates in, and only right after a state change (fresh DOM each render).
+    if (pickupSwap[child.id]) { label.classList.add("swap-in"); delete pickupSwap[child.id]; }
+    btn.appendChild(fill);
+    btn.appendChild(label);
+
+    if (hasPending) {
+      var isHovering = false, isHolding = false;
+      var updateLabel = function () {
+        if (isHolding) { label.textContent = "Picking Up"; return; }
+        if (isHovering) { label.textContent = "Pickup?"; return; }
+        label.textContent = "Pending pickup";
+      };
+      btn.addEventListener("pointerenter", function () { isHovering = true; updateLabel(); });
+      btn.addEventListener("pointerleave", function () { isHovering = false; isHolding = false; updateLabel(); });
+      btn.addEventListener("pointerdown", function () { isHolding = true; updateLabel(); });
+      btn.addEventListener("pointerup", function () { isHolding = false; updateLabel(); });
+      btn.addEventListener("pointercancel", function () { isHolding = false; updateLabel(); });
+
+      attachHoldToConfirm(btn, fill, HOLD_DURATION, function () {
+        // Data changes the instant the hold lands; the tick/fade below is cosmetic only.
+        var completedN = parseInt(child.completedQty, 10) || 0;
+        if (completedN > 0) {
+          var planN = parseInt(child.planQty, 10) || 0;
+          var shippedN = parseInt(child.shippedQty, 10) || 0;
+          var newShipped = shippedN + completedN;
+          if (newShipped > planN) newShipped = planN;
+          child.shippedQty = String(newShipped);
+          child.completedQty = "0";
+          saveItems();
+        }
+        // Tick shows in the button for a beat, then the text just swaps to the new
+        // state (Pending document / Fulfilled). No opacity fade on the button itself.
+        pickupAnimState[child.id] = "ticked";
+        pickupSwap[child.id] = true;
+        renderList();
+        setTimeout(function () {
+          delete pickupAnimState[child.id];
+          pickupSwap[child.id] = true;
+          renderList();
+        }, 900);
+      });
+    }
+    return btn;
+  }
+
   // Builds a qty stepper control (text input + up/down arrows), the same
   // widget style used for item qty on the Normal Shipment tool. Returns
   // the wrapping element; onChange(newQtyString) fires on every change.
@@ -9243,9 +9922,9 @@ window.addEventListener("load", init);
     input.type = "text";
     input.setAttribute("inputmode", "numeric");
     input.setAttribute("pattern", "[0-9]*");
-    input.placeholder = String(min);
+    input.placeholder = min === 0 ? "\u2013" : String(min); // zero shows as a quiet dash
     input.autocomplete = "off";
-    input.value = initialQty;
+    input.value = (min === 0 && String(initialQty) === "0") ? "" : initialQty;
 
     function commit(val) {
       var clean = sanitizeQty(String(val));
@@ -9253,7 +9932,7 @@ window.addEventListener("load", init);
       if (isNaN(n) || n < min) n = min;
       if (max != null && n > max) n = max;
       clean = String(n);
-      input.value = clean;
+      input.value = (min === 0 && n === 0) ? "" : clean;
       onChange(clean);
     }
 
@@ -9342,6 +10021,7 @@ window.addEventListener("load", init);
   // only drives what the pickup button itself looks like while that
   // already-committed change settles visually.
   var pickupAnimState = {};
+  var pickupSwap = {}; // child.id -> next render should animate that button's label in
 
   // Generic press-and-hold confirm: fill sweeps to 100% over `duration` ms
   // while the pointer is held on btn; onComplete fires once it fills.
@@ -9491,6 +10171,9 @@ window.addEventListener("load", init);
   }
 
   function renderList() {
+    var viewMode = isBoardViewMode();
+    lastRenderedViewMode = viewMode;
+    listEl.classList.toggle("board-list-view", viewMode);
     listEl.innerHTML = "";
     if (!items.length) {
       var empty = document.createElement("p");
@@ -9500,64 +10183,12 @@ window.addEventListener("load", init);
       return;
     }
     // "No shipments on the board yet — add one above." this is original text, but I added "SABAR!Biarkan bro memasak lu" to it.
-    items.forEach(function (it) {
-      var status = computeStatus(it);
-
-      var group = document.createElement("div");
-      group.className = "board-item-group status-" + status;
-      group.setAttribute("data-shipment-id", it.id);
-
-      var row = document.createElement("div");
-      row.className = "board-item";
-
-      var statusBtn = document.createElement("button");
-      statusBtn.type = "button";
-      statusBtn.className = "board-item-status";
-      statusBtn.title = statusTitle(status, false);
-      statusBtn.innerHTML = STATUS_ICONS[status] || STATUS_ICONS.pending;
-
-      var nameSpan = document.createElement("span");
-      nameSpan.className = "board-item-name";
-      nameSpan.textContent = it.name;
-
-      var countBadge = document.createElement("span");
-      countBadge.className = "board-item-parts-count";
-      var doneCount = it.children.filter(function (c) { return computeChildStatus(c) === "done"; }).length;
-      var planSum = it.children.reduce(function (s, c) { return s + (parseInt(c.planQty, 10) || 0); }, 0);
-      var shippedSum = it.children.reduce(function (s, c) { return s + Math.min(parseInt(c.shippedQty, 10) || 0, parseInt(c.planQty, 10) || 0); }, 0);
-      countBadge.textContent = doneCount + "/" + it.children.length + " PN \u00B7 " + shippedSum + "/" + planSum + " pcs";
-
-      // Hold-to-confirm, same radial style as the per-PN delete below —
-      // no popup in between, just hold the button to remove the card.
-      var delBtn = document.createElement("button");
-      delBtn.type = "button";
-      delBtn.className = "board-item-delete";
-      delBtn.setAttribute("aria-label", "Hold to remove shipment " + it.name);
-      delBtn.title = "Hold to remove";
-      var delRing = document.createElement("span");
-      delRing.className = "hold-ring";
-      var delGlyph = document.createElement("span");
-      delGlyph.className = "board-item-delete-glyph";
-      delGlyph.textContent = "\u2715";
-      delBtn.appendChild(delRing);
-      delBtn.appendChild(delGlyph);
-      attachRadialHoldToConfirm(delBtn, delRing, HOLD_DURATION, function () {
-        items = items.filter(function (x) { return x.id !== it.id; });
-        saveItems();
-        renderList();
-      });
-
-      row.appendChild(statusBtn);
-      row.appendChild(nameSpan);
-      row.appendChild(countBadge);
-      row.appendChild(delBtn);
-      group.appendChild(row);
-
-      // Parts panel is always shown — no hide/collapse; the card just
-      // grows so every PN to be shipped is visible at a glance.
-      group.appendChild(buildChildrenPanel(it));
-
-      listEl.appendChild(group);
+    var cols = [document.createElement("div"), document.createElement("div")];
+    cols.forEach(function (c) { c.className = "board-col"; listEl.appendChild(c); });
+    items.forEach(function (it, i) {
+      var g = buildViewGroup(it, !viewMode);
+      g.style.order = i; // keeps original order when the columns flatten on narrow screens
+      cols[i % 2].appendChild(g);
     });
 
     if (focusChildAddFor) {
@@ -9577,227 +10208,15 @@ window.addEventListener("load", init);
     }
   }
 
-  function buildChildrenPanel(it) {
-    var panel = document.createElement("div");
-    panel.className = "board-item-children";
-
-    var list = document.createElement("div");
-    list.className = "board-child-list";
-
-    if (!it.children.length) {
-      var empty = document.createElement("p");
-      empty.className = "board-child-empty";
-      empty.textContent = "No PNs added yet — add the part numbers to be shipped below.";
-      list.appendChild(empty);
-    } else {
-      it.children.forEach(function (child) {
-        var childStatus = computeChildStatus(child);
-        var planNum = parseInt(child.planQty, 10) || 1;
-        var shippedNum = parseInt(child.shippedQty, 10) || 0;
-        var balanceNum = Math.max(0, planNum - shippedNum);
-        // Completed can't hold more than what's actually left to ship —
-        // reclamp here too (not just on Plan change) since Balance can
-        // also shrink from a pickup that just landed.
-        var completedNum = parseInt(child.completedQty, 10) || 0;
-        if (completedNum > balanceNum) completedNum = balanceNum;
-        child.completedQty = String(completedNum);
-
-        var childRow = document.createElement("div");
-        childRow.className = "board-child-row status-" + childStatus;
-
-        var statusIcon = document.createElement("span");
-        statusIcon.className = "board-child-status";
-        statusIcon.title = statusTitle(childStatus, true);
-        statusIcon.innerHTML = STATUS_ICONS[childStatus] || STATUS_ICONS.pending;
-
-        var childName = document.createElement("span");
-        childName.className = "board-child-name";
-        var childNameStrong = document.createElement("strong");
-        childNameStrong.textContent = child.name;
-        childName.appendChild(childNameStrong);
-        var childQtySuffix = document.createElement("span");
-        childQtySuffix.className = "board-child-qty-suffix";
-        // A real non-breaking space ahead of the regular one — two plain
-        // spaces in a text node collapse to one when rendered, so the
-        // wider gap needs an actual NBSP character to show up at all.
-        childQtySuffix.textContent = "\u00A0 x " + planNum;
-        childName.appendChild(childQtySuffix);
-
-        // ---- Block 1: Plan (stepper) + Balance (view-only) ----
-        // Plan can't be stepped or typed below what's already Shipped —
-        // Shipped is a fact of what already went out and should never be
-        // pulled down just because Plan was edited afterwards.
-        var planGroup = buildQtyGroup("Plan", "plan", child.planQty, function (newQty) {
-          child.planQty = newQty;
-          var planN = parseInt(newQty, 10) || 0;
-          var shippedN = parseInt(child.shippedQty, 10) || 0;
-          // Completed can't hold more than the new Balance either.
-          var balN = Math.max(0, planN - shippedN);
-          if ((parseInt(child.completedQty, 10) || 0) > balN) {
-            child.completedQty = String(balN);
-          }
-          saveItems();
-          renderList();
-        }, Math.max(1, shippedNum));
-
-        // Balance = Plan - Shipped: what's still left to complete and
-        // send out. View-only — it's purely derived, never edited directly.
-        var balanceGroup = buildQtyStatic("Balance", "balance", String(balanceNum));
-
-        var block1 = document.createElement("div");
-        block1.className = "board-child-block";
-        block1.appendChild(planGroup);
-        block1.appendChild(balanceGroup);
-
-        // ---- Block 2: Completed (stepper, capped to Balance) + hold-to-confirm Pending pickup ----
-        var completedGroup = buildQtyGroup("Completed", "completed", child.completedQty, function (newQty) {
-          child.completedQty = newQty;
-          saveItems();
-          renderList();
-        }, 0, balanceNum);
-
-        // Hold-to-confirm "Pending pickup" — same press-and-hold recipe as
-        // the tools' Clear buttons (linear fill sweeps across while held).
-        // Confirming moves whatever's Completed into the real, view-only
-        // Shipped total and resets Completed back to 0, which in turn
-        // recalculates Balance (and Completed's own cap) for the next
-        // round — repeat until Shipped reaches Plan.
-        //
-        // pickupAnimState[child.id] drives a purely cosmetic 2-stage
-        // settle (tick, then fade) on THIS button after a hold completes,
-        // independent of the data: Shipped/Balance/status/badges all
-        // update immediately (via an immediate renderList right when the
-        // hold lands), while this button keeps showing its confirm
-        // animation across the renders that follow. The fade step itself
-        // is applied to the already-rendered element in place (see
-        // data-pickup-btn below) rather than via another renderList —
-        // renderList rebuilds fresh DOM nodes, and a CSS opacity
-        // transition can't animate across two different elements, only a
-        // property change on the same one.
-        var isTicked = pickupAnimState[child.id] === "ticked";
-        var hasPending = !isTicked && completedNum > 0;
-
-        var pickupBtn = document.createElement("button");
-        pickupBtn.type = "button";
-        pickupBtn.setAttribute("data-pickup-btn", child.id);
-        pickupBtn.className = "board-child-pickup-btn"
-          + (hasPending ? " has-pending" : "")
-          + (isTicked ? " is-ticked" : "");
-        pickupBtn.disabled = !hasPending;
-        pickupBtn.title = isTicked
-          ? "Picked up"
-          : hasPending
-            ? "Hold to confirm " + completedNum + " picked up"
-            : "Nothing completed yet";
-        var pickupFill = document.createElement("span");
-        pickupFill.className = "hold-progress-fill";
-        var pickupLabel = document.createElement("span");
-        pickupLabel.className = "board-child-pickup-label";
-        pickupLabel.innerHTML = isTicked ? STATUS_ICONS.done : (hasPending ? "Pending<br>pickup" : "");
-        pickupBtn.appendChild(pickupFill);
-        pickupBtn.appendChild(pickupLabel);
-
-        // Label text swaps with interaction state while armed: idle
-        // "Pending pickup", hovering "Pickup?", actually holding it down
-        // "Picking Up". Only wired up while actually armed — mid-animation
-        // the button is disabled and its content is fixed to the tick.
-        if (hasPending) {
-          var isHovering = false;
-          var isHolding = false;
-          var updatePickupLabel = function () {
-            if (isHolding) { pickupLabel.textContent = "Picking Up"; return; }
-            if (isHovering) { pickupLabel.textContent = "Pickup?"; return; }
-            pickupLabel.innerHTML = "Pending<br>pickup";
-          };
-          pickupBtn.addEventListener("pointerenter", function () { isHovering = true; updatePickupLabel(); });
-          pickupBtn.addEventListener("pointerleave", function () { isHovering = false; isHolding = false; updatePickupLabel(); });
-          pickupBtn.addEventListener("pointerdown", function () { isHolding = true; updatePickupLabel(); });
-          pickupBtn.addEventListener("pointerup", function () { isHolding = false; updatePickupLabel(); });
-          pickupBtn.addEventListener("pointercancel", function () { isHolding = false; updatePickupLabel(); });
-
-          attachHoldToConfirm(pickupBtn, pickupFill, HOLD_DURATION, function () {
-            // Data updates the instant the hold completes, then an
-            // immediate renderList reflects it everywhere (Shipped,
-            // Balance, status circle, the card's own PN/pcs badge) right
-            // away — none of that waits on the animation below.
-            var completedN = parseInt(child.completedQty, 10) || 0;
-            if (completedN > 0) {
-              var planN = parseInt(child.planQty, 10) || 0;
-              var shippedN = parseInt(child.shippedQty, 10) || 0;
-              var newShipped = shippedN + completedN;
-              if (newShipped > planN) newShipped = planN;
-              child.shippedQty = String(newShipped);
-              child.completedQty = "0";
-              saveItems();
-            }
-            // Cosmetic only, running concurrently with the data already
-            // being live: this button shows a green tick for 1s, then
-            // fades over another 1s, then goes back to normal for the
-            // next cycle. The tick render happens via renderList (it
-            // needs to be a real DOM update anyway, alongside Shipped/
-            // Balance/etc). The fade is applied straight to that same
-            // element afterwards — not another renderList — so the
-            // opacity transition actually has something to animate from.
-            pickupAnimState[child.id] = "ticked";
-            renderList();
-            setTimeout(function () {
-              var liveBtn = listEl.querySelector('[data-pickup-btn="' + child.id + '"]');
-              if (liveBtn) liveBtn.classList.add("is-fading");
-              setTimeout(function () {
-                delete pickupAnimState[child.id];
-                renderList();
-              }, 1000);
-            }, 1000);
-          });
-        }
-
-        var block2 = document.createElement("div");
-        block2.className = "board-child-block";
-        block2.appendChild(completedGroup);
-        block2.appendChild(pickupBtn);
-
-        // ---- Block 3: Shipped (view-only, cumulative — the real total actually picked up) ----
-        var shippedGroup = buildQtyStatic("Shipped", "shipped", String(shippedNum));
-        var block3 = document.createElement("div");
-        block3.className = "board-child-block";
-        block3.appendChild(shippedGroup);
-
-        var childDel = document.createElement("button");
-        childDel.type = "button";
-        childDel.className = "board-child-delete";
-        childDel.setAttribute("aria-label", "Hold to remove PN " + child.name);
-        childDel.title = "Hold to remove";
-        var childDelRing = document.createElement("span");
-        childDelRing.className = "hold-ring";
-        var childDelGlyph = document.createElement("span");
-        childDelGlyph.className = "board-child-delete-glyph";
-        childDelGlyph.textContent = "\u2715";
-        childDel.appendChild(childDelRing);
-        childDel.appendChild(childDelGlyph);
-        attachRadialHoldToConfirm(childDel, childDelRing, HOLD_DURATION, function () {
-          it.children = it.children.filter(function (x) { return x.id !== child.id; });
-          saveItems();
-          renderList();
-        });
-
-        childRow.appendChild(statusIcon);
-        childRow.appendChild(childName);
-        childRow.appendChild(block1);
-        childRow.appendChild(block2);
-        childRow.appendChild(block3);
-        childRow.appendChild(childDel);
-        list.appendChild(childRow);
-      });
-    }
-    panel.appendChild(list);
-
+  // "+ Add PN" row under a shipment's table (edit mode only).
+  function buildChildAddRow(it) {
     var addRow = document.createElement("div");
     addRow.className = "board-child-add-row";
     var addInput = document.createElement("input");
     addInput.type = "text";
     addInput.placeholder = "PN / part number";
     addInput.setAttribute("data-child-add-input", it.id);
-    liveUppercase(addInput);
+    livePnFormat(addInput); // uppercase + "SSR002" -> "SSR 002"
 
     var addBtnChild = document.createElement("button");
     addBtnChild.type = "button";
@@ -9815,8 +10234,8 @@ window.addEventListener("load", init);
     }
 
     function addChild() {
-      var name = addInput.value.trim();
-      if (!name) { addInput.focus(); flashAddPnBtnEmpty(); return; }
+      var name = cleanText(formatPnName(cleanText(addInput.value)));
+      if (!name) { addInput.value = ""; addInput.focus(); flashAddPnBtnEmpty(); return; }
       var existing = it.children.filter(function (c) {
         return c.name.trim().toUpperCase() === name.toUpperCase();
       })[0];
@@ -9849,9 +10268,7 @@ window.addEventListener("load", init);
 
     addRow.appendChild(addInput);
     addRow.appendChild(addBtnChild);
-    panel.appendChild(addRow);
-
-    return panel;
+    return addRow;
   }
 
   // Attention flash for "+ Add" when pressed with an empty shipment name —
@@ -9866,8 +10283,8 @@ window.addEventListener("load", init);
 
   function addItem() {
     if (!canEditBoard()) return;
-    var name = nameInput.value.trim();
-    if (!name) { nameInput.focus(); flashAddBtnEmpty(); return; }
+    var name = cleanText(nameInput.value);
+    if (!name) { nameInput.value = ""; nameInput.focus(); flashAddBtnEmpty(); return; }
     var existing = items.filter(function (it) {
       return it.name.trim().toUpperCase() === name.toUpperCase();
     })[0];
@@ -9957,6 +10374,13 @@ window.addEventListener("load", init);
   });
   document.getElementById("boardDateInput").addEventListener("change", function (e) {
     changeBoardDate(e.target.value);
+  });
+  // The native input is invisible (the d/m/yyyy text sits under it), so open
+  // its picker on any click, not just on the hidden calendar icon.
+  document.getElementById("boardDateInput").addEventListener("click", function (e) {
+    var el = e.target;
+    if (el.disabled || typeof el.showPicker !== "function") return;
+    try { el.showPicker(); } catch (err) {}
   });
   document.getElementById("boardConnectionName").addEventListener("input", function (e) {
     boardUserName = e.target.value;
@@ -10048,6 +10472,114 @@ window.addEventListener("load", init);
       // Clipboard permission denied/unavailable — fail silently, no paste.
     });
   });
+})();
+</script>
+
+
+<!-- ============================================================ -->
+<!-- v1.22: GLOBAL WHITESPACE TRIM for every text box.             -->
+<!-- Leading spaces are stripped as you type; trailing spaces are  -->
+<!-- trimmed on blur / Enter (input+change re-fired so app state   -->
+<!-- sees the clean value). Opt out per field: data-no-trim.       -->
+<!-- ============================================================ -->
+<script>
+(function () {
+  "use strict";
+  function isTextField(el) {
+    if (!el || !el.tagName) return false;
+    if (el.tagName === "TEXTAREA") return true;
+    if (el.tagName !== "INPUT") return false;
+    var t = (el.getAttribute("type") || "text").toLowerCase();
+    return t === "text" || t === "search" || t === "email" || t === "url" || t === "tel";
+  }
+  function skip(el) { return el.readOnly || el.disabled || el.hasAttribute("data-no-trim"); }
+  function fire(el) {
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  function trimNow(el) {
+    var v = el.value, t = v.trim();
+    if (t !== v) { el.value = t; fire(el); }
+  }
+  function attach(doc) {
+    if (!doc || doc.__qsTrimAttached) return;
+    doc.__qsTrimAttached = true;
+    // capture phase: runs before the field's own handlers see the value
+    doc.addEventListener("input", function (e) {
+      var el = e.target;
+      if (!isTextField(el) || skip(el)) return;
+      var v = el.value;
+      if (/^\s/.test(v)) {
+        var nv = v.replace(/^\s+/, "");
+        var pos = el.selectionStart;
+        el.value = nv;
+        try { var np = Math.max(0, (pos == null ? nv.length : pos) - (v.length - nv.length)); el.setSelectionRange(np, np); } catch (err) {}
+      }
+    }, true);
+    doc.addEventListener("focusout", function (e) {
+      var el = e.target;
+      if (!isTextField(el) || skip(el)) return;
+      trimNow(el);
+    }, true);
+    doc.addEventListener("keydown", function (e) {
+      if (e.key !== "Enter" || e.isComposing) return;
+      var el = e.target;
+      if (!isTextField(el) || skip(el) || el.tagName === "TEXTAREA") return;
+      trimNow(el);
+    }, true);
+  }
+  window.__qsAttachTrim = attach;
+  attach(document);
+})();
+</script>
+
+<!-- ============================================================ -->
+<!-- v1.22: File-sorter log — no scrollbar; triangle cues instead. -->
+<!-- ▲ top-centre = more above, ▼ bottom-centre = more below.      -->
+<!-- ============================================================ -->
+<script>
+(function () {
+  "use strict";
+  var TRI = '<svg viewBox="0 0 10 6" width="10" height="6" aria-hidden="true"><path d="M5 0L10 6H0Z" fill="currentColor"/></svg>';
+  function makeCue(cls, label) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "sorter-log-cue " + cls;
+    b.setAttribute("aria-label", label);
+    b.tabIndex = -1;
+    b.innerHTML = TRI;
+    return b;
+  }
+  function enhance(log) {
+    if (!log || log.__qsCue) return;
+    log.__qsCue = true;
+    var wrap = document.createElement("div");
+    wrap.className = "sorter-log-wrap";
+    log.parentNode.insertBefore(wrap, log);
+    wrap.appendChild(log);
+    var up = makeCue("up", "Scroll up");
+    var down = makeCue("down", "Scroll down");
+    wrap.appendChild(up);
+    wrap.appendChild(down);
+
+    function update() {
+      var max = log.scrollHeight - log.clientHeight;
+      var can = log.classList.contains("show") && max > 1;
+      up.classList.toggle("show", can && log.scrollTop > 1);
+      down.classList.toggle("show", can && log.scrollTop < max - 1);
+    }
+    function step(dir) {
+      log.scrollBy({ top: dir * Math.max(40, log.clientHeight * 0.8), behavior: "smooth" });
+    }
+    up.addEventListener("click", function () { step(-1); });
+    down.addEventListener("click", function () { step(1); });
+    log.addEventListener("scroll", update, { passive: true });
+    new MutationObserver(function () { update(); requestAnimationFrame(update); })
+      .observe(log, { childList: true, attributes: true, attributeFilter: ["class"] });
+    if (window.ResizeObserver) new ResizeObserver(update).observe(log);
+    update();
+  }
+  ["sorterLog", "t2SorterLog", "t3SorterLog"].forEach(function (id) { enhance(document.getElementById(id)); });
 })();
 </script>
 

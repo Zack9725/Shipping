@@ -345,7 +345,7 @@ html, body {
 .board-modal {
   width: 96%;
   height: 90%;
-  max-width: 1600px;
+  max-width: 1240px; /* tool layout is 1306px wide: board sits just inside it */
   background: #252526;
   border: 1px solid #3c3c3c;
   border-radius: 16px;
@@ -364,7 +364,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: 16px 32px;
   border-bottom: 1px solid #3c3c3c;
 }
 .board-modal-header h2 {
@@ -485,7 +485,7 @@ html, body {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 10px 20px;
+  padding: 12px 32px;
   border-bottom: 1px solid #303030;
   background: #202020;
 }
@@ -542,7 +542,7 @@ html, body {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: 16px 20px 20px;
+  padding: 18px 32px 24px;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -2371,10 +2371,10 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
 .board-view-table thead tr:first-child th { border-top: 0; }
 .board-view-table tbody tr:first-child td { border-top: 0; }
 .board-view-table tbody tr:hover td { background: rgba(255,255,255,.025); }
-.board-view-table .bv-pn { text-align: left; width: 32%; }
+.board-view-table .bv-pn { text-align: left; width: 27%; }
 .board-view-table th.bv-pn { text-align: left; }
-.board-view-table .bv-num { width: 10.5%; }
-.board-view-table .bv-comp { width: 11.5%; }
+.board-view-table .bv-num { width: 12%; }
+.board-view-table .bv-comp { width: 14%; }
 .board-view-table .bv-act { width: 24%; text-align: center; }
 .board-view-table .bv-ship { width: 11%; text-align: center; }
 .bv-pn-cell { display: flex; align-items: center; gap: 8px; min-width: 0; }

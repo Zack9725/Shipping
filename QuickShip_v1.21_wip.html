@@ -317,9 +317,8 @@ html, body {
 .modal-text { margin: 0 0 18px; font-size: 12px; color: #9d9d9d; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
 
-.btn-danger-rim { background: transparent; border: 2px solid #de1818; color: #ed2424; }
-.btn-danger-rim:hover { background: rgba(235, 23, 23, 0.26); }
-
+.btn.btn-danger-rim { background: transparent; border: 2px solid #de1818; color: #ed2424; }
+.btn.btn-danger-rim:hover { background: rgba(235, 23, 23, 0.26); }
 /* ============ Shipment Board modal ============ */
 /* Floats above the current panel rather than replacing it — the backdrop
    is only a subtle blur/tint so whatever's behind (Home/Normal/Intersite)
@@ -345,7 +344,7 @@ html, body {
 .board-modal {
   width: 96%;
   height: 90%;
-  max-width: 1240px; /* tool layout is 1306px wide: board sits just inside it */
+  max-width: 1000px; /* compressed: 2 cards per row, each ~460px wide */
   background: #252526;
   border: 1px solid #3c3c3c;
   border-radius: 16px;
@@ -414,6 +413,20 @@ html, body {
   color: #ffffff;
   background: rgba(241, 76, 76, 0.12);
 }
+/* Hold-to-logout: same press-and-hold fill as the tool's Clear button. */
+.board-logout-btn.hold-logout-btn {
+  position: relative;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+}
+.board-logout-btn.hold-logout-btn:active {
+  background: rgba(255, 59, 59, 0.14);
+  border-color: #ff3b3b;
+  color: #ffffff;
+}
+.hold-logout-content { position: relative; z-index: 1; }
 .board-setup-view {
   flex: 1 1 auto;
   min-height: 0;
@@ -647,14 +660,19 @@ html, body {
   flex-direction: column;
   gap: 8px;
 }
-.board-child-list { display: flex; flex-direction: column; gap: 8px; }
+.board-child-list { display: flex; flex-direction: column; gap: 0; }
+/* Grid: horizontal rule between PN rows, vertical rule before each cluster
+   (see .board-child-block below), so rows/columns are easy to follow. */
 .board-child-row {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   flex-wrap: nowrap;
   gap: 10px;
-  padding: 4px 0;
+  padding: 6px 0;
 }
+.board-child-row + .board-child-row { border-top: 1px solid #303030; }
+.board-child-row > * { align-self: center; }
+.board-child-row > .board-child-block { align-self: stretch; }
 /* Status is derived automatically from Plan vs Shipped below — same
    pending/partial/done circle glyph as the shipment header, just
    smaller, so a PN that's only half-shipped reads instantly. Purely
@@ -719,8 +737,7 @@ html, body {
 /* Groups the row's controls into 3 visual clusters — (Plan, Balance),
    (Completed, Pending pickup), (Shipped) — with a thin divider between
    clusters so the 3-stage flow reads at a glance. */
-.board-child-block { display: flex; align-items: flex-end; gap: 6px; flex-shrink: 0; }
-.board-child-block + .board-child-block { padding-left: 10px; border-left: 1px solid #303030; }
+.board-child-block { display: flex; align-items: flex-end; gap: 6px; flex-shrink: 0; padding-left: 10px; border-left: 1px solid #303030; }
 /* The highlight ring lives on the outer wrap (input + steppers together,
    or the static box for a view-only field) as a box-shadow, not on the
    input's own border — that way it draws a clean unbroken outline around
@@ -870,6 +887,15 @@ html, body {
 }
 .hold-progress-fill.filling { transition: width 0.6s linear; width: 100%; }
 .hold-progress-fill.releasing { transition: width 0.18s ease-out; width: 0%; }
+
+/* Generic hold-to-delete control used by tabs, item cards and number/pick-slip rows. */
+.hold-action-btn { position: relative; overflow: hidden; -webkit-user-select: none; user-select: none; touch-action: none; }
+.hold-action-btn .hold-action-fill { position: absolute; inset: 0 auto 0 0; width: 0%; background: rgba(255, 45, 45, 0.6); z-index: 0; pointer-events: none; }
+.hold-action-btn .hold-action-fill.filling { transition: width 0.6s linear; width: 100%; }
+.hold-action-btn .hold-action-fill.releasing { transition: width 0.18s ease-out; width: 0%; }
+.hold-action-btn .hold-action-content { position: relative; z-index: 1; }
+.item-delete-btn.hold-action-btn:hover, .t2-remove-btn.hold-action-btn:hover, .tab-close.hold-action-btn:hover { background: rgba(241,76,76,.12); color: #f14c4c; }
+.sort-confirm-box { width: 360px; }
 
 /* ---- Hold-to-execute Clear button (Normal + Intersite shipment) ---- */
 /* Same press-and-hold recipe as above, reused for the "Clear" button on
@@ -2298,7 +2324,7 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
 .board-date-left .board-date-field.locked input[type="date"] { cursor: not-allowed; }
 
 /* ---- Board title: bigger + bold ---- */
-.board-date-title { font-size: 20px; font-weight: 800; letter-spacing: .2px; line-height: 1.2; }
+.board-date-title { font-size: 20px; font-weight: 400; letter-spacing: .2px; line-height: 1.2; }
 
 /* ---- Board date: icon-only picker (no label, no text) ---- */
 .board-date-left .board-date-field { min-width: 0; width: 38px; height: 38px; padding: 0; }
@@ -2309,6 +2335,11 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
 /* ---- Connected users = same font/colour as the "View mode" status ---- */
 .board-editor-status, .board-connected-users { font-size: 12px; font-weight: 600; color: #d4d4d4; }
 .board-connected-users .board-user-editor { color: #f5c542; }
+/* Connected list now sits directly under the date title (left-aligned, full width of the title column). */
+.board-date-titlewrap { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.board-date-titlewrap .board-date-title { flex: none; }
+.board-date-titlewrap .board-connected-users { flex: none; max-width: 100%; text-align: left; }
+.board-date-titlewrap .board-connected-users:empty { display: none; }
 .board-editor-status.is-editing { color: #f5c542; animation: boardEditingPulse 1.6s ease-in-out infinite; }
 @keyframes boardEditingPulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { .board-editor-status.is-editing { animation: none; } }
@@ -2407,7 +2438,13 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
 }
 .bv-pn-cell .board-child-name input.board-child-name-input[type="text"]:hover { border-color: #5a5a5a; }
 .bv-pn-cell .board-child-name input.board-child-name-input[type="text"]:focus { border-color: #007acc; }
-.bv-pn-cell .board-child-delete { margin-left: auto; }
+.bv-pn-cell .board-child-delete {
+  margin: 0; padding: 0; width: 20px; height: 20px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.bv-pn-cell .board-child-delete .hold-ring { inset: -2px; }
+.bv-pn-text { flex: 1 1 auto; min-width: 0; }
+.bv-pn-qty { white-space: nowrap; font-weight: 400; }
 .bv-edit-cell .board-child-qty-wrap { width: 54px; margin: 0 auto; }
 .bv-edit-cell .board-child-qty-wrap input[type="text"] { padding: 5px 18px 5px 2px; }
 .bv-comp.tone-warn .board-child-qty-wrap input[type="text"] { background: rgba(217,164,65,.16); border-color: #d9a441; color: #f3d17f; }
@@ -2466,15 +2503,14 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
   .board-item-group.is-edit .board-child-add-row { margin: 0 10px 10px; }
   .board-view-table th { padding: 7px 2px; font-size: 9.5px; }
   .board-view-table td { padding: 7px 2px; }
-  .board-view-table .bv-pn { width: 26%; }
-  .board-view-table .bv-num { width: 13%; }
+  .board-view-table .bv-pn { width: 28%; }
+  .board-view-table .bv-num { width: 12%; }
   .board-view-table .bv-comp { width: 15%; }
   .board-view-table .bv-act { width: 22%; }
   .board-view-table .bv-ship { width: 11%; }
   .bv-pn-cell { gap: 4px; }
   .bv-pn-cell .board-child-status { display: none; }
   .bv-pn-cell .board-child-name input.board-child-name-input[type="text"] { padding: 5px 4px; font-size: 11.5px; }
-  .bv-pn-cell .board-child-delete { transform: scale(.85); margin-left: 0; }
   .bv-edit-cell .board-child-qty-wrap { width: 42px; }
   .bv-edit-cell .board-child-qty-wrap input[type="text"] { padding: 4px 14px 4px 1px; font-size: 11.5px; }
   .bv-ship-btn { font-size: 10px; padding: 0 2px; height: 28px; white-space: normal; line-height: 1.05; }
@@ -2632,7 +2668,10 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
         </h2>
         <div class="board-header-actions">
           <span id="boardConnectionStatus" class="board-connection-status"></span>
-          <button type="button" id="boardLogoutBtn" class="btn board-logout-btn" style="display:none">Logout</button>
+          <button type="button" id="boardLogoutBtn" class="btn board-logout-btn hold-logout-btn" style="display:none" title="Hold to logout">
+            <span id="boardLogoutBtnFill" class="hold-progress-fill"></span>
+            <span class="hold-logout-content">Logout</span>
+          </button>
           <button type="button" id="boardModalCloseBtn" class="board-modal-close" aria-label="Close">&times;</button>
         </div>
       </div>
@@ -2676,9 +2715,11 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
               </span>
             </div>
           </div>
-          <div id="boardDateTitle" class="board-date-title"></div>
+          <div class="board-date-titlewrap">
+            <div id="boardDateTitle" class="board-date-title"></div>
+            <div id="boardConnectedUsers" class="board-connected-users"></div>
+          </div>
           <div id="boardEditorStatus" class="board-editor-status">View mode</div>
-          <div id="boardConnectedUsers" class="board-connected-users"></div>
           <button type="button" id="boardEditBtn" class="btn btn-secondary" style="display:none">Edit Board</button>
           <button type="button" id="boardDoneEditBtn" class="btn btn-primary" style="display:none">Done Editing</button>
         </div>
@@ -3277,16 +3318,17 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
 
   <div id="toastStack" class="toast-stack"></div>
 
-  <div id="closeTabModal" class="modal-overlay">
-    <div class="modal-box">
-      <p class="modal-title">Close this shipment tab?</p>
-      <p class="modal-text">All data in this tab will be discarded. This cannot be undone.</p>
+  <div id="sortConfirmModal" class="modal-overlay">
+    <div class="modal-box sort-confirm-box">
+      <p class="modal-title">Sort files?</p>
+      <p id="sortConfirmText" class="modal-text"></p>
       <div class="modal-actions">
-        <button id="closeTabCancelBtn" class="btn btn-secondary" type="button">Cancel</button>
-        <button id="closeTabConfirmBtn" class="btn btn-danger-rim" type="button">Close Tab</button>
+        <button id="sortConfirmCancelBtn" class="btn btn-secondary" type="button">Cancel</button>
+        <button id="sortConfirmOkBtn" class="btn btn-primary" type="button">Sort</button>
       </div>
     </div>
   </div>
+
 
   </div><!-- #appRoot -->
 
@@ -3611,9 +3653,6 @@ var dom = {
   tabBar: document.getElementById("tabBar"),
   tabLayoutBridge: document.getElementById("tabLayoutBridge"),
   addTabBtn: document.getElementById("addTabBtn"),
-  closeTabModal: document.getElementById("closeTabModal"),
-  closeTabCancelBtn: document.getElementById("closeTabCancelBtn"),
-  closeTabConfirmBtn: document.getElementById("closeTabConfirmBtn"),
 
 
   outFolderName: document.getElementById("out-folderName"),
@@ -3869,8 +3908,12 @@ function renderTabBar() {
       closeBtn.title = "Close tab";
       (function (id) {
         closeBtn.addEventListener("click", function (e) {
-          if (e.stopPropagation) e.stopPropagation();
-          requestCloseTab(id);
+          e.preventDefault();
+          e.stopPropagation();
+        });
+        attachHoldDelete(closeBtn, function () {
+          if (appState.tabs.length <= 1) return;
+          closeTabById(id);
         });
       })(t.id);
       tabEl.appendChild(closeBtn);
@@ -4071,29 +4114,6 @@ function shipmentHasValue(shipment) {
   return false;
 }
 
-function requestCloseTab(id) {
-  if (appState.tabs.length <= 1) return; // close button is hidden in this case anyway
-  var idx = indexOfTab(id);
-  if (idx !== -1 && !shipmentHasValue(appState.tabs[idx])) {
-    closeTabById(id);
-    return;
-  }
-  pendingCloseTabId = id;
-  dom.closeTabModal.className = "modal-overlay show";
-}
-
-function cancelCloseTab() {
-  pendingCloseTabId = null;
-  dom.closeTabModal.className = "modal-overlay";
-}
-
-function confirmCloseTab() {
-  var id = pendingCloseTabId;
-  dom.closeTabModal.className = "modal-overlay";
-  pendingCloseTabId = null;
-  if (!id) return;
-  closeTabById(id);
-}
 
 function closeTabById(id) {
   var idx = indexOfTab(id);
@@ -4125,8 +4145,6 @@ function bindTabBar() {
     dom.tabBar.scrollLeft += e.deltaY;
   }, { passive: false });
   dom.addTabBtn.addEventListener("click", addTab);
-  dom.closeTabCancelBtn.addEventListener("click", cancelCloseTab);
-  dom.closeTabConfirmBtn.addEventListener("click", confirmCloseTab);
 }
 
 /* ============================================================
@@ -4680,7 +4698,7 @@ function buildItemCard(item, index, isOnlyCard) {
     closeBtn.innerHTML = "&#10005;";
     closeBtn.title = "Remove this item";
     closeBtn.setAttribute("type", "button");
-    closeBtn.addEventListener("click", function () {
+    attachHoldDelete(closeBtn, function () {
       var idx = Number(card.getAttribute("data-index"));
       if (state.items.length <= 1) return;
       state.items.splice(idx, 1);
@@ -5467,7 +5485,7 @@ function attachHoldToConfirm(btn, fillEl, duration, onComplete) {
     e.preventDefault();
     if (timer) return;
     fillEl.classList.remove("releasing");
-    void fillEl.offsetWidth; // restart the fill transition from 0%
+    void fillEl.offsetWidth;
     fillEl.classList.add("filling");
     timer = setTimeout(function () {
       timer = null;
@@ -5478,7 +5496,7 @@ function attachHoldToConfirm(btn, fillEl, duration, onComplete) {
   function release() {
     if (timer) { clearTimeout(timer); timer = null; }
     fillEl.classList.remove("filling");
-    void fillEl.offsetWidth; // restart the drain transition from wherever it stopped
+    void fillEl.offsetWidth;
     fillEl.classList.add("releasing");
   }
   btn.addEventListener("pointerdown", start);
@@ -5486,6 +5504,23 @@ function attachHoldToConfirm(btn, fillEl, duration, onComplete) {
   btn.addEventListener("pointerleave", release);
   btn.addEventListener("pointercancel", release);
 }
+
+function attachHoldDelete(btn, onComplete, duration) {
+  duration = duration || 600;
+  var fill = document.createElement("span");
+  fill.className = "hold-action-fill";
+  var content = document.createElement("span");
+  content.className = "hold-action-content";
+  while (btn.firstChild) content.appendChild(btn.firstChild);
+  btn.appendChild(fill);
+  btn.appendChild(content);
+  btn.classList.add("hold-action-btn");
+  attachHoldToConfirm(btn, fill, duration, onComplete);
+  ["pointerdown","pointerup","pointercancel","pointerleave"].forEach(function(type){
+    btn.addEventListener(type, function(e){ e.stopPropagation(); }, true);
+  });
+}
+
 
 function bindClearAll() {
   attachHoldToConfirm(dom.clearAllBtn, dom.clearAllBtnFill, 600, confirmClearAll);
@@ -5913,7 +5948,7 @@ function t2BuildGrowList(containerEl, arr, onChange) {
         rmBtn.className = "t2-remove-btn";
         rmBtn.title = "Remove";
         rmBtn.innerHTML = "&times;";
-        rmBtn.addEventListener("click", function () {
+        attachHoldDelete(rmBtn, function () {
           arr.splice(idx, 1);
           t2NormalizeGrowArray(arr);
           t2BuildGrowList(containerEl, arr, onChange);
@@ -6200,7 +6235,7 @@ function t2BuildItemCard(item, index, isOnlyCard) {
     closeBtn.innerHTML = "&#10005;";
     closeBtn.title = "Remove this item";
     closeBtn.setAttribute("type", "button");
-    closeBtn.addEventListener("click", function () {
+    attachHoldDelete(closeBtn, function () {
       var idx = Number(card.getAttribute("data-index"));
       if (state2.items.length <= 1) return;
       state2.items.splice(idx, 1);
@@ -6854,7 +6889,7 @@ function t3BuildItemCard(item, index, isOnlyCard) {
     closeBtn.innerHTML = "&#10005;";
     closeBtn.title = "Remove this item";
     closeBtn.setAttribute("type", "button");
-    closeBtn.addEventListener("click", function () {
+    attachHoldDelete(closeBtn, function () {
       var idx = Number(card.getAttribute("data-index"));
       if (state3.items.length <= 1) return;
       state3.items.splice(idx, 1);
@@ -7326,7 +7361,33 @@ window.addEventListener("load", init);
      text Tool 2 already uses, so both File Sorters give the same subtle,
      non-blocking feedback instead of a jarring browser dialog. */
   function notify(msg) { logLine(msg, "err"); }
-  function confirmDialog(msg) { return (pinPipWindow || window).confirm(msg); }
+  function confirmDialog(msg) {
+    return new Promise(function (resolve) {
+      var modal = document.getElementById("sortConfirmModal");
+      var text = document.getElementById("sortConfirmText");
+      var ok = document.getElementById("sortConfirmOkBtn");
+      var cancel = document.getElementById("sortConfirmCancelBtn");
+      if (!modal || !text || !ok || !cancel) { resolve(true); return; }
+      text.textContent = msg;
+      modal.className = "modal-overlay show";
+      var done = false;
+      function finish(value) {
+        if (done) return; done = true;
+        modal.className = "modal-overlay";
+        ok.removeEventListener("click", yes);
+        cancel.removeEventListener("click", no);
+        modal.removeEventListener("click", backdrop);
+        resolve(value);
+      }
+      function yes() { finish(true); }
+      function no() { finish(false); }
+      function backdrop(e) { if (e.target === modal) no(); }
+      ok.addEventListener("click", yes);
+      cancel.addEventListener("click", no);
+      modal.addEventListener("click", backdrop);
+      setTimeout(function(){ try { ok.focus(); } catch(e){} }, 0);
+    });
+  }
 
   function showPinPlaceholder() {
     var ph = document.createElement("div");
@@ -7679,11 +7740,10 @@ window.addEventListener("load", init);
         (dupSlots ? "\n(" + dupSlots + " of these had multiple copies — most recently modified will be used)" : "") +
         sweepMsgLine +
         "\n\nContinue?";
-      if (!confirmDialog(confirmMsg)) return null;
-
-      clearLog();
-
-      return webWorkingDirHandle.getDirectoryHandle(safeFolderName, { create: true }).then(function (dh) {
+      return confirmDialog(confirmMsg).then(function (confirmed) {
+        if (!confirmed) return null;
+        clearLog();
+        return webWorkingDirHandle.getDirectoryHandle(safeFolderName, { create: true }).then(function (dh) {
         targetDirHandle = dh;
         logLineAppend("Using folder: " + safeFolderName, "ok");
 
@@ -7786,6 +7846,7 @@ window.addEventListener("load", init);
         }).then(function () {
           return movedAny;
         });
+        });
       });
     }).then(function (movedAny) {
       if (movedAny) {
@@ -7865,11 +7926,10 @@ window.addEventListener("load", init);
         "\n\nMatched files to move in: " + plannedSlots + " of " + SLOT_IDS.length +
         (dupSlots ? "\n(" + dupSlots + " of these had multiple copies — most recently modified will be used)" : "") +
         "\n\nContinue?";
-      if (!confirmDialog(confirmMsg)) return null;
-
-      t2ClearLog();
-
-      return webWorkingDirHandle.getDirectoryHandle(safeFolderName, { create: true }).then(function (dh) {
+      return confirmDialog(confirmMsg).then(function (confirmed) {
+        if (!confirmed) return null;
+        t2ClearLog();
+        return webWorkingDirHandle.getDirectoryHandle(safeFolderName, { create: true }).then(function (dh) {
         targetDirHandle = dh;
         t2LogAppend("Using folder: " + safeFolderName, "ok");
 
@@ -7908,7 +7968,8 @@ window.addEventListener("load", init);
           });
         });
 
-        return chain.then(function () { return movedAny; });
+          return chain.then(function () { return movedAny; });
+        });
       });
     }).then(function (movedAny) {
       if (movedAny) showToast("Sorted!");
@@ -7992,11 +8053,10 @@ window.addEventListener("load", init);
         (dupSlots ? "\n(" + dupSlots + " of these had multiple copies — most recently modified will be used)" : "") +
         sweepMsgLine +
         "\n\nContinue?";
-      if (!confirmDialog(confirmMsg)) return null;
-
-      t3ClearLog();
-
-      return webWorkingDirHandle.getDirectoryHandle(safeFolderName, { create: true }).then(function (dh) {
+      return confirmDialog(confirmMsg).then(function (confirmed) {
+        if (!confirmed) return null;
+        t3ClearLog();
+        return webWorkingDirHandle.getDirectoryHandle(safeFolderName, { create: true }).then(function (dh) {
         targetDirHandle = dh;
         t3LogAppend("Using folder: " + safeFolderName, "ok");
 
@@ -8099,6 +8159,7 @@ window.addEventListener("load", init);
         }).then(function () {
           return movedAny;
         });
+      });
       });
     }).then(function (movedAny) {
       if (movedAny) showToast("Sorted!");
@@ -9013,6 +9074,7 @@ window.addEventListener("load", init);
     });
   }
   function boardLostEditor(cur) {
+    if (typeof stopBoardIdleTimer === "function") stopBoardIdleTimer();
     boardIsEditor = false;
     boardPendingSave = null; // otherwise a stuck pending save blocks syncing forever
     boardDirty = false;
@@ -9106,7 +9168,7 @@ window.addEventListener("load", init);
       else {
         var list = boardPresenceList.length ? boardPresenceList : [{ id: ensureClientId(), name: boardUserName || "Unnamed" }];
         usersEl.textContent = "";
-        usersEl.appendChild(document.createTextNode("Connected (" + list.length + "): "));
+        usersEl.appendChild(document.createTextNode("Connected (" + list.length + ") : "));
         list.forEach(function (u, idx) {
           if (idx) usersEl.appendChild(document.createTextNode(", "));
           var isEd = !!(ed && ed.clientId === u.id);
@@ -9165,13 +9227,39 @@ window.addEventListener("load", init);
       boardIsEditor = true;
       boardLock = lk.owner;
       setEditorUi();
+      resetBoardIdleTimer();
       return true;
     }), 25000, "Enter edit mode").catch(function (err) {
       if (!boardIsEditor) dropBoardLock();
       throw err;
     }).finally(function () { boardEditInFlight = false; });
   }
+  // ---- Editor idle timeout: 30s with no activity -> save + release ----
+  // Any edit activity (typing, stepper click, button press, saved change)
+  // restarts the countdown. When it fires, pending changes are committed
+  // and saved, then the editor lock is released so others can edit.
+  var BOARD_IDLE_MS = 30000;
+  var boardIdleTimer = null;
+  function stopBoardIdleTimer() {
+    if (boardIdleTimer) { clearTimeout(boardIdleTimer); boardIdleTimer = null; }
+  }
+  function resetBoardIdleTimer() {
+    stopBoardIdleTimer();
+    if (boardMode !== "shared" || !boardIsEditor) return;
+    boardIdleTimer = setTimeout(onBoardIdle, BOARD_IDLE_MS);
+  }
+  function onBoardIdle() {
+    boardIdleTimer = null;
+    if (boardMode !== "shared" || !boardIsEditor) return;
+    // Commit any field still focused (fires its change handler -> save).
+    var ae = document.activeElement;
+    if (ae && listEl && listEl.contains(ae) && typeof ae.blur === "function") ae.blur();
+    releaseBoardEditor().then(function () {
+      if (typeof showToast === "function") showToast("Editing ended after 30s of inactivity. Changes saved.");
+    });
+  }
   function releaseBoardEditor() {
+    stopBoardIdleTimer();
     if (boardMode !== "shared" || !boardIsEditor) return Promise.resolve();
     return waitForBoardSaves(8000).then(function () {
       boardIsEditor = false; // stops the lock heartbeat
@@ -9195,6 +9283,7 @@ window.addEventListener("load", init);
   }
   function saveItemsShared() {
     if (boardMode !== "shared" || !boardDirHandle || !boardIsEditor) return;
+    resetBoardIdleTimer();
     boardDirty = true;
     boardPendingSave = { dateKey: boardDate, desired: cloneBoardValue(items), base: cloneBoardValue(lastSyncedItems) };
     if (boardWriteInFlight) return;
@@ -9738,16 +9827,8 @@ window.addEventListener("load", init);
       var tdPn = viewCell("td", "bv-pn");
       var wrap = document.createElement("div");
       wrap.className = "bv-pn-cell";
-      var ic = document.createElement("span");
-      ic.className = "board-child-status";
-      ic.title = statusTitle(st, true);
-      ic.innerHTML = STATUS_ICONS[st] || STATUS_ICONS.pending;
-      wrap.appendChild(ic);
       if (editable) {
-        var nameWrap = document.createElement("span");
-        nameWrap.className = "board-child-name";
-        nameWrap.appendChild(buildPnNameInput(it, child));
-        wrap.appendChild(nameWrap);
+        // Edit mode: no status circle — the hold-to-remove button takes its slot (left edge).
         var childDel = document.createElement("button");
         childDel.type = "button";
         childDel.className = "board-child-delete";
@@ -9766,8 +9847,22 @@ window.addEventListener("load", init);
           renderList();
         });
         wrap.appendChild(childDel);
+        var nameWrap = document.createElement("span");
+        nameWrap.className = "board-child-name";
+        nameWrap.appendChild(buildPnNameInput(it, child));
+        wrap.appendChild(nameWrap);
       } else {
-        wrap.appendChild(viewCell("span", "bv-pn-name", child.name));
+        var ic = document.createElement("span");
+        ic.className = "board-child-status";
+        ic.title = statusTitle(st, true);
+        ic.innerHTML = STATUS_ICONS[st] || STATUS_ICONS.pending;
+        wrap.appendChild(ic);
+        // View mode: "VARF 015 x10" — PN then muted plan qty.
+        var pnText = document.createElement("span");
+        pnText.className = "bv-pn-text";
+        pnText.appendChild(viewCell("span", "bv-pn-name", child.name));
+        pnText.appendChild(viewCell("span", "board-child-qty-suffix bv-pn-qty", " x" + plan));
+        wrap.appendChild(pnText);
       }
       tdPn.appendChild(wrap);
       tr.appendChild(tdPn);
@@ -10366,12 +10461,32 @@ window.addEventListener("load", init);
   document.getElementById("boardDoneEditBtn").addEventListener("click", function () {
     releaseBoardEditor();
   });
+  // Any real interaction with the board body while editing restarts the 30s idle timer.
+  (function () {
+    var bump = function () { if (boardMode === "shared" && boardIsEditor) resetBoardIdleTimer(); };
+    var body = overlay.querySelector(".board-modal-body");
+    if (!body) return;
+    ["input", "change", "keydown", "paste"].forEach(function (ev) {
+      body.addEventListener(ev, bump, true);
+    });
+    ["pointerdown", "click"].forEach(function (ev) {
+      body.addEventListener(ev, function (e) {
+        if (e.target && e.target.closest && e.target.closest("button, input, select, textarea, .qty-steppers")) bump();
+      }, true);
+    });
+  })();
   document.getElementById("boardContinueLocalBtn").addEventListener("click", enterLocalBoard);
-  document.getElementById("boardLogoutBtn").addEventListener("click", function () {
-    if (!window.confirm("Logout from the shared board?\n\nYou will be disconnected from the shared board. The saved folder will be kept for fast reconnect.")) return;
-    disconnectSharedBoard(true);
-    showBoardSetup();
-  });
+  // Hold to logout (same press-and-hold as the tool's Clear button) — no confirm popup.
+  (function () {
+    var logoutBtn = document.getElementById("boardLogoutBtn");
+    var logoutFill = document.getElementById("boardLogoutBtnFill");
+    attachHoldToConfirm(logoutBtn, logoutFill, HOLD_DURATION, function () {
+      // Reset the fill so it isn't stuck at 100% next time the button is shown.
+      logoutFill.classList.remove("filling", "releasing");
+      disconnectSharedBoard(true);
+      showBoardSetup();
+    });
+  })();
   document.getElementById("boardDateInput").addEventListener("change", function (e) {
     changeBoardDate(e.target.value);
   });

@@ -580,6 +580,21 @@ html, body {
   .board-list { display: flex; flex-direction: column; }
   .board-col { display: contents; }
 }
+
+/* Phone viewport fix: the main desktop app intentionally has a 1306px minimum width,
+   but the Board modal is a viewport-level UI and must be allowed to fit narrow screens. */
+@media (max-width: 640px) {
+  html, body { min-width: 0; }
+  .board-modal {
+    width: calc(100% - 16px);
+    max-width: none;
+    height: 94%;
+    border-radius: 12px;
+  }
+  .board-modal-header { padding: 12px 14px; }
+  .board-modal-body { padding: 12px 10px 18px; }
+  .board-date-bar { padding: 10px 12px; gap: 8px; }
+}
 .board-item-group {
   background: #1e1e1e;
   border: 1px solid #3c3c3c;
@@ -2389,8 +2404,10 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
 /* ---- View mode: read-only table ---- */
 
 .board-item-group.is-table .board-item { padding: 12px 14px 8px; }
+.board-item-group { --bv-gap: 14px; --bv-icon: 18px; --bv-pn-gap: 8px; --bv-input-inset: 9px; }
+.board-item-group.is-edit { --bv-icon: 20px; }
 .board-view-table {
-  width: calc(100% - 28px); margin: 0 14px 14px; table-layout: fixed;
+  width: calc(100% - 2 * var(--bv-gap)); margin: 0 var(--bv-gap) var(--bv-gap); table-layout: fixed;
   border-collapse: separate; border-spacing: 0;
   background: #1a1a1a; border: 1px solid #303030; border-radius: 8px; overflow: hidden;
   font-size: 12.5px; color: #d4d4d4;
@@ -2412,7 +2429,10 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
 .board-view-table .bv-comp { width: 14%; }
 .board-view-table .bv-act { width: 24%; text-align: center; }
 .board-view-table .bv-ship { width: 11%; text-align: center; }
-.bv-pn-cell { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.board-view-table td.bv-pn { padding-left: calc(var(--bv-gap) - 1px); }
+.board-view-table th.bv-pn { padding-left: calc(var(--bv-gap) - 1px + var(--bv-icon) + var(--bv-pn-gap)); }
+.board-item-group.is-edit .board-view-table th.bv-pn { padding-left: calc(var(--bv-gap) - 1px + var(--bv-icon) + var(--bv-pn-gap) + var(--bv-input-inset)); }
+.bv-pn-cell { display: flex; align-items: center; gap: var(--bv-pn-gap); min-width: 0; padding-left: 0; }
 .bv-pn-cell .board-child-status { width: 18px; height: 18px; }
 .bv-pn-name { font-weight: 700; color: #eaeaea; overflow-wrap: anywhere; }
 .bv-muted { color: #9d9d9d; }
@@ -2503,7 +2523,8 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
   .board-item { padding: 10px 10px 6px !important; gap: 8px; }
   .board-progress { flex-basis: 130px; gap: 6px; }
   .board-progress-pct { flex-basis: 32px; font-size: 11.5px; }
-  .board-view-table { width: calc(100% - 20px); margin-left: 10px; margin-right: 10px; font-size: 11.5px; }
+  /* NB: an @container rule can't style the container itself, so the vars go on the table (a descendant). */
+  .board-view-table { --bv-gap: 10px; --bv-input-inset: 5px; font-size: 11.5px; }
   .board-item-group.is-edit .board-child-add-row { margin: 0 10px 10px; }
   .board-view-table th { padding: 7px 2px; font-size: 9.5px; }
   .board-view-table td { padding: 7px 2px; }
@@ -2512,8 +2533,7 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
   .board-view-table .bv-comp { width: 15%; }
   .board-view-table .bv-act { width: 22%; }
   .board-view-table .bv-ship { width: 11%; }
-  .bv-pn-cell { gap: 4px; }
-  .bv-pn-cell .board-child-status { display: none; }
+  /* Status circle stays visible in view mode; edit mode does not render it. */
   .bv-pn-cell .board-child-name input.board-child-name-input[type="text"] { padding: 5px 4px; font-size: 11.5px; }
   .bv-edit-cell .board-child-qty-wrap { width: 42px; }
   .bv-edit-cell .board-child-qty-wrap input[type="text"] { padding: 4px 14px 4px 1px; font-size: 11.5px; }

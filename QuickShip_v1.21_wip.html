@@ -319,6 +319,17 @@ html, body {
 
 .btn.btn-danger-rim { background: transparent; border: 2px solid #de1818; color: #ed2424; }
 .btn.btn-danger-rim:hover { background: rgba(235, 23, 23, 0.26); }
+/* Close-tab popup: hold-to-confirm, styled like the tools' Clear button
+   (.btn-clear-x + fill). Deliberately NOT .hold-clear-btn, which hides
+   itself until .has-input. */
+.btn.hold-close-btn {
+  position: relative;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+}
+
 /* ============ Shipment Board modal ============ */
 /* Floats above the current panel rather than replacing it — the backdrop
    is only a subtle blur/tint so whatever's behind (Home/Normal/Intersite)
@@ -887,15 +898,6 @@ html, body {
 }
 .hold-progress-fill.filling { transition: width 0.6s linear; width: 100%; }
 .hold-progress-fill.releasing { transition: width 0.18s ease-out; width: 0%; }
-
-/* Generic hold-to-delete control used by tabs, item cards and number/pick-slip rows. */
-.hold-action-btn { position: relative; overflow: hidden; -webkit-user-select: none; user-select: none; touch-action: none; }
-.hold-action-btn .hold-action-fill { position: absolute; inset: 0 auto 0 0; width: 0%; background: rgba(255, 45, 45, 0.6); z-index: 0; pointer-events: none; }
-.hold-action-btn .hold-action-fill.filling { transition: width 0.6s linear; width: 100%; }
-.hold-action-btn .hold-action-fill.releasing { transition: width 0.18s ease-out; width: 0%; }
-.hold-action-btn .hold-action-content { position: relative; z-index: 1; }
-.item-delete-btn.hold-action-btn:hover, .t2-remove-btn.hold-action-btn:hover, .tab-close.hold-action-btn:hover { background: rgba(241,76,76,.12); color: #f14c4c; }
-.sort-confirm-box { width: 360px; }
 
 /* ---- Hold-to-execute Clear button (Normal + Intersite shipment) ---- */
 /* Same press-and-hold recipe as above, reused for the "Clear" button on
@@ -2509,7 +2511,9 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
   .board-view-table .bv-act { width: 22%; }
   .board-view-table .bv-ship { width: 11%; }
   .bv-pn-cell { gap: 4px; }
-  .bv-pn-cell .board-child-status { display: none; }
+  .board-content.board-view-mode .bv-pn-cell .board-child-status { display: flex; }
+  .board-content.board-view-mode .bv-pn-cell .board-child-status { flex-shrink: 0; }
+  .board-content.board-view-mode .bv-pn-cell { gap: 6px; }
   .bv-pn-cell .board-child-name input.board-child-name-input[type="text"] { padding: 5px 4px; font-size: 11.5px; }
   .bv-edit-cell .board-child-qty-wrap { width: 42px; }
   .bv-edit-cell .board-child-qty-wrap input[type="text"] { padding: 4px 14px 4px 1px; font-size: 11.5px; }
@@ -3318,17 +3322,19 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
 
   <div id="toastStack" class="toast-stack"></div>
 
-  <div id="sortConfirmModal" class="modal-overlay">
-    <div class="modal-box sort-confirm-box">
-      <p class="modal-title">Sort files?</p>
-      <p id="sortConfirmText" class="modal-text"></p>
+  <div id="closeTabModal" class="modal-overlay">
+    <div class="modal-box">
+      <p class="modal-title">Close this shipment tab?</p>
+      <p class="modal-text">All data in this tab will be discarded. This cannot be undone. Hold the button to close.</p>
       <div class="modal-actions">
-        <button id="sortConfirmCancelBtn" class="btn btn-secondary" type="button">Cancel</button>
-        <button id="sortConfirmOkBtn" class="btn btn-primary" type="button">Sort</button>
+        <button id="closeTabCancelBtn" class="btn btn-secondary" type="button">Cancel</button>
+        <button id="closeTabConfirmBtn" class="btn btn-clear-x hold-close-btn" type="button" title="Hold to close this tab">
+          <span id="closeTabConfirmBtnFill" class="hold-progress-fill"></span>
+          <span class="hold-clear-btn-content"><span class="icon"><svg class="svg-icon icon-trash-svg" viewBox="0 0 24 24"><use href="#icon-trash"></use></svg></span> Close Tab</span>
+        </button>
       </div>
     </div>
   </div>
-
 
   </div><!-- #appRoot -->
 
@@ -3653,6 +3659,10 @@ var dom = {
   tabBar: document.getElementById("tabBar"),
   tabLayoutBridge: document.getElementById("tabLayoutBridge"),
   addTabBtn: document.getElementById("addTabBtn"),
+  closeTabModal: document.getElementById("closeTabModal"),
+  closeTabCancelBtn: document.getElementById("closeTabCancelBtn"),
+  closeTabConfirmBtn: document.getElementById("closeTabConfirmBtn"),
+  closeTabConfirmBtnFill: document.getElementById("closeTabConfirmBtnFill"),
 
 
   outFolderName: document.getElementById("out-folderName"),
@@ -3908,12 +3918,8 @@ function renderTabBar() {
       closeBtn.title = "Close tab";
       (function (id) {
         closeBtn.addEventListener("click", function (e) {
-          e.preventDefault();
-          e.stopPropagation();
-        });
-        attachHoldDelete(closeBtn, function () {
-          if (appState.tabs.length <= 1) return;
-          closeTabById(id);
+          if (e.stopPropagation) e.stopPropagation();
+          requestCloseTab(id);
         });
       })(t.id);
       tabEl.appendChild(closeBtn);
@@ -4114,6 +4120,30 @@ function shipmentHasValue(shipment) {
   return false;
 }
 
+function requestCloseTab(id) {
+  if (appState.tabs.length <= 1) return; // close button is hidden in this case anyway
+  var idx = indexOfTab(id);
+  if (idx !== -1 && !shipmentHasValue(appState.tabs[idx])) {
+    closeTabById(id);
+    return;
+  }
+  pendingCloseTabId = id;
+  dom.closeTabConfirmBtnFill.classList.remove("filling", "releasing");
+  dom.closeTabModal.className = "modal-overlay show";
+}
+
+function cancelCloseTab() {
+  pendingCloseTabId = null;
+  dom.closeTabModal.className = "modal-overlay";
+}
+
+function confirmCloseTab() {
+  var id = pendingCloseTabId;
+  dom.closeTabModal.className = "modal-overlay";
+  pendingCloseTabId = null;
+  if (!id) return;
+  closeTabById(id);
+}
 
 function closeTabById(id) {
   var idx = indexOfTab(id);
@@ -4145,6 +4175,9 @@ function bindTabBar() {
     dom.tabBar.scrollLeft += e.deltaY;
   }, { passive: false });
   dom.addTabBtn.addEventListener("click", addTab);
+  dom.closeTabCancelBtn.addEventListener("click", cancelCloseTab);
+  // Hold-to-close (same 600ms press-and-hold as the Clear button).
+  attachHoldToConfirm(dom.closeTabConfirmBtn, dom.closeTabConfirmBtnFill, 600, confirmCloseTab);
 }
 
 /* ============================================================
@@ -4698,7 +4731,7 @@ function buildItemCard(item, index, isOnlyCard) {
     closeBtn.innerHTML = "&#10005;";
     closeBtn.title = "Remove this item";
     closeBtn.setAttribute("type", "button");
-    attachHoldDelete(closeBtn, function () {
+    closeBtn.addEventListener("click", function () {
       var idx = Number(card.getAttribute("data-index"));
       if (state.items.length <= 1) return;
       state.items.splice(idx, 1);
@@ -5485,7 +5518,7 @@ function attachHoldToConfirm(btn, fillEl, duration, onComplete) {
     e.preventDefault();
     if (timer) return;
     fillEl.classList.remove("releasing");
-    void fillEl.offsetWidth;
+    void fillEl.offsetWidth; // restart the fill transition from 0%
     fillEl.classList.add("filling");
     timer = setTimeout(function () {
       timer = null;
@@ -5496,7 +5529,7 @@ function attachHoldToConfirm(btn, fillEl, duration, onComplete) {
   function release() {
     if (timer) { clearTimeout(timer); timer = null; }
     fillEl.classList.remove("filling");
-    void fillEl.offsetWidth;
+    void fillEl.offsetWidth; // restart the drain transition from wherever it stopped
     fillEl.classList.add("releasing");
   }
   btn.addEventListener("pointerdown", start);
@@ -5504,23 +5537,6 @@ function attachHoldToConfirm(btn, fillEl, duration, onComplete) {
   btn.addEventListener("pointerleave", release);
   btn.addEventListener("pointercancel", release);
 }
-
-function attachHoldDelete(btn, onComplete, duration) {
-  duration = duration || 600;
-  var fill = document.createElement("span");
-  fill.className = "hold-action-fill";
-  var content = document.createElement("span");
-  content.className = "hold-action-content";
-  while (btn.firstChild) content.appendChild(btn.firstChild);
-  btn.appendChild(fill);
-  btn.appendChild(content);
-  btn.classList.add("hold-action-btn");
-  attachHoldToConfirm(btn, fill, duration, onComplete);
-  ["pointerdown","pointerup","pointercancel","pointerleave"].forEach(function(type){
-    btn.addEventListener(type, function(e){ e.stopPropagation(); }, true);
-  });
-}
-
 
 function bindClearAll() {
   attachHoldToConfirm(dom.clearAllBtn, dom.clearAllBtnFill, 600, confirmClearAll);
@@ -5948,7 +5964,7 @@ function t2BuildGrowList(containerEl, arr, onChange) {
         rmBtn.className = "t2-remove-btn";
         rmBtn.title = "Remove";
         rmBtn.innerHTML = "&times;";
-        attachHoldDelete(rmBtn, function () {
+        rmBtn.addEventListener("click", function () {
           arr.splice(idx, 1);
           t2NormalizeGrowArray(arr);
           t2BuildGrowList(containerEl, arr, onChange);
@@ -6235,7 +6251,7 @@ function t2BuildItemCard(item, index, isOnlyCard) {
     closeBtn.innerHTML = "&#10005;";
     closeBtn.title = "Remove this item";
     closeBtn.setAttribute("type", "button");
-    attachHoldDelete(closeBtn, function () {
+    closeBtn.addEventListener("click", function () {
       var idx = Number(card.getAttribute("data-index"));
       if (state2.items.length <= 1) return;
       state2.items.splice(idx, 1);
@@ -6889,7 +6905,7 @@ function t3BuildItemCard(item, index, isOnlyCard) {
     closeBtn.innerHTML = "&#10005;";
     closeBtn.title = "Remove this item";
     closeBtn.setAttribute("type", "button");
-    attachHoldDelete(closeBtn, function () {
+    closeBtn.addEventListener("click", function () {
       var idx = Number(card.getAttribute("data-index"));
       if (state3.items.length <= 1) return;
       state3.items.splice(idx, 1);
@@ -7361,33 +7377,7 @@ window.addEventListener("load", init);
      text Tool 2 already uses, so both File Sorters give the same subtle,
      non-blocking feedback instead of a jarring browser dialog. */
   function notify(msg) { logLine(msg, "err"); }
-  function confirmDialog(msg) {
-    return new Promise(function (resolve) {
-      var modal = document.getElementById("sortConfirmModal");
-      var text = document.getElementById("sortConfirmText");
-      var ok = document.getElementById("sortConfirmOkBtn");
-      var cancel = document.getElementById("sortConfirmCancelBtn");
-      if (!modal || !text || !ok || !cancel) { resolve(true); return; }
-      text.textContent = msg;
-      modal.className = "modal-overlay show";
-      var done = false;
-      function finish(value) {
-        if (done) return; done = true;
-        modal.className = "modal-overlay";
-        ok.removeEventListener("click", yes);
-        cancel.removeEventListener("click", no);
-        modal.removeEventListener("click", backdrop);
-        resolve(value);
-      }
-      function yes() { finish(true); }
-      function no() { finish(false); }
-      function backdrop(e) { if (e.target === modal) no(); }
-      ok.addEventListener("click", yes);
-      cancel.addEventListener("click", no);
-      modal.addEventListener("click", backdrop);
-      setTimeout(function(){ try { ok.focus(); } catch(e){} }, 0);
-    });
-  }
+  function confirmDialog(msg) { return (pinPipWindow || window).confirm(msg); }
 
   function showPinPlaceholder() {
     var ph = document.createElement("div");
@@ -7740,10 +7730,11 @@ window.addEventListener("load", init);
         (dupSlots ? "\n(" + dupSlots + " of these had multiple copies — most recently modified will be used)" : "") +
         sweepMsgLine +
         "\n\nContinue?";
-      return confirmDialog(confirmMsg).then(function (confirmed) {
-        if (!confirmed) return null;
-        clearLog();
-        return webWorkingDirHandle.getDirectoryHandle(safeFolderName, { create: true }).then(function (dh) {
+      if (!confirmDialog(confirmMsg)) return null;
+
+      clearLog();
+
+      return webWorkingDirHandle.getDirectoryHandle(safeFolderName, { create: true }).then(function (dh) {
         targetDirHandle = dh;
         logLineAppend("Using folder: " + safeFolderName, "ok");
 
@@ -7846,7 +7837,6 @@ window.addEventListener("load", init);
         }).then(function () {
           return movedAny;
         });
-        });
       });
     }).then(function (movedAny) {
       if (movedAny) {
@@ -7926,10 +7916,11 @@ window.addEventListener("load", init);
         "\n\nMatched files to move in: " + plannedSlots + " of " + SLOT_IDS.length +
         (dupSlots ? "\n(" + dupSlots + " of these had multiple copies — most recently modified will be used)" : "") +
         "\n\nContinue?";
-      return confirmDialog(confirmMsg).then(function (confirmed) {
-        if (!confirmed) return null;
-        t2ClearLog();
-        return webWorkingDirHandle.getDirectoryHandle(safeFolderName, { create: true }).then(function (dh) {
+      if (!confirmDialog(confirmMsg)) return null;
+
+      t2ClearLog();
+
+      return webWorkingDirHandle.getDirectoryHandle(safeFolderName, { create: true }).then(function (dh) {
         targetDirHandle = dh;
         t2LogAppend("Using folder: " + safeFolderName, "ok");
 
@@ -7968,8 +7959,7 @@ window.addEventListener("load", init);
           });
         });
 
-          return chain.then(function () { return movedAny; });
-        });
+        return chain.then(function () { return movedAny; });
       });
     }).then(function (movedAny) {
       if (movedAny) showToast("Sorted!");
@@ -8053,10 +8043,11 @@ window.addEventListener("load", init);
         (dupSlots ? "\n(" + dupSlots + " of these had multiple copies — most recently modified will be used)" : "") +
         sweepMsgLine +
         "\n\nContinue?";
-      return confirmDialog(confirmMsg).then(function (confirmed) {
-        if (!confirmed) return null;
-        t3ClearLog();
-        return webWorkingDirHandle.getDirectoryHandle(safeFolderName, { create: true }).then(function (dh) {
+      if (!confirmDialog(confirmMsg)) return null;
+
+      t3ClearLog();
+
+      return webWorkingDirHandle.getDirectoryHandle(safeFolderName, { create: true }).then(function (dh) {
         targetDirHandle = dh;
         t3LogAppend("Using folder: " + safeFolderName, "ok");
 
@@ -8159,7 +8150,6 @@ window.addEventListener("load", init);
         }).then(function () {
           return movedAny;
         });
-      });
       });
     }).then(function (movedAny) {
       if (movedAny) showToast("Sorted!");

@@ -63,6 +63,9 @@ html, body {
 /* ============ Header ============ */
 
 .app-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
   border-bottom: 1px solid #1f5761;
   background: #252526;
 }
@@ -1461,6 +1464,74 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
 .copy-btn svg { width: 17px; height: 17px; }
 .pin-btn svg { width: 18px; height: 18px; }
 
+
+/* ============ Calculator modal (header "Calculator" button) ============ */
+.calc-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(1.5px);
+  -webkit-backdrop-filter: blur(1.5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 150;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+.calc-modal-overlay.open { opacity: 1; pointer-events: auto; }
+.calc-modal {
+  width: 560px;
+  max-width: calc(100% - 16px);
+  max-height: 88%;
+  background: #252526;
+  border: 1px solid #3c3c3c;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform: scale(0.97) translateY(8px);
+  transition: transform 0.18s ease;
+}
+.calc-modal-overlay.open .calc-modal { transform: none; }
+.calc-modal-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid #3c3c3c;
+}
+.calc-modal-header h2 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #d4d4d4;
+}
+.calc-header-actions { display: flex; align-items: center; gap: 8px; }
+.calc-header-actions .btn { padding: 5px 10px; font-size: 11px; }
+.calc-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px;
+  gap: 20px;
+  align-items: start;
+  padding: 16px 20px 20px;
+}
+.calc-body .column-title { margin: 0 0 10px; }
+.calc-out-col { position: sticky; top: 0; }
+.calc-row { display: flex; align-items: center; gap: 8px; }
+.calc-row input[type="text"] { flex: 1 1 auto; min-width: 0; text-align: right; }
+.calc-row .copy-btn { flex: 0 0 auto; }
+.calc-total { font-size: 18px; font-weight: 600; padding: 8px 10px; }
+
 /* ============ Copy buttons ============ */
 
 .copy-btn {
@@ -1628,7 +1699,17 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
 /* Shared board: one editor, many viewers. */
 /* v1.22: view mode is a real read-only table now (no inputs/steppers), so the
    old "disable everything" trick is gone — only the add row is hidden. */
-#boardContentView.board-view-mode .board-add-row { display: none; }
+/* Add row stays visible in view mode (no layout shift) — just locked/greyed out. */
+.board-add-row #boardAddBtn { min-width: 76px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.board-add-row #boardAddBtn svg { flex-shrink: 0; }
+.board-add-row input:disabled {
+  background: #1a1a1a; border-color: #2b2b2b; color: #6a6a6a; cursor: not-allowed;
+}
+.board-add-row input:disabled::placeholder { color: #5a5a5a; }
+.board-add-row #boardAddBtn:disabled,
+.board-add-row #boardAddBtn:disabled:hover {
+  background: #262626; border-color: #333333; color: #6f6f6f; opacity: 1; cursor: not-allowed;
+}
 .board-editor-status {
   font-size: 12px;
   font-weight: 600;
@@ -1730,7 +1811,7 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  z-index: 100;
+  z-index: 210; /* above modal overlays so Copied!/paste toasts stay visible */
   pointer-events: none;
 }
 
@@ -1785,6 +1866,7 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
   flex-shrink: 0;
   display: flex;
   align-items: center;
+  gap: 28px;
   padding-left: 18px;
   border-left: 1px solid #3c3c3c;
 }
@@ -1919,6 +2001,7 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
 #navTool2Btn.active .nav-icon svg { filter: drop-shadow(0 0 5px rgba(59,130,246,0.54)); }
 #navTool3Btn.active .nav-icon svg { filter: drop-shadow(0 0 5px rgba(16,185,129,0.54)); }
 #navBoardBtn.active .nav-icon svg { filter: drop-shadow(0 0 5px rgba(245,158,11,0.54)); }
+#navCalcBtn.active .nav-icon svg { filter: drop-shadow(0 0 5px rgba(34,211,238,0.54)); }
 
 /* Normal Shipment's nav icon scaled up over the normal inactive/active sizes */
 #navTool1Btn .nav-icon svg { transform: scale(1.15); }
@@ -2442,7 +2525,8 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
   font-size: 12.5px; color: #d4d4d4;
 }
 .board-view-table th {
-  padding: 8px 8px; font-size: 11px; font-weight: 600; color: #8f8f8f; text-align: center;
+  padding: 8px 8px; font-size: 10px; font-weight: 600; color: #bdbdbd; text-align: center;
+  text-transform: uppercase; letter-spacing: .3px;
   background: #202020; border-bottom: 1px solid #303030; white-space: nowrap;
 }
 .board-view-table td {
@@ -2464,7 +2548,7 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
 .bv-pn-cell { display: flex; align-items: center; gap: var(--bv-pn-gap); min-width: 0; padding-left: 0; }
 .bv-pn-cell .board-child-status { width: 18px; height: 18px; }
 .bv-pn-name { font-weight: 700; color: #eaeaea; overflow-wrap: anywhere; }
-.bv-muted { color: #9d9d9d; }
+.bv-muted { color: #cfcfcf; }
 .bv-strong { font-weight: 700; color: #eaeaea; }
 .bv-pill {
   display: inline-block; min-width: 30px; padding: 2px 9px; border-radius: 6px;
@@ -2473,7 +2557,7 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
 .bv-pill.tone-warn { background: rgba(217,164,65,.16); border-color: #d9a441; color: #f3d17f; }
 .bv-pill.tone-ok   { background: rgba(16,185,129,.16); border-color: #10B981; color: #5fe0b0; }
 .bv-action { font-size: 12px; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; }
-.bv-action.prepare { color: #8f8f8f; }
+.bv-action.prepare { color: #c8c8c8; }
 .bv-action.pending { color: #d9a441; }
 .bv-action.fulfilled { color: #10B981; }
 .board-view-empty { padding: 12px 8px; text-align: center; color: #6a6a6a; font-size: 11.5px; }
@@ -2515,7 +2599,7 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
   transition: background .15s ease, border-color .15s ease, color .15s ease;
 }
 .bv-ship-label { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 5px; }
-.bv-ship-btn:disabled { cursor: default; color: #8f8f8f; }
+.bv-ship-btn:disabled { cursor: default; color: #c8c8c8; }
 .bv-ship-btn.has-pending { border-color: #d9a441; color: #d9a441; }
 .bv-ship-btn.has-pending:hover, .bv-ship-btn.has-pending:active, .bv-ship-btn.has-pending.is-holding {
   background: rgba(16,185,129,.14); border-color: #10B981; color: #fff;
@@ -2538,7 +2622,7 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
 
 /* Shipment header: title, green progress bar, percentage */
 .board-progress { flex: 0 0 190px; display: flex; align-items: center; gap: 8px; }
-.board-progress-track { flex: 1 1 auto; height: 10px; border-radius: 999px; background: #1a1a1a; border: 1px solid #303030; overflow: hidden; transition: border-color .3s ease, background .3s ease; }
+.board-progress-track { flex: 1 1 auto; height: 6px; border-radius: 999px; background: #1a1a1a; border: 1px solid #303030; overflow: hidden; transition: border-color .3s ease, background .3s ease; }
 .board-progress-fill { height: 100%; border-radius: 999px; background: #10B981; transition: width .35s ease; }
 .board-progress.has-progress .board-progress-track { border-color: #10B981; background: rgba(16,185,129,.12); }
 .board-progress-pct { flex: 0 0 36px; text-align: right; font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; color: #6a6a6a; }
@@ -2548,10 +2632,10 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
 
 /* ---- Board date title fonts ---- */
 .board-date-title { font-family: "Oswald", "Arial Narrow", "Segoe UI", sans-serif; }
-.board-date-title .board-date-day { font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif; font-weight: 400; letter-spacing: .3px; }
+.board-date-title .board-date-day { font-family: "Oswald", "Arial Narrow", "Segoe UI", sans-serif; font-weight: 700; letter-spacing: .3px; }
 
-/* ---- Shipment cards: lifted look, same shadow as the tool cards ---- */
-.board-item-group { box-shadow: 0 10px 24px rgba(0, 0, 0, 0.32); }
+/* ---- Shipment cards: lifted look ---- */
+.board-item-group { box-shadow: 0 0 20px rgba(0, 0, 0, 0.30); }
 
 /* ---- Board scale exceptions (the modal is scaled 1.1; these opt out per element) ---- */
 /* Title bar (icon, "Shipment Board", status text, Logout, close) keeps its original size & height;
@@ -2601,7 +2685,7 @@ body.board-sorting, body.board-sorting * { cursor: grabbing !important; -webkit-
   /* NB: an @container rule can't style the container itself, so the vars go on the table (a descendant). */
   .board-view-table { --bv-gap: 10px; --bv-input-inset: 5px; font-size: 11.5px; }
   .board-item-group.is-edit .board-child-add-row { margin: 0 10px 10px; }
-  .board-view-table th { padding: 7px 2px; font-size: 9.5px; }
+  .board-view-table th { padding: 7px 2px; font-size: 8.5px; letter-spacing: 0; }
   .board-view-table td { padding: 7px 2px; }
   .board-view-table .bv-pn { width: 28%; }
   .board-view-table .bv-num { width: 12%; }
@@ -2720,6 +2804,24 @@ body.board-sorting, body.board-sorting * { cursor: grabbing !important; -webkit-
           <line x1="15" y1="11" x2="15" y2="17"/>
         </g>
       </symbol>
+      <symbol id="icon-calculator" viewBox="0 0 24 24">
+        <g fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="5" y="2.5" width="14" height="19" rx="2.5"/>
+          <rect x="8" y="5.5" width="8" height="3.5" rx="0.8"/>
+        </g>
+        <g fill="#22d3ee">
+          <circle cx="8.8" cy="13" r="1.1"/><circle cx="12" cy="13" r="1.1"/><circle cx="15.2" cy="13" r="1.1"/>
+          <circle cx="8.8" cy="17" r="1.1"/><circle cx="12" cy="17" r="1.1"/><circle cx="15.2" cy="17" r="1.1"/>
+        </g>
+      </symbol>
+      <symbol id="icon-paste-in" viewBox="0 0 24 24">
+        <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3h4.5L21 7.5V19a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/>
+          <path d="M16.5 3v4.5H21"/>
+          <path d="M2.5 6c0 5.2 3 8.5 8 8.5"/>
+          <path d="M8 12l2.8 2.5L8 17"/>
+        </g>
+      </symbol>
     </defs>
   </svg>
   
@@ -2747,6 +2849,7 @@ body.board-sorting, body.board-sorting * { cursor: grabbing !important; -webkit-
         </nav>
         <div class="board-btn-wrap">
           <button type="button" class="header-nav-btn" id="navBoardBtn" title="Shipment board"><span class="nav-content"><span class="nav-icon"><svg class="svg-icon" viewBox="0 0 24 24"><use href="#icon-board"></use></svg></span><span class="nav-text">Board</span></span></button>
+          <button type="button" class="header-nav-btn" id="navCalcBtn" title="Calculator"><span class="nav-content"><span class="nav-icon"><svg class="svg-icon" viewBox="0 0 24 24"><use href="#icon-calculator"></use></svg></span><span class="nav-text">Calculator</span></span></button>
         </div>
         <div class="back-intercept-wrap" title="When on, the browser Back button returns you to Home instead of leaving this page.">
           <span class="back-intercept-label">Lock Back</span>
@@ -2833,6 +2936,37 @@ body.board-sorting, body.board-sorting * { cursor: grabbing !important; -webkit-
             <button type="button" id="boardAddBtn" class="btn btn-primary">+ Add</button>
           </div>
           <div id="boardList" class="board-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- CALCULATOR — overlay modal, independent of tool windows.       -->
+  <!-- ============================================================ -->
+  <div id="calcModalOverlay" class="calc-modal-overlay" aria-hidden="true">
+    <div class="calc-modal" role="dialog" aria-modal="true" aria-labelledby="calcModalTitle">
+      <div class="calc-modal-header">
+        <h2 id="calcModalTitle">
+          <svg class="svg-icon" viewBox="0 0 24 24" width="18" height="18"><use href="#icon-calculator"></use></svg>
+          Calculator
+        </h2>
+        <div class="calc-header-actions">
+          <button type="button" id="calcClearBtn" class="btn btn-clear-x" title="Clear all inputs"><span class="icon"><svg class="svg-icon icon-trash-svg" viewBox="0 0 24 24"><use href="#icon-trash"></use></svg></span> Clear</button>
+          <button type="button" id="calcCloseBtn" class="board-modal-close" aria-label="Close">&times;</button>
+        </div>
+      </div>
+      <div class="calc-body">
+        <div class="calc-in-col">
+          <h2 class="column-title">Input</h2>
+          <div id="calcInputList" class="t2-grow-list"></div>
+        </div>
+        <div class="calc-out-col">
+          <h2 class="column-title">Output</h2>
+          <div class="calc-row">
+            <div class="output-value calc-total is-empty" id="calcTotal">&mdash;</div>
+            <button type="button" class="copy-btn" id="calcCopyBtn" title="Copy total"><svg class="svg-icon" viewBox="0 0 24 24"><use href="#icon-clipboard"></use></svg></button>
+          </div>
         </div>
       </div>
     </div>
@@ -3086,15 +3220,6 @@ body.board-sorting, body.board-sorting * { cursor: grabbing !important; -webkit-
           </div>
 
           <div class="field field-half">
-            <label for="scanId">Scan ID :</label>
-            <div class="input-with-copy">
-              <input type="text" id="scanId" placeholder="( Optional )" class="input-placeholder" autocomplete="off">
-              <button class="copy-btn" data-copy-target="scanId" title="Copy Scan ID"><svg class="svg-icon" viewBox="0 0 24 24"><use href="#icon-clipboard"></use></svg></button>
-            </div>
-          </div>
-        </div>
-        <div class="field-row">
-          <div class="field">
             <label for="hawb">HAWB :</label>
             <div class="input-with-copy">
               <input type="text" id="hawb" placeholder="( Optional )" class="input-placeholder" autocomplete="off">
@@ -3179,6 +3304,11 @@ body.board-sorting, body.board-sorting * { cursor: grabbing !important; -webkit-
           <div class="output-value is-empty" id="emailCze">No EDI yet</div>
           <button class="copy-btn" data-copy-target-out="emailCze" title="Copy"><svg class="svg-icon" viewBox="0 0 24 24"><use href="#icon-clipboard"></use></svg></button>
         </div>
+      </div>
+
+      <div class="card" id="t1ScanIdCard">
+        <h3 class="card-title">Scan ID : <span style="color:#6a6a6a;font-weight:400;">(Sandbox)</span></h3>
+        <div id="t1ScanIdList" class="t2-grow-list"></div>
       </div>
     </section>
   </main>
@@ -3339,15 +3469,6 @@ body.board-sorting, body.board-sorting * { cursor: grabbing !important; -webkit-
           </div>
 
           <div class="field field-half">
-            <label for="t3ScanId">Scan ID :</label>
-            <div class="input-with-copy">
-              <input type="text" id="t3ScanId" placeholder="( Optional )" class="input-placeholder" autocomplete="off">
-              <button class="copy-btn" data-copy-target="t3ScanId" title="Copy Scan ID"><svg class="svg-icon" viewBox="0 0 24 24"><use href="#icon-clipboard"></use></svg></button>
-            </div>
-          </div>
-        </div>
-        <div class="field-row">
-          <div class="field">
             <label for="t3Hawb">HAWB :</label>
             <div class="input-with-copy">
               <input type="text" id="t3Hawb" placeholder="( Optional )" class="input-placeholder" autocomplete="off">
@@ -3435,6 +3556,11 @@ body.board-sorting, body.board-sorting * { cursor: grabbing !important; -webkit-
           <div class="output-value is-empty" id="t3EmailCze">No EDI yet</div>
           <button class="copy-btn" data-copy-target-out="t3EmailCze" title="Copy"><svg class="svg-icon" viewBox="0 0 24 24"><use href="#icon-clipboard"></use></svg></button>
         </div>
+      </div>
+
+      <div class="card" id="t3ScanIdCard">
+        <h3 class="card-title">Scan ID : <span style="color:#6a6a6a;font-weight:400;">(Sandbox)</span></h3>
+        <div id="t3ScanIdList" class="t2-grow-list"></div>
       </div>
     </section>
   </main>
@@ -3840,7 +3966,6 @@ var dom = {
   itemCardsList: document.getElementById("itemCardsList"),
   addItemBtn: document.getElementById("addItemBtn"),
   hawb: document.getElementById("hawb"),
-  scanId: document.getElementById("scanId"),
   clearAllBtn: document.getElementById("clearAllBtn"),
   clearAllBtnFill: document.getElementById("clearAllBtnFill"),
   toastStack: document.getElementById("toastStack"),
@@ -3883,7 +4008,7 @@ function defaultShipment() {
     destination: "",
     items: [defaultItem()],
     hawb: "",
-    scanId: "",
+    scanIds: [""],
     workingDir: liveHandle ? liveHandle.name : getDefaultWorkingDir(),
     lastSortedFolder: ""
   };
@@ -3910,6 +4035,21 @@ function saveState() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
   } catch (err) {
   }
+}
+
+function normalizeScanIds(arr, legacy) {
+    var out = [];
+    if (isRealArray(arr)) { for (var i = 0; i < arr.length; i++) out.push(String(arr[i] == null ? "" : arr[i])); }
+    else if (legacy) out.push(String(legacy));
+    if (!out.length) out.push("");
+    t2NormalizeGrowArray(out);
+    return out;
+}
+
+function scanIdsHaveValue(arr) {
+  if (!isRealArray(arr)) return false;
+  for (var i = 0; i < arr.length; i++) { if (trim(arr[i])) return true; }
+  return false;
 }
 
 function normalizeShipment(raw) {
@@ -3947,7 +4087,7 @@ function normalizeShipment(raw) {
         destination: raw.destination || "",
         items: items,
         hawb: raw.hawb || "",
-        scanId: raw.scanId || "",
+        scanIds: normalizeScanIds(raw.scanIds, raw.scanId),
         workingDir: raw.workingDir || getDefaultWorkingDir(),
         lastSortedFolder: raw.lastSortedFolder || ""
     };
@@ -4306,7 +4446,7 @@ function addTab() {
 function shipmentHasValue(shipment) {
   if (trim(shipment.destination)) return true;
   if (trim(shipment.hawb)) return true;
-  if (trim(shipment.scanId)) return true;
+  if (scanIdsHaveValue(shipment.scanIds)) return true;
   for (var i = 0; i < shipment.items.length; i++) {
     var it = shipment.items[i];
     if (trim(it.pn) || trim(it.ediBol) || trim(it.dimensions) || trim(it.weight) || trim(it.pickSlip)) return true;
@@ -5186,9 +5326,9 @@ function buildItemCard(item, index, isOnlyCard) {
   unitGroup.className = "radio-group";
 
   var unitOptions = [
-    { value: "Carton", text: "Carton" },
+    { value: "Crate", text: "Crate" },
     { value: "Pallet", text: "Pallet" },
-    { value: "Crate", text: "Crate" }
+    { value: "Carton", text: "Carton" }
   ];
   for (var u = 0; u < unitOptions.length; u++) {
     var pill = document.createElement("label");
@@ -5332,7 +5472,7 @@ function recalculate() {
 function hasTool1Input() {
   if (trim(state.destination)) return true;
   if (trim(state.hawb)) return true;
-  if (trim(state.scanId)) return true;
+  if (scanIdsHaveValue(state.scanIds)) return true;
   if (state.items.length > 1) return true;
   var it = state.items[0];
   if (!it) return false;
@@ -5465,12 +5605,7 @@ function buildDimensionGroups(activeItems) {
       }
     }
 
-    var totalParts = [];
-    for (var u = 0; u < unitOrder.length; u++) {
-      var unitKey = unitOrder[u];
-      var sum = unitSums[unitKey];
-      totalParts.push(sum + " " + pluralizedUnit(sum, unitKey));
-    }
+    var totalParts = sortUnitPartsByPriority(unitSums);
 
     var pickSlipLabel = computePickSlip(pickSlipsForGroup);
     var lines = [];
@@ -5494,7 +5629,7 @@ function joinWithAmpersand(parts) {
 /* Total-line units are always read out Carton, then Pallet, then Crate,
    regardless of the order the items were entered in — same convention as
    Intersite Shipment's total line. */
-var UNIT_PRIORITY = ["Carton", "Pallet", "Crate"];
+var UNIT_PRIORITY = ["Crate", "Pallet", "Carton"];
 
 function sortUnitPartsByPriority(unitSums) {
   var parts = [];
@@ -5584,12 +5719,7 @@ function buildGeneratedEDI(allItems) {
     var edi2 = ediOrder[e];
     var group2 = ediGroups[edi2];
 
-    var totalParts = [];
-    for (var u = 0; u < group2.unitOrder.length; u++) {
-      var unitKey = group2.unitOrder[u];
-      var sum = group2.unitSums[unitKey];
-      totalParts.push(sum + " " + pluralizedUnit(sum, unitKey));
-    }
+    var totalParts = sortUnitPartsByPriority(group2.unitSums);
 
     var qtyUnit = totalParts.length ? joinWithAmpersand(totalParts) : "";
     lines.push(edi2 + (qtyUnit ? " - " + qtyUnit : ""));
@@ -5662,11 +5792,6 @@ function bindSimpleFields() {
 
   dom.hawb.addEventListener("input", function (e) {
     state.hawb = e.target.value;
-    recalculate();
-  });
-
-  dom.scanId.addEventListener("input", function (e) {
-    state.scanId = e.target.value;
     recalculate();
   });
 
@@ -5851,7 +5976,7 @@ function confirmClearAll() {
     state.destination = "";
     state.items = [defaultItem()];
     state.hawb = "";
-    state.scanId = "";
+    state.scanIds = [""];
     state.lastSortedFolder = "";
 
     // Working folder path + permissions are intentionally left alone here —
@@ -5865,10 +5990,15 @@ function confirmClearAll() {
   });
 }
 
+function renderT1ScanIdList() {
+  var el = document.getElementById("t1ScanIdList");
+  if (el && state) t2BuildGrowList(el, state.scanIds, recalculate);
+}
+
 function hydrateFieldsFromState() {
   dom.destination.value = state.destination;
   dom.hawb.value = state.hawb;
-  dom.scanId.value = state.scanId || "";
+  renderT1ScanIdList();
 
   renderWorkingDir();
 }
@@ -6322,7 +6452,7 @@ function t2BuildDimensionBoxes(items) {
 
 /* Total-line units are always read out Carton, then Pallet, then Crate,
    regardless of the order the items were entered in. */
-var T2_UNIT_PRIORITY = ["Carton", "Pallet", "Crate"];
+var T2_UNIT_PRIORITY = ["Crate", "Pallet", "Carton"];
 
 function t2SortUnitPartsByPriority(unitSums) {
   var parts = [];
@@ -6381,6 +6511,10 @@ function t2BuildConsolidatedDimensionBox(items) {
 
   if (!any) return null;
 
+  groupOrder.sort(function (a, b) {
+    var ia = T2_UNIT_PRIORITY.indexOf(groups[a].unit), ib = T2_UNIT_PRIORITY.indexOf(groups[b].unit);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+  });
   var needsClarifier = groupOrder.length > 1;
   for (var g = 0; g < groupOrder.length; g++) {
     var grp = groups[groupOrder[g]];
@@ -6683,9 +6817,9 @@ function t2BuildItemCard(item, index, isOnlyCard) {
   unitGroup.className = "radio-group";
 
   var unitOptions = [
-    { value: "Carton", text: "Carton" },
+    { value: "Crate", text: "Crate" },
     { value: "Pallet", text: "Pallet" },
-    { value: "Crate", text: "Crate" }
+    { value: "Carton", text: "Carton" }
   ];
   for (var u = 0; u < unitOptions.length; u++) {
     var pill = document.createElement("label");
@@ -6987,7 +7121,7 @@ function initTool2() {
 var state3 = {
   destination: "",
   hawb: "",              // optional, like Tool 1's HAWB
-  scanId: "",            // optional, text + copy only
+  scanIds: [""],         // sandbox grow-list, text + copy only
   soNumbers: [""],       // auto-grows, like Tool 2's typeNumbers
   pickslips: [""],       // auto-grows, like Tool 2's pickslips
   items: [t3DefaultItem()],
@@ -7026,7 +7160,7 @@ function loadState3() {
       if (saved) {
         state3.destination = saved.destination || "";
         state3.hawb = saved.hawb || "";
-        state3.scanId = saved.scanId || "";
+        state3.scanIds = normalizeScanIds(saved.scanIds, saved.scanId);
 
         state3.soNumbers = (isRealArray(saved.soNumbers) && saved.soNumbers.length) ? saved.soNumbers : [""];
         t2NormalizeGrowArray(state3.soNumbers);
@@ -7055,8 +7189,12 @@ function hydrateT3FieldsFromState() {
   if (destEl) destEl.value = state3.destination;
   var hawbEl = document.getElementById("t3Hawb");
   if (hawbEl) hawbEl.value = state3.hawb;
-  var scanEl = document.getElementById("t3ScanId");
-  if (scanEl) scanEl.value = state3.scanId || "";
+  t3RenderScanIdList();
+}
+
+function t3RenderScanIdList() {
+  var el = document.getElementById("t3ScanIdList");
+  if (el) t2BuildGrowList(el, state3.scanIds, t3Recalculate);
 }
 
 function t3RenderSoNumList() {
@@ -7135,7 +7273,7 @@ function t3UpdateFolderPreview() {
 function hasTool3Input() {
   if (trim(state3.destination)) return true;
   if (trim(state3.hawb)) return true;
-  if (trim(state3.scanId)) return true;
+  if (scanIdsHaveValue(state3.scanIds)) return true;
   var i;
   for (i = 0; i < state3.soNumbers.length; i++) { if (trim(state3.soNumbers[i])) return true; }
   for (i = 0; i < state3.pickslips.length; i++) { if (trim(state3.pickslips[i])) return true; }
@@ -7345,9 +7483,9 @@ function t3BuildItemCard(item, index, isOnlyCard) {
   unitGroup.className = "radio-group";
 
   var unitOptions = [
-    { value: "Carton", text: "Carton" },
+    { value: "Crate", text: "Crate" },
     { value: "Pallet", text: "Pallet" },
-    { value: "Crate", text: "Crate" }
+    { value: "Carton", text: "Carton" }
   ];
   for (var u = 0; u < unitOptions.length; u++) {
     var pill = document.createElement("label");
@@ -7561,7 +7699,7 @@ function t3ClearAll() {
   playClearRefreshTransition("windowTool3", function () {
     state3.destination = "";
     state3.hawb = "";
-    state3.scanId = "";
+    state3.scanIds = [""];
     state3.soNumbers = [""];
     state3.pickslips = [""];
     state3.items = [t3DefaultItem()];
@@ -7570,9 +7708,7 @@ function t3ClearAll() {
     if (destEl) destEl.value = "";
     var hawbEl = document.getElementById("t3Hawb");
     if (hawbEl) hawbEl.value = "";
-    var scanEl = document.getElementById("t3ScanId");
-    if (scanEl) scanEl.value = "";
-
+    t3RenderScanIdList();
     t3RenderSoNumList();
     t3RenderPickslipList();
     t3RenderItemCards();
@@ -7598,12 +7734,6 @@ function initTool3() {
   var hawbEl = document.getElementById("t3Hawb");
   if (hawbEl) hawbEl.addEventListener("input", function (e) {
     state3.hawb = e.target.value;
-    t3Recalculate();
-  });
-
-  var scanEl = document.getElementById("t3ScanId");
-  if (scanEl) scanEl.addEventListener("input", function (e) {
-    state3.scanId = e.target.value;
     t3Recalculate();
   });
 
@@ -9496,6 +9626,18 @@ window.addEventListener("load", init);
       // blanket-toggle every control here or the action buttons lose their
       // own disabled state on every sync tick.
       body.querySelectorAll(".board-add-row input, .board-add-row button").forEach(function (el) { el.disabled = viewNow; });
+      var addInputEl = document.getElementById("boardNewShipmentName");
+      var addBtnEl = document.getElementById("boardAddBtn");
+      if (addInputEl) addInputEl.placeholder = viewNow ? "Enter edit mode to add Shipment" : "Shipment name / destination";
+      if (addBtnEl) {
+        var wantLocked = viewNow ? "1" : "0";
+        if (addBtnEl.getAttribute("data-locked") !== wantLocked) {
+          addBtnEl.setAttribute("data-locked", wantLocked);
+          addBtnEl.innerHTML = viewNow
+            ? '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Add</span>'
+            : "+ Add";
+        }
+      }
     }
     if (listEl && viewNow !== lastRenderedViewMode) renderList();
   }
@@ -11196,6 +11338,181 @@ window.addEventListener("load", init);
       connectSharedBoard();
     }
   });
+})();
+</script>
+
+<!-- ============================================================ -->
+<!-- CALCULATOR SCRIPT — price list adder. Independent of the tools. -->
+<!-- ============================================================ -->
+<script>
+(function () {
+  "use strict";
+  var overlay = document.getElementById("calcModalOverlay");
+  var openBtn = document.getElementById("navCalcBtn");
+  var listEl = document.getElementById("calcInputList");
+  var totalEl = document.getElementById("calcTotal");
+  var copyBtn = document.getElementById("calcCopyBtn");
+  var clearBtn = document.getElementById("calcClearBtn");
+  var closeBtn = document.getElementById("calcCloseBtn");
+  if (!overlay || !openBtn || !listEl) return;
+
+  var values = [""];
+
+  // Keep digits and dots only; the LAST dot is the decimal point, any earlier
+  // dots (and all commas/letters/spaces) are dropped.
+  // ". 999.9900 b" -> "999.9900"
+  function sanitize(raw) {
+    var s = String(raw == null ? "" : raw).replace(/[^0-9.]/g, "");
+    var last = s.lastIndexOf(".");
+    if (last >= 0) s = s.slice(0, last).replace(/\./g, "") + "." + s.slice(last + 1);
+    return s;
+  }
+  // Tidy a finished value: drop trailing zeros beyond 2 decimals ("999.9900" -> "999.99").
+  function normalize(s) {
+    var n = parseFloat(s);
+    if (isNaN(n)) return "";
+    var parts = (Math.round(n * 10000) / 10000).toString().split(".");
+    var dec = parts[1] || "";
+    while (dec.length < 2) dec += "0";
+    return parts[0] + "." + dec;
+  }
+  function total() {
+    var sum = 0, any = false;
+    for (var i = 0; i < values.length; i++) {
+      var n = parseFloat(values[i]);
+      if (!isNaN(n)) { sum += Math.round(n * 10000); any = true; } // ten-thousandths: no float drift
+    }
+    return any ? (Math.round(sum / 100) / 100).toFixed(2) : "";
+  }
+  function updateTotal() {
+    var t = total();
+    totalEl.textContent = t || "\u2014";
+    totalEl.classList.toggle("is-empty", !t);
+  }
+  function grow() { t2NormalizeGrowArray(values); }
+
+  function focusRow(idx, atEnd) {
+    var inputs = listEl.querySelectorAll("input");
+    var el = inputs[idx];
+    if (!el) return;
+    el.focus();
+    if (atEnd) { try { el.setSelectionRange(el.value.length, el.value.length); } catch (e) {} }
+  }
+
+  function render() {
+    listEl.innerHTML = "";
+    values.forEach(function (_, i) { listEl.appendChild(buildRow(i)); });
+    updateTotal();
+  }
+
+  function pasteInto(idx) {
+    if (!navigator.clipboard || !navigator.clipboard.readText) { showToast("Paste unavailable"); return; }
+    navigator.clipboard.readText().then(function (text) {
+      var line = String(text || "").split(/\r?\n/).filter(function (l) { return /\d/.test(l); })[0] || "";
+      var v = normalize(sanitize(line));
+      if (!v) { showToast("No number found"); return; }
+      values[idx] = v;
+      grow();
+      render();
+    }).catch(function () { showToast("Paste unavailable"); });
+  }
+
+  function buildRow(idx) {
+    var row = document.createElement("div");
+    row.className = "calc-row";
+
+    var pasteBtn = document.createElement("button");
+    pasteBtn.type = "button";
+    pasteBtn.className = "copy-btn";
+    pasteBtn.title = "Paste";
+    pasteBtn.innerHTML = '<svg class="svg-icon" viewBox="0 0 24 24"><use href="#icon-paste-in"></use></svg>';
+    pasteBtn.addEventListener("click", function () { pasteInto(idx); });
+    row.appendChild(pasteBtn);
+
+    var input = document.createElement("input");
+    input.type = "text";
+    input.setAttribute("inputmode", "decimal");
+    input.placeholder = "0.00";
+    input.autocomplete = "off";
+    input.value = values[idx];
+    input.addEventListener("input", function (e) {
+      var wasEmpty = values[idx] === "";
+      var oldLen = values.length;
+      var clean = sanitize(e.target.value);
+      if (clean !== e.target.value) e.target.value = clean;
+      values[idx] = clean;
+      grow();
+      if (values.length !== oldLen || wasEmpty !== (clean === "")) {
+        render();
+        focusRow(idx, true);
+      } else {
+        updateTotal();
+      }
+    });
+    input.addEventListener("blur", function (e) {
+      var oldLen = values.length;
+      var v = normalize(e.target.value);
+      e.target.value = v;
+      values[idx] = v;
+      grow();
+      if (values.length !== oldLen) render(); else updateTotal();
+    });
+    input.addEventListener("keydown", function (e) {
+      if (e.isComposing) return;
+      if (e.key === "Enter") { e.preventDefault(); input.blur(); }
+    });
+    row.appendChild(input);
+
+    if (values.length > 1 && values[idx] !== "") {
+      var rm = document.createElement("button");
+      rm.type = "button";
+      rm.className = "t2-remove-btn";
+      rm.title = "Remove";
+      rm.innerHTML = "&times;";
+      attachHoldDelete(rm, function () {
+        values.splice(idx, 1);
+        grow();
+        render();
+      });
+      row.appendChild(rm);
+    }
+    return row;
+  }
+
+  function openCalc() {
+    overlay.classList.add("open");
+    overlay.setAttribute("aria-hidden", "false");
+    openBtn.classList.add("active");
+    render();
+    focusRow(values.length - 1, true);
+  }
+  function closeCalc() {
+    overlay.classList.remove("open");
+    overlay.setAttribute("aria-hidden", "true");
+    openBtn.classList.remove("active");
+  }
+
+  openBtn.addEventListener("click", function () {
+    openBtn.classList.add("btn-pressed");
+    setTimeout(function () { openBtn.classList.remove("btn-pressed"); }, 30);
+    openCalc();
+  });
+  closeBtn.addEventListener("click", closeCalc);
+  overlay.addEventListener("click", function (e) { if (e.target === overlay) closeCalc(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && overlay.classList.contains("open")) closeCalc();
+  });
+  clearBtn.addEventListener("click", function () {
+    values = [""];
+    render();
+    focusRow(0, true);
+  });
+  copyBtn.addEventListener("click", function () {
+    var t = total();
+    if (t) copyToClipboard(t);
+  });
+
+  render();
 })();
 </script>
 

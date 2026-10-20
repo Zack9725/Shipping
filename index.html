@@ -63,6 +63,7 @@ html, body {
 /* ============ Header ============ */
 
 .app-header {
+  transition: filter 0.18s ease;
   position: sticky;
   top: 0;
   z-index: 50;
@@ -1465,6 +1466,10 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
 .pin-btn svg { width: 18px; height: 18px; }
 
 
+/* The sticky header must get the same blur as the page while a modal is open. */
+body:has(.board-modal-overlay.open) .app-header,
+body:has(.calc-modal-overlay.open) .app-header { filter: blur(1.5px); }
+
 /* ============ Calculator modal (header "Calculator" button) ============ */
 .calc-modal-overlay {
   position: fixed;
@@ -1484,6 +1489,7 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
 .calc-modal {
   width: 560px;
   max-width: calc(100% - 16px);
+  min-height: 360px;
   max-height: 88%;
   background: #252526;
   border: 1px solid #3c3c3c;
@@ -1514,15 +1520,28 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
   color: #d4d4d4;
 }
 .calc-header-actions { display: flex; align-items: center; gap: 8px; }
-.calc-header-actions .btn { padding: 5px 10px; font-size: 11px; }
+.calc-header-actions .btn { padding: 5px 14px; font-size: 11px; }
+.calc-clear-btn {
+  text-align: center;
+  background: transparent;
+  border: 1px solid rgba(241, 76, 76, 0.55);
+  color: #d4d4d4;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.calc-clear-btn:hover, .calc-clear-btn:active {
+  background: rgba(255, 59, 59, 0.14);
+  border-color: #ff3b3b;
+  color: #ffffff;
+}
 .calc-body {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 190px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 20px;
   align-items: start;
+  align-content: start;
   padding: 16px 20px 20px;
 }
 .calc-body .column-title { margin: 0 0 10px; }
@@ -2952,7 +2971,7 @@ body.board-sorting, body.board-sorting * { cursor: grabbing !important; -webkit-
           Calculator
         </h2>
         <div class="calc-header-actions">
-          <button type="button" id="calcClearBtn" class="btn btn-clear-x" title="Clear all inputs"><span class="icon"><svg class="svg-icon icon-trash-svg" viewBox="0 0 24 24"><use href="#icon-trash"></use></svg></span> Clear</button>
+          <button type="button" id="calcClearBtn" class="btn calc-clear-btn" title="Clear all inputs">Clear</button>
           <button type="button" id="calcCloseBtn" class="board-modal-close" aria-label="Close">&times;</button>
         </div>
       </div>
@@ -11357,6 +11376,7 @@ window.addEventListener("load", init);
   if (!overlay || !openBtn || !listEl) return;
 
   var values = [""];
+  var rebuilding = false; // a rebuild detaches the focused input -> its blur must not format
 
   // Keep digits and dots only; the LAST dot is the decimal point, any earlier
   // dots (and all commas/letters/spaces) are dropped.
@@ -11400,8 +11420,10 @@ window.addEventListener("load", init);
   }
 
   function render() {
+    rebuilding = true;
     listEl.innerHTML = "";
     values.forEach(function (_, i) { listEl.appendChild(buildRow(i)); });
+    rebuilding = false;
     updateTotal();
   }
 
@@ -11450,8 +11472,10 @@ window.addEventListener("load", init);
       }
     });
     input.addEventListener("blur", function (e) {
+      if (rebuilding) return;
       var oldLen = values.length;
-      var v = normalize(e.target.value);
+      // Plain whole numbers stay as typed; formatting only kicks in once a "." is involved.
+      var v = e.target.value.indexOf(".") >= 0 ? normalize(e.target.value) : e.target.value;
       e.target.value = v;
       values[idx] = v;
       grow();

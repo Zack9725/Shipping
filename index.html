@@ -101,7 +101,7 @@ html, body {
   pointer-events: none;
 }
 .brand-mark { color: #007acc; font-size: 20px; }
-.brand-text h1 { margin: 0; font-size: 16px; font-weight: 800; letter-spacing: -0.3px; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); }
+.brand-text h1 { margin: 0; font-size: 16px; font-weight: 800; letter-spacing: -0.3px; }
 .brand-text p { margin: 2px 0 0; font-size: 11.5px; color: #9d9d9d; }
 
 .pin-btn {
@@ -339,9 +339,6 @@ html, body {
 .board-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(1.5px);
-  -webkit-backdrop-filter: blur(1.5px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1467,16 +1464,26 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
 
 
 /* The sticky header must get the same blur as the page while a modal is open. */
-body:has(.board-modal-overlay.open) .app-header,
-body:has(.calc-modal-overlay.open) .app-header { filter: blur(1.5px); }
+/* Header stays sharp: the blur/tint layer of each modal overlay starts below the header
+   (see ::before rules). --app-header-h is kept in sync by JS. */
+.board-modal-overlay::before,
+.calc-modal-overlay::before {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  top: var(--app-header-h, 0px);
+  background: rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(1.5px);
+  -webkit-backdrop-filter: blur(1.5px);
+  pointer-events: none;
+}
+.board-modal-overlay > *,
+.calc-modal-overlay > * { position: relative; }
 
 /* ============ Calculator modal (header "Calculator" button) ============ */
 .calc-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(1.5px);
-  -webkit-backdrop-filter: blur(1.5px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2172,10 +2179,6 @@ body:has(.calc-modal-overlay.open) .app-header { filter: blur(1.5px); }
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  /* Plain drop shadow for depth, not a colored glow — text-shadow still
-     paints off the glyph shapes even though the fill itself is
-     transparent (background-clip: text). */
-  text-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
 }
 .accent-blue {
   background: linear-gradient(90deg, #4db8ff 0%, #8B5CF6 100%);
@@ -2232,7 +2235,18 @@ body:has(.calc-modal-overlay.open) .app-header { filter: blur(1.5px); }
   padding: 14px 16px;
   max-width: 480px;
 }
-.landing-info-icon { font-size: 24px; padding: 4px; color: #ffc107; flex-shrink: 0; line-height: 1;}
+.landing-info-icon {
+  padding: 4px; color: #ffc107; flex-shrink: 0; line-height: 0; display: inline-flex;
+  cursor: default;
+  animation: landingWarnFloat 1.1s ease-in-out infinite;
+}
+.landing-info-icon svg { display: block; }
+/* Floating "hover": bobs up/down with a slight scale and a pulsing glow, brightest (100%) at the top, dimmest (60%) at rest. */
+@keyframes landingWarnFloat {
+  0%, 100% { transform: translateY(0) scale(1); opacity: 0.6; filter: drop-shadow(0 0 2px rgba(255, 193, 7, 0.25)); }
+  50% { transform: translateY(-2px) scale(1.08); opacity: 1; filter: drop-shadow(0 0 8px rgba(255, 193, 7, 0.85)); }
+}
+@media (prefers-reduced-motion: reduce) { .landing-info-icon { animation: none; } }
 .landing-info-title { margin: 0 0 4px; font-size: 13px; color: #d4d4d4; font-weight: 600; }
 .landing-info-sub { margin: 0; font-size: 12px; color: #b1b1b1; }
 
@@ -2834,11 +2848,11 @@ body.board-sorting, body.board-sorting * { cursor: grabbing !important; -webkit-
         </g>
       </symbol>
       <symbol id="icon-paste-in" viewBox="0 0 24 24">
-        <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <g fill="none" stroke="#cccccc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 3h4.5L21 7.5V19a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/>
           <path d="M16.5 3v4.5H21"/>
-          <path d="M2.5 6c0 5.2 3 8.5 8 8.5"/>
-          <path d="M8 12l2.8 2.5L8 17"/>
+          <path d="M4 6c0 5.2 3 8.5 8 8.5H15"/>
+          <path d="M12.5 12l2.8 2.5L12.5 17"/>
         </g>
       </symbol>
     </defs>
@@ -2967,7 +2981,7 @@ body.board-sorting, body.board-sorting * { cursor: grabbing !important; -webkit-
     <div class="calc-modal" role="dialog" aria-modal="true" aria-labelledby="calcModalTitle">
       <div class="calc-modal-header">
         <h2 id="calcModalTitle">
-          <svg class="svg-icon" viewBox="0 0 24 24" width="18" height="18"><use href="#icon-calculator"></use></svg>
+          <svg class="svg-icon" viewBox="0 0 24 24" width="20.52" height="20.52"><use href="#icon-calculator"></use></svg>
           Calculator
         </h2>
         <div class="calc-header-actions">
@@ -3035,7 +3049,7 @@ body.board-sorting, body.board-sorting * { cursor: grabbing !important; -webkit-
           </div>
 
           <div class="landing-info-box">
-            <span class="landing-info-icon">&#9432;</span>
+            <span class="landing-info-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="6.5" x2="12" y2="13.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="17.3" r="1.5" fill="currentColor"/></svg></span>
             <div class="landing-info-text">
               <p class="landing-info-sub">This tool was made to assist with shipment documentation.<br>Please <span style="font-weight: bold; font-size: 13px; color: #caa023;">double-check</span> all information before proceeding.</p>
             </div>
@@ -11375,6 +11389,15 @@ window.addEventListener("load", init);
   var closeBtn = document.getElementById("calcCloseBtn");
   if (!overlay || !openBtn || !listEl) return;
 
+  (function syncHeaderH() {
+    var hdr = document.querySelector(".app-header");
+    if (!hdr) return;
+    function set() { document.documentElement.style.setProperty("--app-header-h", hdr.offsetHeight + "px"); }
+    set();
+    window.addEventListener("resize", set);
+    if (window.ResizeObserver) new ResizeObserver(set).observe(hdr);
+  })();
+
   var values = [""];
   var rebuilding = false; // a rebuild detaches the focused input -> its blur must not format
 
@@ -11384,7 +11407,7 @@ window.addEventListener("load", init);
   function sanitize(raw) {
     var s = String(raw == null ? "" : raw).replace(/[^0-9.]/g, "");
     var last = s.lastIndexOf(".");
-    if (last >= 0) s = s.slice(0, last).replace(/\./g, "") + "." + s.slice(last + 1);
+    if (last >= 0) s = s.slice(0, last).replace(/\./g, "") + "." + s.slice(last + 1, last + 3);
     return s;
   }
   // Tidy a finished value: drop trailing zeros beyond 2 decimals ("999.9900" -> "999.99").

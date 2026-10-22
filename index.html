@@ -929,7 +929,7 @@ html, body {
 .hold-action-btn { position: relative; overflow: visible; -webkit-user-select: none; user-select: none; touch-action: none; }
 .hold-action-btn .hold-action-content { position: relative; z-index: 1; }
 .hold-action-ring { position: absolute; inset: -3px; border-radius: 50%; pointer-events: none; z-index: 0; background: conic-gradient(#f14c4c calc(var(--p, 0) * 1%), transparent 0); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px)); mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px)); opacity: .95; }
-.item-delete-btn.hold-action-btn:hover, .t2-remove-btn.hold-action-btn:hover, .tab-close.hold-action-btn:hover { background: rgba(241,76,76,.12); color: #f14c4c; }
+.item-delete-btn.hold-action-btn:hover, .tab-close.hold-action-btn:hover { background: rgba(241,76,76,.12); color: #f14c4c; }
 .sort-confirm-box { width: 390px; max-width: calc(100vw - 32px); }
 #sortConfirmText {
   white-space: pre-line;
@@ -2442,15 +2442,17 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
   width: 28px;
   height: 28px;
   border-radius: 6px;
-  border: 1px solid #3c3c3c;
+  /* Same rim as the Clear (btn-clear-x) buttons */
+  border: 1px solid rgba(138, 138, 138, 0.45);
   background: transparent;
-  color: #9d9d9d;
+  color: #d4d4d4;
   cursor: pointer;
   font-size: 15px;
   line-height: 1;
-  transition: border-color 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
-.t2-remove-btn:hover { border-color: #f14c4c; color: #f14c4c; }
+.t2-remove-btn:hover { background: rgba(255, 59, 59, 0.14); border-color: #ff3b3b; color: #ffffff; }
+.calc-row .copy-btn.is-hidden { visibility: hidden; pointer-events: none; }
 
 .output-value-multiline { line-height: 1.5; }
 
@@ -2662,6 +2664,78 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
 .board-progress.has-progress .board-progress-pct { color: #5fe0b0; }
 .bv-zero { color: #5a5a5a; font-weight: 400; }
 
+
+/* ---- Reschedule: circular hold button (top-right of card) + greyed-out "Rescheduled" state ---- */
+.board-item .board-progress { margin-right: 10px; } /* progress + % nudged left to make room */
+.board-resched-btn {
+  position: relative; overflow: visible; flex-shrink: 0;
+  width: 28px; height: 28px; padding: 0; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: #1a1a1a; border: 1px solid rgba(138,138,138,.45); color: #1a8ad4; cursor: pointer;
+  -webkit-user-select: none; user-select: none; touch-action: none;
+  transition: background .15s ease, border-color .15s ease, color .15s ease, opacity .15s ease;
+}
+.board-resched-btn:hover { background: rgba(0,122,204,.14); color: #4fb2ff; }
+.board-resched-btn .hold-ring { inset: -1px; background: conic-gradient(#007acc calc(var(--p, 0) * 1%), transparent 0); }
+.board-resched-icon { position: relative; z-index: 1; display: flex; }
+.board-resched-btn:disabled { opacity: .5; cursor: not-allowed; background: #1a1a1a; border-color: rgba(138,138,138,.3); color: #6a6a6a; }
+.board-resched-btn:disabled:hover { background: #1a1a1a; border-color: rgba(138,138,138,.3); color: #6a6a6a; }
+
+.board-item-group.is-rescheduled { position: relative; }
+.board-item-group.is-rescheduled .board-item > :not(.board-item-delete),
+.board-item-group.is-rescheduled .board-view-table,
+.board-item-group.is-rescheduled .board-child-add-row { opacity: .3; filter: grayscale(1); }
+.board-resched-overlay {
+  position: absolute; inset: 0; z-index: 5; cursor: default;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(20, 20, 20, 0.55);
+}
+.board-resched-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 7px 16px; border-radius: 999px;
+  background: rgba(30, 30, 30, 0.9); border: 1px solid #4a5b82; color: #c8d3ee;
+  font-size: 12.5px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase;
+}
+.board-resched-badge small { font-size: 11px; font-weight: 600; letter-spacing: 0; text-transform: none; color: #8fa2cf; }
+.board-item-group.is-rescheduled .board-item-delete { z-index: 6; }
+.resched-date-input {
+  width: 100%; margin: 0 0 6px; padding: 8px 10px;
+  background: #1e1e1e; border: 1px solid #3c3c3c; border-radius: 6px;
+  color: #d4d4d4; font: 13px "Segoe UI", Tahoma, Arial, sans-serif; color-scheme: dark; outline: none;
+}
+.resched-date-input:focus { border-color: #007acc; }
+/* hide old single-line error margin; new modal styles below */
+.resched-error { min-height: 16px; margin: 6px 0 12px; font-size: 11.5px; color: #f14c4c; }
+.resched-box { width: 580px; max-width: calc(100vw - 32px); }
+.resched-ship { margin: 0 0 14px; font-size: 13px; color: #d4d4d4; display: flex; flex-direction: column; gap: 2px; }
+.resched-ship-label, .resched-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .7px; color: #8f8f8f; }
+.resched-ship strong { font-size: 14px; letter-spacing: .3px; }
+.resched-label { display: block; margin-bottom: 6px; }
+.resched-list-head { display: flex; align-items: center; justify-content: space-between; margin: 12px 0 6px; }
+.resched-count { font-size: 11px; color: #8f8f8f; }
+.resched-list { max-height: 220px; overflow-y: auto; background: #1a1a1a; border: 1px solid #303030; border-radius: 8px; }
+.resched-row { display: grid; grid-template-columns: minmax(0,1fr) 54px 76px 54px 116px; align-items: center; gap: 8px; padding: 9px 12px; font-size: 12.5px; color: #d4d4d4; cursor: pointer; text-align: center; }
+.resched-row.has-check { grid-template-columns: 18px minmax(0,1fr) 54px 76px 54px 116px; }
+.resched-row > .resched-pn { text-align: left; }
+.resched-row .bv-action { justify-content: center; font-size: 11.5px; white-space: normal; line-height: 1.15; }
+.resched-thead { cursor: default; padding: 7px 12px; background: #202020; border-bottom: 1px solid #303030; border-radius: 8px 8px 0 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; color: #bdbdbd; }
+.resched-thead:hover { background: #202020; }
+.resched-thead > :nth-child(1):not(:empty) { text-align: left; }
+.resched-pnqty { color: #4fb2ff; font-weight: 600; }
+.resched-bal { font-weight: 700; color: #4fb2ff; }
+.bv-moved { flex: 0 0 auto; margin-left: 6px; font-size: 10px; font-weight: 600; color: #8fa2cf; white-space: nowrap; }
+.resched-row + .resched-row { border-top: 1px solid #262626; }
+.resched-row:hover { background: rgba(255,255,255,.03); }
+.resched-row.is-disabled { cursor: not-allowed; opacity: .45; }
+.resched-pn { min-width: 0; font-weight: 700; color: #eaeaea; overflow-wrap: anywhere; }
+.resched-check { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: #b4b4b4; cursor: pointer; }
+.resched-row input[type="checkbox"], .resched-check input[type="checkbox"] { width: 15px; height: 15px; margin: 0; accent-color: #007acc; cursor: pointer; flex: 0 0 auto; }
+.resched-row.is-disabled input { cursor: not-allowed; }
+.resched-hint { margin: 8px 0 0; font-size: 11px; color: #7f7f7f; }
+.bv-resched-row td { opacity: .55; }
+.bv-resched-row .bv-pn-name { color: #8a8a8a; }
+.bv-resched-note { text-align: left !important; color: #8fa2cf; font-size: 11.5px; font-weight: 600; }
+.bv-resched-note svg { vertical-align: -2px; margin-right: 6px; }
 
 /* ---- Board date title fonts ---- */
 .board-date-title { font-family: "Oswald", "Arial Narrow", "Segoe UI", sans-serif; }
@@ -9767,6 +9841,7 @@ window.addEventListener("load", init);
   // restarts the countdown. When it fires, pending changes are committed
   // and saved, then the editor lock is released so others can edit.
   var BOARD_IDLE_MS = 30000;
+  var boardIdleOverride = 0; // 60s while the Reschedule modal is open
   var boardIdleTimer = null;
   function stopBoardIdleTimer() {
     if (boardIdleTimer) { clearTimeout(boardIdleTimer); boardIdleTimer = null; }
@@ -9774,7 +9849,7 @@ window.addEventListener("load", init);
   function resetBoardIdleTimer() {
     stopBoardIdleTimer();
     if (boardMode !== "shared" || !boardIsEditor) return;
-    boardIdleTimer = setTimeout(onBoardIdle, BOARD_IDLE_MS);
+    boardIdleTimer = setTimeout(onBoardIdle, boardIdleOverride || BOARD_IDLE_MS);
   }
   function onBoardIdle() {
     boardIdleTimer = null;
@@ -9783,7 +9858,7 @@ window.addEventListener("load", init);
     var ae = document.activeElement;
     if (ae && listEl && listEl.contains(ae) && typeof ae.blur === "function") ae.blur();
     releaseBoardEditor().then(function () {
-      if (typeof showToast === "function") showToast("Editing ended after 30s of inactivity. Changes saved.");
+      if (typeof showToast === "function") showToast("Editing ended after " + Math.round((boardIdleOverride || BOARD_IDLE_MS) / 1000) + "s of inactivity. Changes saved.");
     });
   }
   function releaseBoardEditor() {
@@ -10126,10 +10201,18 @@ window.addEventListener("load", init);
   }
   // A shipment's status rolls up from its PNs: all done = done, none
   // started = pending, anything in between = partially completed.
+  function isKidResched(c) { return !!(c && c.rescheduledTo); }
+  function activeKids(it) { return (it.children || []).filter(function (c) { return !isKidResched(c); }); }
+  // Whole card is "Rescheduled" once every PN has moved to another date (legacy it.rescheduledTo too).
+  function isFullyResched(it) {
+    if (it.rescheduledTo) return true;
+    return !!(it.children && it.children.length && it.children.every(isKidResched));
+  }
   function computeStatus(it) {
-    if (!it.children.length) return "pending";
+    var kids = activeKids(it);
+    if (!kids.length) return "pending";
     var allDone = true, noneStarted = true;
-    it.children.forEach(function (c) {
+    kids.forEach(function (c) {
       var st = computeChildStatus(c);
       if (st !== "done") allDone = false;
       if (st !== "pending") noneStarted = false;
@@ -10295,10 +10378,11 @@ window.addEventListener("load", init);
     return (boardMode === "shared" && !boardIsEditor) || (boardMode === "local" && !boardLocalEdit);
   }
   function shipmentCountText(it) {
-    var doneCount = it.children.filter(function (c) { return computeChildStatus(c) === "done"; }).length;
-    var planSum = it.children.reduce(function (s, c) { return s + (parseInt(c.planQty, 10) || 0); }, 0);
-    var shippedSum = it.children.reduce(function (s, c) { return s + Math.min(parseInt(c.shippedQty, 10) || 0, parseInt(c.planQty, 10) || 0); }, 0);
-    return doneCount + "/" + it.children.length + " PN \u00B7 " + shippedSum + "/" + planSum + " pcs";
+    var kids = activeKids(it);
+    var doneCount = kids.filter(function (c) { return computeChildStatus(c) === "done"; }).length;
+    var planSum = kids.reduce(function (s, c) { return s + (parseInt(c.planQty, 10) || 0); }, 0);
+    var shippedSum = kids.reduce(function (s, c) { return s + Math.min(parseInt(c.shippedQty, 10) || 0, parseInt(c.planQty, 10) || 0); }, 0);
+    return doneCount + "/" + kids.length + " PN \u00B7 " + shippedSum + "/" + planSum + " pcs";
   }
   function viewCell(tag, cls, text) {
     var c = document.createElement(tag);
@@ -10309,8 +10393,9 @@ window.addEventListener("load", init);
   // Shipment progress = shipped pcs / planned pcs. Plain green bar (fill + outline)
   // with the percentage beside it; grey/empty at 0%.
   function shipmentProgress(it, status) {
-    var planSum = it.children.reduce(function (n, c) { return n + (parseInt(c.planQty, 10) || 0); }, 0);
-    var shippedSum = it.children.reduce(function (n, c) { return n + Math.min(parseInt(c.shippedQty, 10) || 0, parseInt(c.planQty, 10) || 0); }, 0);
+    var kids = activeKids(it);
+    var planSum = kids.reduce(function (n, c) { return n + (parseInt(c.planQty, 10) || 0); }, 0);
+    var shippedSum = kids.reduce(function (n, c) { return n + Math.min(parseInt(c.shippedQty, 10) || 0, parseInt(c.planQty, 10) || 0); }, 0);
     var pct = planSum > 0 ? Math.round(shippedSum / planSum * 100) : 0;
     if (status === "done") pct = 100; else if (pct > 99) pct = 99; // 100% is reserved for truly fulfilled
     return { pct: pct };
@@ -10340,10 +10425,344 @@ window.addEventListener("load", init);
   // (name inputs, Plan/Completed steppers), rows get a hold-to-remove
   // button, and the Shipped cell (last column, after Status) becomes the
   // hold-to-confirm pickup button. Nothing moves between modes.
+  // ---- Reschedule: copy a shipment card to another date, grey out the original ----
+  var RESCHED_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>';
+  function buildReschedBtn(it, editable) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "board-resched-btn";
+    var ring = document.createElement("span");
+    ring.className = "hold-ring";
+    var icon = document.createElement("span");
+    icon.className = "board-resched-icon";
+    icon.innerHTML = RESCHED_ICON;
+    btn.appendChild(ring);
+    btn.appendChild(icon);
+    if (!editable) {
+      btn.disabled = true;
+      btn.title = "Enter edit mode to reschedule";
+      return btn;
+    }
+    if (!transferableKids(it).length) {
+      btn.disabled = true;
+      btn.title = "Nothing to reschedule (no open Balance)";
+      return btn;
+    }
+    btn.title = "Hold to reschedule";
+    btn.setAttribute("aria-label", "Hold to reschedule shipment " + it.name);
+    attachRadialHoldToConfirm(btn, ring, HOLD_DURATION, function () {
+      ring.style.setProperty("--p", 0);
+      openRescheduleModal(it);
+    });
+    return btn;
+  }
+  function tomorrowIso() {
+    var d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  // PNs that can still move: only the open Balance (Plan - Completed - Shipped) travels;
+  // Completed (documents done, awaiting pickup) and Shipped stay on this date.
+  function transferableKids(it) {
+    return activeKids(it).filter(function (c) { return childNums(c).balance > 0; });
+  }
+  function buildReschedChildRow(it, child, editable) {
+    var tr = document.createElement("tr");
+    tr.className = "bv-resched-row";
+    var tdPn = viewCell("td", "bv-pn");
+    var wrap = document.createElement("div");
+    wrap.className = "bv-pn-cell";
+    if (editable) {
+      var del = document.createElement("button");
+      del.type = "button";
+      del.className = "board-child-delete";
+      del.title = "Hold to remove";
+      var ring = document.createElement("span");
+      ring.className = "hold-ring";
+      var glyph = document.createElement("span");
+      glyph.className = "board-child-delete-glyph";
+      glyph.textContent = "✕";
+      del.appendChild(ring);
+      del.appendChild(glyph);
+      attachRadialHoldToConfirm(del, ring, HOLD_DURATION, function () {
+        it.children = it.children.filter(function (x) { return x.id !== child.id; });
+        saveItems();
+        renderList();
+      });
+      wrap.appendChild(del);
+    }
+    var txt = document.createElement("span");
+    txt.className = "bv-pn-text";
+    txt.appendChild(viewCell("span", "bv-pn-name", child.name));
+    txt.appendChild(viewCell("span", "board-child-qty-suffix bv-pn-qty", " x" + (parseInt(child.planQty, 10) || 0)));
+    wrap.appendChild(txt);
+    tdPn.appendChild(wrap);
+    tr.appendChild(tdPn);
+    var td = viewCell("td", "bv-resched-note");
+    td.colSpan = editable ? 5 : 4;
+    td.innerHTML = RESCHED_ICON.replace('width="15" height="15"', 'width="13" height="13"') + "<span></span>";
+    td.lastChild.textContent = "Rescheduled → " + formatBoardDate(child.rescheduledTo);
+    tr.appendChild(td);
+    return tr;
+  }
+
+  // Merge the chosen PNs into target date's list: same shipment name -> reuse that card
+  // (same PN -> top up Plan qty), otherwise create a fresh card.
+  function mergeIntoList(list, shipName, kids) {
+    var nm = String(shipName).trim().toUpperCase();
+    var card = list.filter(function (x) { return String(x.name).trim().toUpperCase() === nm; })[0];
+    if (!card) { card = { id: uid(), name: shipName, children: [] }; list.push(card); }
+    if (!Array.isArray(card.children)) card.children = [];
+    kids.forEach(function (k) {
+      var have = card.children.filter(function (c) { return String(c.name).trim().toUpperCase() === String(k.name).trim().toUpperCase(); })[0];
+      if (have) have.planQty = String((parseInt(have.planQty, 10) || 0) + (parseInt(k.planQty, 10) || 0));
+      else card.children.push(cloneBoardValue(k));
+    });
+    return list;
+  }
+  // What lands on the new date: the unshipped part of each PN, fresh progress.
+  function kidsForTransfer(kids) {
+    return kids.map(function (c) {
+      return { id: childUid(), name: c.name, planQty: String(childNums(c).balance), shippedQty: "0", completedQty: "0" };
+    });
+  }
+  function transferToDate(it, kids, targetDate) {
+    var payload = kidsForTransfer(kids);
+    if (boardMode === "local") {
+      writeLocalItems(targetDate, mergeIntoList(readLocalItems(targetDate), it.name, payload));
+      return Promise.resolve();
+    }
+    return mutateSharedDocument(function (doc) {
+      var list = Array.isArray(doc.dates[targetDate]) ? doc.dates[targetDate] : [];
+      doc.dates[targetDate] = mergeIntoList(list, it.name, payload);
+      return doc;
+    }, null, 3);
+  }
+
+  function kidStatusInfo(c) {
+    var n = childNums(c);
+    if (computeChildStatus(c) === "done") return { cls: "fulfilled", text: "Fulfilled" };
+    if (n.completed > 0) return { cls: "pending", text: "Pending pickup" };
+    return { cls: "prepare", text: "Pending document" };
+  }
+  function reschedCell(cls, text) { var n = document.createElement("span"); n.className = cls; n.textContent = text; return n; }
+  // One PN row, styled like the board table: name + blue "xPlan", Balance, Completed pill, Shipped, Status.
+  function buildReschedKidRow(k, withCheck, movable) {
+    var n = childNums(k);
+    var row = document.createElement(withCheck ? "label" : "div");
+    row.className = "resched-row" + (withCheck ? " has-check" : "") + (movable ? "" : " is-disabled");
+    var cb = null;
+    if (withCheck) {
+      cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.disabled = !movable;
+      row.appendChild(cb);
+    }
+    var pn = document.createElement("span");
+    pn.className = "resched-pn";
+    pn.appendChild(document.createTextNode(k.name));
+    pn.appendChild(reschedCell("resched-pnqty", " x" + n.plan));
+    row.appendChild(pn);
+    row.appendChild(reschedCell(n.balance > 0 ? "resched-bal" : "bv-zero", n.balance > 0 ? String(n.balance) : ZERO_DASH));
+    var tone = completedTone(n.completed, n.outstanding);
+    row.appendChild(n.completed > 0
+      ? reschedCell("bv-pill" + (tone ? " tone-" + tone : " bv-muted"), String(n.completed))
+      : reschedCell("bv-zero", ZERO_DASH));
+    row.appendChild(n.shipped > 0 ? reschedCell("bv-strong", String(n.shipped)) : reschedCell("bv-zero", ZERO_DASH));
+    var si = kidStatusInfo(k);
+    row.appendChild(reschedCell("bv-action " + si.cls, si.text));
+    return { row: row, cb: cb };
+  }
+  function buildReschedHead(withCheck) {
+    var h = document.createElement("div");
+    h.className = "resched-row resched-thead" + (withCheck ? " has-check" : "");
+    if (withCheck) h.appendChild(document.createElement("span"));
+    ["PN", "Balance", "Completed", "Shipped", "Status"].forEach(function (t) { h.appendChild(reschedCell("", t)); });
+    return h;
+  }
+
+  function openRescheduleModal(it) {
+    if (!canEditBoard()) return;
+    var kids = transferableKids(it);
+    var picked = {};
+    kids.forEach(function (k) { picked[k.id] = true; });
+    var minDate = tomorrowIso();
+    var targetDate = minDate;
+    var busy = false;
+
+    var overlayEl = document.createElement("div");
+    overlayEl.className = "modal-overlay show";
+    var box = document.createElement("div");
+    box.className = "modal-box resched-box";
+    overlayEl.appendChild(box);
+
+    // While this modal is open the editor idle timeout is 60s, and any click, key,
+    // input or even a slight mouse glide counts as "not AFK".
+    boardIdleOverride = 60000;
+    var lastAct = 0;
+    function activity() {
+      var now = Date.now();
+      if (now - lastAct < 400) return;
+      lastAct = now;
+      resetBoardIdleTimer();
+    }
+    ["pointermove", "pointerdown", "click", "keydown", "input", "change", "wheel"].forEach(function (ev) {
+      overlayEl.addEventListener(ev, activity, true);
+    });
+    function close() {
+      overlayEl.remove();
+      boardIdleOverride = 0;
+      resetBoardIdleTimer();
+    }
+    overlayEl.addEventListener("click", function (e) { if (e.target === overlayEl && !busy) close(); });
+
+    function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+    function btn(label, cls, fn) { var b = el("button", "btn " + cls, label); b.type = "button"; b.addEventListener("click", fn); return b; }
+    function pickedKids() { return kids.filter(function (k) { return picked[k.id]; }); }
+    function validDate(v) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return "Choose a date.";
+      if (v < minDate) return "Only future dates are allowed (from " + formatBoardDate(minDate) + ").";
+      if (v === boardDate) return "Choose a different date from the current board date.";
+      return "";
+    }
+
+    function renderSelect(msg) {
+      box.innerHTML = "";
+      box.appendChild(el("p", "modal-title", "Reschedule shipment"));
+      var sub = el("p", "resched-ship");
+      sub.appendChild(el("span", "resched-ship-label", "Shipment"));
+      sub.appendChild(el("strong", null, it.name));
+      box.appendChild(sub);
+
+      box.appendChild(el("label", "resched-label", "Transfer to"));
+      var di = el("input", "resched-date-input");
+      di.type = "date"; di.min = minDate; di.value = targetDate;
+      di.addEventListener("input", function () { targetDate = di.value; err.textContent = ""; });
+      box.appendChild(di);
+
+      var head = el("div", "resched-list-head");
+      var allLbl = el("label", "resched-check resched-check-all");
+      var allCb = el("input"); allCb.type = "checkbox";
+      allLbl.appendChild(allCb);
+      allLbl.appendChild(el("span", null, "Select PNs to transfer"));
+      var count = el("span", "resched-count");
+      head.appendChild(allLbl); head.appendChild(count);
+      box.appendChild(head);
+
+      var listEl2 = el("div", "resched-list");
+      listEl2.appendChild(buildReschedHead(true));
+      var cbs = [];
+      activeKids(it).forEach(function (k) {
+        var can = childNums(k).balance > 0;
+        var r = buildReschedKidRow(k, true, can);
+        if (can) {
+          r.cb.checked = !!picked[k.id];
+          r.cb.addEventListener("change", function () { picked[k.id] = r.cb.checked; sync(); });
+          cbs.push({ cb: r.cb, k: k });
+        }
+        listEl2.appendChild(r.row);
+      });
+      box.appendChild(listEl2);
+      box.appendChild(el("p", "resched-hint", "Only the open Balance moves. Completed (awaiting pickup) and Shipped stay on this date. Unticked PNs stay too - reopen Reschedule to send them to another date."));
+      var err = el("p", "resched-error", msg || "");
+      box.appendChild(err);
+
+      var actions = el("div", "modal-actions");
+      var okB = btn("Confirm", "btn-primary", function () {
+        var e1 = validDate(targetDate);
+        if (e1) { err.textContent = e1; return; }
+        if (!pickedKids().length) { err.textContent = "Tick at least one PN."; return; }
+        renderConfirm();
+      });
+      actions.appendChild(btn("Cancel", "btn-secondary", close));
+      actions.appendChild(okB);
+      box.appendChild(actions);
+
+      allCb.addEventListener("change", function () {
+        cbs.forEach(function (c) { picked[c.k.id] = allCb.checked; });
+        sync();
+      });
+      function sync() {
+        var n = pickedKids().length;
+        cbs.forEach(function (c) { c.cb.checked = !!picked[c.k.id]; });
+        allCb.checked = n > 0 && n === cbs.length;
+        allCb.indeterminate = n > 0 && n < cbs.length;
+        count.textContent = n + " of " + cbs.length + " selected";
+        okB.disabled = n === 0;
+      }
+      sync();
+    }
+
+    function renderConfirm() {
+      var chosen = pickedKids();
+      var rest = activeKids(it).length - chosen.length;
+      var keepsDocs = chosen.some(function (k) { return childNums(k).completed > 0; });
+      box.innerHTML = "";
+      box.appendChild(el("p", "modal-title", "Confirm reschedule"));
+      var t = el("p", "modal-text");
+      t.appendChild(document.createTextNode("Move the open Balance of " + chosen.length + " PN" + (chosen.length > 1 ? "s" : "") + " from "));
+      t.appendChild(el("strong", null, it.name));
+      t.appendChild(document.createTextNode(" to "));
+      t.appendChild(el("strong", null, formatBoardDate(targetDate) + " (" + formatBoardDateLong(targetDate).split(" - ")[0] + ")"));
+      t.appendChild(document.createTextNode("?"));
+      box.appendChild(t);
+      var l = el("div", "resched-list");
+      l.appendChild(buildReschedHead(false));
+      chosen.forEach(function (k) { l.appendChild(buildReschedKidRow(k, false, true).row); });
+      box.appendChild(l);
+      var notes = [];
+      if (keepsDocs) notes.push("Completed (awaiting pickup) qty stays on this date.");
+      notes.push(rest > 0
+        ? rest + " other PN" + (rest > 1 ? "s" : "") + " stay on this date."
+        : "Nothing else is left to move on this card.");
+      box.appendChild(el("p", "resched-hint", notes.join(" ")));
+      var err = el("p", "resched-error", "");
+      box.appendChild(err);
+      var actions = el("div", "modal-actions");
+      var backB = btn("Back", "btn-secondary", function () { renderSelect(""); });
+      var goB = btn("Proceed", "btn-primary", function () {
+        if (!canEditBoard()) { err.textContent = "Editing ended - re-enter edit mode and try again."; return; }
+        busy = true; goB.disabled = true; backB.disabled = true; goB.textContent = "Transferring...";
+        transferToDate(it, chosen, targetDate).then(function () {
+          var cur = items.filter(function (x) { return x.id === it.id; })[0];
+          if (cur) {
+            var ids = {};
+            chosen.forEach(function (k) { ids[k.id] = true; });
+            cur.children.forEach(function (c) {
+              if (!ids[c.id]) return;
+              var n = childNums(c);
+              var keep = n.completed + n.shipped;
+              if (keep <= 0) c.rescheduledTo = targetDate; // whole PN moved
+              else {
+                c.planQty = String(keep); // Completed + Shipped stay; open Balance left
+                c.movedOut = (c.movedOut || []).concat([{ to: targetDate, qty: n.balance }]);
+              }
+            });
+            saveItems();
+          }
+          busy = false;
+          close();
+          renderList();
+          if (typeof showToast === "function") showToast("Rescheduled to " + formatBoardDate(targetDate));
+        }).catch(function (e) {
+          busy = false; goB.disabled = false; backB.disabled = false; goB.textContent = "Proceed";
+          err.textContent = "Could not transfer: " + ((e && (e.message || e.name)) || "error");
+        });
+      });
+      actions.appendChild(backB); actions.appendChild(goB);
+      box.appendChild(actions);
+    }
+
+    document.body.appendChild(overlayEl);
+    resetBoardIdleTimer();
+    renderSelect("");
+  }
+
   function buildViewGroup(it, editable) {
     var status = computeStatus(it);
     var group = document.createElement("div");
-    group.className = "board-item-group is-table" + (editable ? " is-edit" : " is-view") + " status-" + status;
+    var isResched = isFullyResched(it);
+    group.className = "board-item-group is-table" + (editable ? " is-edit" : " is-view") + " status-" + status + (isResched ? " is-rescheduled" : "");
     group.setAttribute("data-shipment-id", it.id);
 
     var row = document.createElement("div");
@@ -10352,7 +10771,7 @@ window.addEventListener("load", init);
     var nameEl = editable ? buildShipmentNameInput(it) : viewCell("span", "board-item-name", it.name);
     row.appendChild(nameEl);
     row.appendChild(buildProgress(it, pr));
-    if (editable) attachCardDrag(row, it.id);
+    if (editable && !isResched) attachCardDrag(row, it.id);
     if (editable) {
       var delBtn = document.createElement("button");
       delBtn.type = "button";
@@ -10373,7 +10792,21 @@ window.addEventListener("load", init);
       });
       row.appendChild(delBtn);
     }
+    if (!isResched) row.appendChild(buildReschedBtn(it, editable));
     group.appendChild(row);
+    if (isResched) {
+      var ov = document.createElement("div");
+      ov.className = "board-resched-overlay";
+      var badge = document.createElement("span");
+      badge.className = "board-resched-badge";
+      badge.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>';
+      badge.appendChild(document.createTextNode("Rescheduled"));
+      var sm = document.createElement("small");
+      sm.textContent = "→ " + formatBoardDate(it.rescheduledTo);
+      badge.appendChild(sm);
+      ov.appendChild(badge);
+      group.appendChild(ov);
+    }
 
     var table = document.createElement("table");
     table.className = "board-view-table";
@@ -10396,6 +10829,7 @@ window.addEventListener("load", init);
       tbody.appendChild(er);
     }
     it.children.forEach(function (child) {
+      if (isKidResched(child)) { tbody.appendChild(buildReschedChildRow(it, child, editable)); return; }
       var st = computeChildStatus(child);
       var nums = childNums(child);
       var plan = nums.plan || 1;
@@ -10444,6 +10878,13 @@ window.addEventListener("load", init);
         pnText.appendChild(viewCell("span", "bv-pn-name", child.name));
         pnText.appendChild(viewCell("span", "board-child-qty-suffix bv-pn-qty", " x" + plan));
         wrap.appendChild(pnText);
+      }
+      if (child.movedOut && child.movedOut.length) {
+        var mv = document.createElement("span");
+        mv.className = "bv-moved";
+        mv.textContent = child.movedOut.map(function (m) { return "\u21BB " + m.qty + " \u2192 " + formatBoardDate(m.to).replace(/\/\d{4}$/, ""); }).join(", ");
+        mv.title = child.movedOut.map(function (m) { return m.qty + " moved to " + formatBoardDate(m.to); }).join("\n");
+        wrap.appendChild(mv);
       }
       tdPn.appendChild(wrap);
       tr.appendChild(tdPn);
@@ -11292,6 +11733,11 @@ window.addEventListener("load", init);
     ["input", "change", "keydown", "paste"].forEach(function (ev) {
       body.addEventListener(ev, bump, true);
     });
+    var lastGlide = 0;
+    body.addEventListener("pointermove", function () {
+      var now = Date.now();
+      if (now - lastGlide > 500) { lastGlide = now; bump(); }
+    }, true);
     ["pointerdown", "click"].forEach(function (ev) {
       body.addEventListener(ev, function (e) {
         if (e.target && e.target.closest && e.target.closest("button, input, select, textarea, .qty-steppers")) bump();
@@ -11468,7 +11914,9 @@ window.addEventListener("load", init);
 
     var pasteBtn = document.createElement("button");
     pasteBtn.type = "button";
-    pasteBtn.className = "copy-btn";
+    // Hidden (not removed) once the row has a value, so the input never shifts.
+    pasteBtn.className = "copy-btn" + (values[idx] !== "" ? " is-hidden" : "");
+    pasteBtn.tabIndex = values[idx] !== "" ? -1 : 0;
     pasteBtn.title = "Paste";
     pasteBtn.innerHTML = '<svg class="svg-icon" viewBox="0 0 24 24"><use href="#icon-paste-in"></use></svg>';
     pasteBtn.addEventListener("click", function () { pasteInto(idx); });

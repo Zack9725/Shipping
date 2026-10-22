@@ -929,7 +929,7 @@ html, body {
 .hold-action-btn { position: relative; overflow: visible; -webkit-user-select: none; user-select: none; touch-action: none; }
 .hold-action-btn .hold-action-content { position: relative; z-index: 1; }
 .hold-action-ring { position: absolute; inset: -3px; border-radius: 50%; pointer-events: none; z-index: 0; background: conic-gradient(#f14c4c calc(var(--p, 0) * 1%), transparent 0); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px)); mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px)); opacity: .95; }
-.item-delete-btn.hold-action-btn:hover, .tab-close.hold-action-btn:hover { background: rgba(241,76,76,.12); color: #f14c4c; }
+.item-delete-btn.hold-action-btn:hover, .tab-close.hold-action-btn:hover, .t2-remove-btn.hold-action-btn:hover { background: rgba(241,76,76,.12); color: #f14c4c; }
 .sort-confirm-box { width: 390px; max-width: calc(100vw - 32px); }
 #sortConfirmText {
   white-space: pre-line;
@@ -2436,22 +2436,25 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
   padding: 7px 10px;
   font-family: inherit;
 }
-.t2-input-row input.t2-grow-input:focus { outline: none; border-color: #4ec9b0; }
+.t2-input-row input.t2-grow-input:focus { outline: none; border-color: #007acc; }
 .t2-remove-btn {
   flex: 0 0 auto;
   width: 28px;
   height: 28px;
-  border-radius: 6px;
-  /* Same rim as the Clear (btn-clear-x) buttons */
-  border: 1px solid rgba(255, 59, 59, 0.4);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Universal (x) button: same plain look as the tab close / item-card close (no rim) */
   background: transparent;
-  color: #d4d4d4;
+  border: none;
+  color: #9d9d9d;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 15px;
+  font-size: 13px;
   line-height: 1;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  padding: 0;
 }
-.t2-remove-btn:hover { background: rgba(255, 59, 59, 0.14); color: #ff3b3b; }
+.t2-remove-btn:hover { background: rgba(241, 76, 76, 0.1); color: #f14c4c; }
 .calc-row .copy-btn.is-hidden { visibility: hidden; pointer-events: none; }
 
 .output-value-multiline { line-height: 1.5; }
@@ -6481,7 +6484,7 @@ function t2BuildGrowList(containerEl, arr, onChange) {
         rmBtn.type = "button";
         rmBtn.className = "t2-remove-btn";
         rmBtn.title = "Remove";
-        rmBtn.innerHTML = "&times;";
+        rmBtn.innerHTML = "&#10005;";
         attachHoldDelete(rmBtn, function () {
           arr.splice(idx, 1);
           t2NormalizeGrowArray(arr);
@@ -10461,6 +10464,13 @@ window.addEventListener("load", init);
     d.setDate(d.getDate() + 1);
     return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   }
+  // Day after a given ISO date (YYYY-MM-DD). Reschedule is relative to the card's own date, not today.
+  function nextDayIso(iso) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
+    if (!m) return tomorrowIso();
+    var d = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10) + 1);
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
   // PNs that can still move: only the open Balance (Plan - Completed - Shipped) travels;
   // Completed (documents done, awaiting pickup) and Shipped stay on this date.
   function transferableKids(it) {
@@ -10586,7 +10596,7 @@ window.addEventListener("load", init);
     var kids = transferableKids(it);
     var picked = {};
     kids.forEach(function (k) { picked[k.id] = true; });
-    var minDate = tomorrowIso();
+    var minDate = nextDayIso(boardDate); // day after THIS card's date, not real-world today
     var targetDate = minDate;
     var busy = false;
 
@@ -10621,7 +10631,7 @@ window.addEventListener("load", init);
     function pickedKids() { return kids.filter(function (k) { return picked[k.id]; }); }
     function validDate(v) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return "Choose a date.";
-      if (v < minDate) return "Only future dates are allowed (from " + formatBoardDate(minDate) + ").";
+      if (v < minDate) return "Pick a date after this shipment's date (from " + formatBoardDate(minDate) + ").";
       if (v === boardDate) return "Choose a different date from the current board date.";
       return "";
     }
@@ -11382,9 +11392,35 @@ window.addEventListener("load", init);
     var ty = (d.y - (top + d.gy)) / d.scale;
     g.style.translate = tx.toFixed(2) + "px " + ty.toFixed(2) + "px";
   }
-  function moveDragged(d, hitNode) {
-    var from = boardIndexOf(d.id), to = boardIndexOf(hitNode.getAttribute("data-shipment-id"));
-    if (from < 0 || to < 0 || from === to) return false;
+  // Slots are the card positions as they were when the grab began (card i = slot i, filled
+  // left-right by index). Which slot the pointer is over never depends on how the cards have
+  // since glided around, so the held card can't flip-flop when neighbouring cards differ in height.
+  function dragScrollOffset(d) {
+    var sc = listEl.closest(".board-modal-body");
+    return (sc ? sc.scrollTop * (d.scale || 1) : 0) + (window.pageYOffset || 0);
+  }
+  function snapshotDragSlots(d) {
+    var off = dragScrollOffset(d);
+    d.slots = items.map(function (it) {
+      var g = listEl.querySelector('[data-shipment-id="' + it.id + '"]');
+      if (!g) return null;
+      var r = g.getBoundingClientRect();
+      return { l: r.left, r: r.right, t: r.top + off, b: r.bottom + off };
+    });
+  }
+  function dragSlotAt(d) {
+    if (!d.slots) return -1;
+    var py = d.y + dragScrollOffset(d);
+    for (var i = 0; i < d.slots.length; i++) {
+      var sl = d.slots[i];
+      if (sl && d.x >= sl.l && d.x <= sl.r && py >= sl.t && py <= sl.b) return i;
+    }
+    return -1;
+  }
+  // Insert the held card at index `to`; everything in between shifts by one (no swapping).
+  function moveDraggedTo(d, to) {
+    var from = boardIndexOf(d.id);
+    if (from < 0 || to < 0 || to >= items.length || from === to) return false;
     var others = Array.prototype.filter.call(listEl.querySelectorAll(".board-item-group"), function (n) { return n !== d.group; });
     var first = others.map(function (n) { return n.getBoundingClientRect(); }); // where they look right now
     var moved = items.splice(from, 1)[0];
@@ -11416,18 +11452,9 @@ window.addEventListener("load", init);
       if (v) scroller.scrollTop += Math.max(-18, Math.min(18, v));
     }
     var now = performance.now();
-    var inOwnSlot = d.nat && d.x >= d.nat.left && d.x <= d.nat.right && d.y >= d.nat.top && d.y <= d.nat.bottom;
-    if (!inOwnSlot && now - d.lastSwap > 140 && Math.hypot(d.x - d.swapX, d.y - d.swapY) > 8) {
-      var cards = listEl.querySelectorAll(".board-item-group");
-      for (var i = 0; i < cards.length; i++) {
-        var n = cards[i];
-        if (n === d.group) continue;
-        var r = n.getBoundingClientRect();
-        if (d.x >= r.left && d.x <= r.right && d.y >= r.top && d.y <= r.bottom) {
-          if (moveDragged(d, n)) { d.lastSwap = now; d.swapX = d.x; d.swapY = d.y; }
-          break;
-        }
-      }
+    if (now - d.lastSwap > 90) {
+      var slot = dragSlotAt(d); // -1 = pointer is in a gap: leave things where they are
+      if (slot >= 0 && moveDraggedTo(d, slot)) d.lastSwap = now;
     }
     placeDragged(d);
     d.raf = requestAnimationFrame(function () { dragFrame(d); });
@@ -11442,6 +11469,7 @@ window.addEventListener("load", init);
     d.gy = d.y - rect.top;
     d.active = true;
     d.swapX = d.x; d.swapY = d.y;
+    snapshotDragSlots(d);
     g.classList.add("is-dragging");
     g.style.transformOrigin = (d.gx / d.scale).toFixed(1) + "px " + (d.gy / d.scale).toFixed(1) + "px";
     g.style.transition = "scale .22s cubic-bezier(.2,.8,.2,1)";
@@ -11963,7 +11991,7 @@ window.addEventListener("load", init);
       rm.type = "button";
       rm.className = "t2-remove-btn";
       rm.title = "Remove";
-      rm.innerHTML = "&times;";
+      rm.innerHTML = "&#10005;";
       attachHoldDelete(rm, function () {
         values.splice(idx, 1);
         grow();

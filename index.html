@@ -9,7 +9,7 @@
 
 <style>
 
-/* Oswald (latin, 400) embedded so the board date title renders the same offline / from the shared drive. */
+/* Oswald (latin, 400) embedded sbb apa? sbb boleh! btw url panjang since font emdedding mmng mcm tu*/
 @font-face {
   font-family: "Oswald";
   font-style: normal;
@@ -2443,7 +2443,7 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
   height: 28px;
   border-radius: 6px;
   /* Same rim as the Clear (btn-clear-x) buttons */
-  border: 1px solid rgba(138, 138, 138, 0.45);
+  border: 1px solid rgba(255, 59, 59, 0.4);
   background: transparent;
   color: #d4d4d4;
   cursor: pointer;
@@ -2451,7 +2451,7 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
   line-height: 1;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
-.t2-remove-btn:hover { background: rgba(255, 59, 59, 0.14); border-color: #ff3b3b; color: #ffffff; }
+.t2-remove-btn:hover { background: rgba(255, 59, 59, 0.14); color: #ff3b3b; }
 .calc-row .copy-btn.is-hidden { visibility: hidden; pointer-events: none; }
 
 .output-value-multiline { line-height: 1.5; }
@@ -10663,7 +10663,7 @@ window.addEventListener("load", init);
         listEl2.appendChild(r.row);
       });
       box.appendChild(listEl2);
-      box.appendChild(el("p", "resched-hint", "Only the open Balance moves. Completed (awaiting pickup) and Shipped stay on this date. Unticked PNs stay too - reopen Reschedule to send them to another date."));
+      box.appendChild(el("p", "resched-hint", "Only the available BALANCE moves. COMPLETED (awaiting pickup), SHIPPED and Unticked PNs stay on this date."));
       var err = el("p", "resched-error", msg || "");
       box.appendChild(err);
 

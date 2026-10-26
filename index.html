@@ -1310,6 +1310,13 @@ input.input-warn, input.input-warn:focus {
 .pickslip-row .copy-btn { flex: 0 0 auto; }
 
 .dimension-group { grid-column: 1 / -1; }
+/* Grand-total ("Release Form Text") box: extra gap + divider line to set it
+   apart from the per-pick-slip dimension boxes above it. */
+.dimension-group-total {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #3c3c3c;
+}
 
 .dimension-row {
   display: flex;
@@ -2767,6 +2774,9 @@ body.item-dragging-active { user-select: none; -webkit-user-select: none; }
 .board-item-group.is-view .board-view-table .bv-act { width: 22%; }
 .board-item-group.is-view .board-view-table .bv-ship { width: 10%; }
 .bv-pn-text .bv-pn-qty { color: #4fb2ff; font-weight: 600; }
+/* "RMA" tag for VR-<PN> / <PN>-VR entries (view mode): same font as the PN,
+   not bold, same blue as the "xQty" suffix. */
+.bv-pn-text .bv-pn-rma { color: #4fb2ff; font-weight: 400; }
 
 /* ---- PN status: two stacked circles (outer = document progress, inner = shipped) ---- */
 .board-child-dual { flex: 0 0 auto; display: inline-flex; width: var(--bv-icon); height: var(--bv-icon); }
@@ -3354,7 +3364,16 @@ body.board-sorting, body.board-sorting * { cursor: grabbing !important; -webkit-
       </div>
 
       <div class="card output-card">
-        <h3 class="card-title">Generated Dimensions :</h3>
+        <div class="card-title-row">
+          <h3 class="card-title">Generated Dimensions :</h3>
+          <label class="t2-switch-label" for="t1ConsolidateToggle" title="Same PN, different pick slip: merge into one box (dimensions, weight & qty)">
+            Consolidate
+            <span class="t2-switch">
+              <input type="checkbox" id="t1ConsolidateToggle">
+              <span class="t2-switch-track"></span>
+            </span>
+          </label>
+        </div>
         <div id="dimensionsGrid" class="tile-grid"></div>
       </div>
 
@@ -3732,12 +3751,22 @@ function t2ItemHasInput(it) {
 }
 
 function defaultItem() {
-  return { pn: "", ediBol: "", dimensions: "", weight: "", qty: "1", unit: DEFAULT_UNIT, pickSlip: "" };
+  return { pn: "", pnKey: "", ediBol: "", dimensions: "", weight: "", qty: "1", unit: DEFAULT_UNIT, pickSlip: "" };
+}
+
+/* The PN an item actually IS, for "same PN" decisions (grouping, Consolidate,
+   folder name). pnKey is the full PN resolved from data.csv by the lookup, so
+   "mpb 001" and "288-001" — typed differently, same sheet row — count as the
+   same PN. Falls back to whatever was typed when there's no sheet match. */
+function pnGroupKey(it) {
+  return trim(it.pnKey) || trim(it.pn);
 }
 	
 var SHEET_CSV_URL = "https://raw.githubusercontent.com/Zack9725/Shipping/main/data.csv";
 
 var sheetPnIndex = null;        // number ("002") -> [ {prefix, number, fullPn, dimensions, weight, unit}, ... ] — exact match only
+var sheetEntries = [];          // flat list of every sheet row (prefix, fullPn, dims...) — used by the flexible "slice" lookup
+var sheetPrefixes = {};         // set of known prefixes (upper-case), e.g. { MPB:1, VAA:1, DB:1 }
 var sheetLoadPromise = null;    // one fetch per page load; the refresh button forces a new one (always bypassing the CDN cache)
 var pnLookupTimers = {};
 
@@ -3926,6 +3955,12 @@ function buildSheetIndex(rows) {
     byNumber[e.number].push(e);
   }
   sheetPnIndex = byNumber;
+
+  sheetEntries = entries;
+  sheetPrefixes = {};
+  for (var pi = 0; pi < entries.length; pi++) {
+    if (entries[pi].prefix) sheetPrefixes[entries[pi].prefix.toUpperCase()] = 1;
+  }
 }
 
 function splitPrefixAndNumber(raw) {
@@ -3941,6 +3976,28 @@ function splitPrefixAndNumber(raw) {
 
 function candidatesForNumber(number) {
   return sheetPnIndex[number] || []; // exact match only — PN stands on its own, no leading-zero coercion
+}
+
+/* Flexible fallback lookup: type any distinctive slice of the full PN instead
+   of "prefix + number". e.g. "288-001" finds 925-A16288-001-V-635 (the slice
+   can start mid-segment). An optional leading prefix narrows it down
+   ("mpb 288-001"). Only a unique hit counts — if several PNs contain the
+   slice, the caller warns and the user types a longer slice. */
+function findPnBySlice(raw) {
+  var tokens = trim(raw).split(/\s+/);
+  var prefix = "";
+  if (tokens.length > 1 && sheetPrefixes[tokens[0].toUpperCase()]) {
+    prefix = tokens.shift().toUpperCase();
+  }
+  var needle = normalizeLookupKey(tokens.join(""));
+  if (needle.length < 4) return { match: null, matches: [] }; // too short — would match half the sheet mid-typing
+  var matches = [];
+  for (var i = 0; i < sheetEntries.length; i++) {
+    var e = sheetEntries[i];
+    if (prefix && e.prefix.toUpperCase() !== prefix) continue;
+    if (normalizeLookupKey(e.fullPn).indexOf(needle) !== -1) matches.push(e);
+  }
+  return { match: matches.length === 1 ? matches[0] : null, matches: matches };
 }
 
 function schedulePnLookup(idx, card) {
@@ -3976,6 +4033,7 @@ function applyPnLookupResult(idx, card) {
 
   var rawInput = trim(it.pn);
   if (!rawInput) {
+    it.pnKey = "";
     setInputWarn(pnEl, false);
     setPnWarnIcon(warnIcon, false, "");
     setInputWarn(dimEl, false);
@@ -3986,6 +4044,7 @@ function applyPnLookupResult(idx, card) {
   if (!sheetPnIndex) return; // lookup not configured — leave everything manual, no warnings
 
   var match = null;
+  it.pnKey = ""; // re-resolved below; stays empty when there's no unique sheet match
 
   // Try the raw input as a literal, unsplit key first — covers "as-is" PNs
   // (e.g. special crate parts like "ELS 7310") that don't follow the
@@ -4008,11 +4067,30 @@ function applyPnLookupResult(idx, card) {
     }
   }
 
+  // Flexible fallback — typed a slice of the full PN (e.g. "288-001" or
+  // "mpb 288-001") rather than prefix + number. Runs when the number part
+  // matched nothing, or the input has a dash in it.
+  if (!match && (candidates.length === 0 || rawInput.indexOf("-") !== -1)) {
+    var slice = findPnBySlice(rawInput);
+    if (slice.match) {
+      match = slice.match;
+    } else if (slice.matches.length > 1) {
+      var names = [];
+      for (var sm = 0; sm < slice.matches.length && sm < 4; sm++) names.push(slice.matches[sm].fullPn);
+      setInputWarn(pnEl, true);
+      setPnWarnIcon(warnIcon, true, "Multiple PNs match — type more of it: " + names.join(", ") + (slice.matches.length > 4 ? ", ..." : ""));
+      setInputWarn(dimEl, false);
+      setInputWarn(weightEl, false);
+      return;
+    }
+  }
+
   if (match) {
     setInputWarn(pnEl, false);
     setPnWarnIcon(warnIcon, false, "");
     setInputWarn(dimEl, false);
     setInputWarn(weightEl, false);
+    state.items[idx].pnKey = match.fullPn;
     state.items[idx].dimensions = match.dimensions;
     state.items[idx].weight = formatWeightValue(match.weight);
     if (match.unit) state.items[idx].unit = match.unit;
@@ -4120,7 +4198,8 @@ function defaultShipment() {
     hawb: "",
     scanIds: [""],
     workingDir: liveHandle ? liveHandle.name : getDefaultWorkingDir(),
-    lastSortedFolder: ""
+    lastSortedFolder: "",
+    consolidate: false   // Generated Dimensions: same PN across different pick slips -> one merged box
   };
 }
 
@@ -4172,6 +4251,7 @@ function normalizeShipment(raw) {
             var it = raw.items[i] || {};
             items.push({
                 pn: it.pn || "",
+                pnKey: it.pnKey || "",
                 ediBol: it.ediBol || "",
                 dimensions: it.dimensions || "",
                 weight: it.weight || "",
@@ -4199,7 +4279,8 @@ function normalizeShipment(raw) {
         hawb: raw.hawb || "",
         scanIds: normalizeScanIds(raw.scanIds, raw.scanId),
         workingDir: raw.workingDir || getDefaultWorkingDir(),
-        lastSortedFolder: raw.lastSortedFolder || ""
+        lastSortedFolder: raw.lastSortedFolder || "",
+        consolidate: !!raw.consolidate
     };
 }
 
@@ -4807,7 +4888,20 @@ function uppercaseInPlace(input) {
 function formatPnInPlace(input) {
   var pos = input.selectionStart;
   var solidBefore = input.value.slice(0, pos == null ? input.value.length : pos).replace(/\s/g, "").length;
-  var v = input.value.toUpperCase().replace(/^\s+/, "").replace(/\s{2,}/g, " ").replace(/([A-Z])(?=\d)/g, "$1 ");
+  var v = input.value.toUpperCase().replace(/^\s+/, "").replace(/\s{2,}/g, " ");
+  if (v.indexOf("-") === -1) {
+    // Short form ("MPB001") — auto-space where letters meet digits.
+    v = v.replace(/([A-Z])(?=\d)/g, "$1 ");
+  } else {
+    // A dash means a full / sliced PN ("925-A16288-001-V-635") — leave it as
+    // typed, and undo any auto-space added before the dash showed up
+    // ("A 16288-001" -> "A16288-001"). A known leading prefix keeps its
+    // space ("MPB 288-001").
+    var lead = "", rest = v;
+    var pm = /^([A-Z0-9]+) (.*)$/.exec(v);
+    if (pm && sheetPrefixes[pm[1]]) { lead = pm[1] + " "; rest = pm[2]; }
+    v = lead + rest.replace(/([A-Z])\s+(?=\d)/g, "$1");
+  }
   if (v !== input.value) {
     input.value = v;
     var np = 0, cnt = 0;
@@ -4883,12 +4977,15 @@ function renderUsedPickslipGrid() {
 
 function buildDimensionTile(box) {
   var wrap = document.createElement("div");
-  wrap.className = "dimension-group";
+  wrap.className = "dimension-group" + (box.isTotal ? " dimension-group-total" : "");
 
-  if (box.subtitle) {
+  // box.label = full custom subtitle (e.g. the grand-total box); otherwise
+  // the usual "Pick Slip : <x>" subtitle.
+  var subtitleText = box.label || (box.subtitle ? "Pick Slip : " + box.subtitle : "");
+  if (subtitleText) {
     var subtitle = document.createElement("div");
     subtitle.className = "dimension-group-subtitle";
-    subtitle.textContent = "Pick Slip : " + box.subtitle;
+    subtitle.textContent = subtitleText;
     wrap.appendChild(subtitle);
   }
 
@@ -4926,14 +5023,11 @@ function renderDimensionsGrid(activeItems) {
   for (var i = 0; i < boxes.length; i++) {
     dom.dimensionsGrid.appendChild(buildDimensionTile(boxes[i]));
   }
-  // A consolidated grand-total line only earns its keep once there's more
-  // than one dimension box to summarize — with a single box it would just
-  // repeat that box's own Total line verbatim.
-  if (boxes.length >= 2) {
-    var consolidatedBox = buildConsolidatedTotalBox(activeItems);
-    if (consolidatedBox) {
-      dom.dimensionsGrid.appendChild(buildDimensionTile(consolidatedBox));
-    }
+  // Grand-total box is always appended (even with a single dimension box),
+  // and re-renders live on every recalculate as qty/units grow.
+  var consolidatedBox = buildConsolidatedTotalBox(activeItems);
+  if (consolidatedBox) {
+    dom.dimensionsGrid.appendChild(buildDimensionTile(consolidatedBox));
   }
 }
 
@@ -5196,6 +5290,7 @@ function buildItemCard(item, index, isOnlyCard) {
   pnInput.addEventListener("input", function (e) {
     var idx = Number(card.getAttribute("data-index"));
     state.items[idx].pn = formatPnInPlace(e.target);
+    state.items[idx].pnKey = ""; // typed text changed — old resolved PN is stale until the lookup re-runs
     recalculate();
     schedulePnLookup(idx, card);
   });
@@ -5610,8 +5705,10 @@ function buildFolderName(computedPickSlip, activeItems) {
     var it = activeItems[i];
     var pn = trim(it.pn);
     // Same PN across multiple item cards (e.g. same PN on different pick
-    // slips) is only mentioned once in the folder name.
-    if (pn && !pnSeen.hasOwnProperty(pn)) { pnSeen[pn] = true; pnParts.push(pn); }
+    // slips) is only mentioned once in the folder name — judged by the
+    // resolved PN, so "mpb 001" and "288-001" count as one.
+    var pnId = pnGroupKey(it);
+    if (pn && !pnSeen.hasOwnProperty(pnId)) { pnSeen[pnId] = true; pnParts.push(pn); }
 
     // A card with no PN yet is usually just a placeholder added to attach
     // a second Pick Slip to an item already represented by another card
@@ -5650,16 +5747,19 @@ function buildFolderName(computedPickSlip, activeItems) {
    any number of item cards) still consolidates into one dimension box
    (summed weight & qty), but the same PN entered against a different pick
    slip now gets its own, separate box — each pick slip has its own
-   dimension text even when the PN repeats. Items with no PN each stay
+   dimension text even when the PN repeats. With the Consolidate toggle ON
+   (ignorePickSlip), same PN merges across pick slips too — dimensions,
+   weight and qty combine into one box. Items with no PN each stay
    standalone. */
-function groupItemsByPN(activeItems) {
+function groupItemsByPN(activeItems, ignorePickSlip) {
   var order = [];
   var groups = {};
   for (var i = 0; i < activeItems.length; i++) {
     var it = activeItems[i];
-    var pn = trim(it.pn);
+    var pn = pnGroupKey(it);
     var ps = trim(it.pickSlip);
-    var key = pn ? ("pn:" + pn + "|ps:" + ps) : ("idx:" + i);
+    // Consolidate ON: same PN merges even across different pick slips.
+    var key = pn ? (ignorePickSlip ? ("pn:" + pn) : ("pn:" + pn + "|ps:" + ps)) : ("idx:" + i);
     if (!groups.hasOwnProperty(key)) {
       groups[key] = [];
       order.push(key);
@@ -5684,7 +5784,7 @@ function buildDimensionGroups(activeItems) {
   }
   if (readyItems.length === 0) return [];
 
-  var groupList = groupItemsByPN(readyItems);
+  var groupList = groupItemsByPN(readyItems, !!(state && state.consolidate));
   var boxes = [];
 
   for (var gi = 0; gi < groupList.length; gi++) {
@@ -5778,7 +5878,7 @@ function buildConsolidatedTotalBox(activeItems) {
   if (unitOrder.length === 0) return null;
 
   var html = "Total : " + joinWithAmpersand(sortUnitPartsByPriority(unitSums));
-  return { subtitle: "", html: html, plain: htmlBrToPlain(html) };
+  return { subtitle: "", label: "Release Form Text :", isTotal: true, html: html, plain: htmlBrToPlain(html) };
 }
 
 function formatWeightSum(n) {
@@ -6056,6 +6156,17 @@ function bindClearAll() {
   attachHoldToConfirm(dom.clearAllBtn, dom.clearAllBtnFill, 600, confirmClearAll);
 }
 
+function bindT1Consolidate() {
+  var toggle = document.getElementById("t1ConsolidateToggle");
+  if (!toggle) return;
+  toggle.checked = !!(state && state.consolidate);
+  toggle.addEventListener("change", function (e) {
+    if (!state) return;
+    state.consolidate = e.target.checked;
+    recalculate();
+  });
+}
+
 /* ---- Clear button "page refresh" cosmetic dip ----
    Reuses the same blur+fade used for the Home/Tool nav swap (see the
    WINDOW SWITCHER script's panel-blur-out/in classes on .app-window)
@@ -6109,6 +6220,8 @@ function hydrateFieldsFromState() {
   dom.destination.value = state.destination;
   dom.hawb.value = state.hawb;
   renderT1ScanIdList();
+  var t1ConsolidateToggle = document.getElementById("t1ConsolidateToggle");
+  if (t1ConsolidateToggle) t1ConsolidateToggle.checked = !!state.consolidate;
 
   renderWorkingDir();
 }
@@ -7888,6 +8001,7 @@ function init() {
   safeStep(bindSimpleFields, "bindSimpleFields");
   safeStep(bindStandaloneCopyButtons, "bindStandaloneCopyButtons");
   safeStep(bindClearAll, "bindClearAll");
+  safeStep(bindT1Consolidate, "bindT1Consolidate");
   safeStep(initFileSorter, "initFileSorter");
   safeStep(initTool2, "initTool2");
   safeStep(initTool3, "initTool3");
@@ -10393,6 +10507,20 @@ window.addEventListener("load", init);
     if (text != null) c.textContent = text;
     return c;
   }
+  // A PN typed as "VR-MPB 001" (prefix) or "MPB 001-VR" (suffix) is an RMA PN.
+  // The stored name stays exactly as typed; only view mode reads it as
+  // "RMA MPB 001 x1".
+  function parseRmaPn(name) {
+    var n = cleanText(name);
+    var m = /^VR\s*-\s*(.+)$/i.exec(n) || /^(.+?)\s*-\s*VR$/i.exec(n);
+    var base = m ? cleanText(m[1]) : "";
+    return base ? { rma: true, base: base } : { rma: false, base: n };
+  }
+  function appendPnName(parent, name) {
+    var r = parseRmaPn(name);
+    if (r.rma) parent.appendChild(viewCell("span", "bv-pn-rma", "RMA "));
+    parent.appendChild(viewCell("span", "bv-pn-name", r.base));
+  }
   // Shipment progress = shipped pcs / planned pcs. Plain green bar (fill + outline)
   // with the percentage beside it; grey/empty at 0%.
   function shipmentProgress(it, status) {
@@ -10503,7 +10631,7 @@ window.addEventListener("load", init);
     }
     var txt = document.createElement("span");
     txt.className = "bv-pn-text";
-    txt.appendChild(viewCell("span", "bv-pn-name", child.name));
+    appendPnName(txt, child.name);
     txt.appendChild(viewCell("span", "board-child-qty-suffix bv-pn-qty", " x" + (parseInt(child.planQty, 10) || 0)));
     wrap.appendChild(txt);
     tdPn.appendChild(wrap);
@@ -10885,7 +11013,7 @@ window.addEventListener("load", init);
         // View mode: "VARF 015 x10" — PN then plan qty (blue). The Plan column is hidden in view mode.
         var pnText = document.createElement("span");
         pnText.className = "bv-pn-text";
-        pnText.appendChild(viewCell("span", "bv-pn-name", child.name));
+        appendPnName(pnText, child.name);
         pnText.appendChild(viewCell("span", "board-child-qty-suffix bv-pn-qty", " x" + plan));
         wrap.appendChild(pnText);
       }
